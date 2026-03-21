@@ -1,0 +1,5884 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SIRH-Doc — Super Administrateur</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #0f0f13;
+        --surface: #1a1a22;
+        --surface2: #22222e;
+        --surface3: #2a2a38;
+        --border: #2e2e40;
+        --border2: #3a3a50;
+        --text: #e8e8f0;
+        --text2: #a0a0b8;
+        --text3: #606078;
+        --accent: #6c63ff;
+        --accent-bg: #6c63ff18;
+        --accent-border: #6c63ff40;
+        --accent2: #5548e0;
+        --purple: #9f7aea;
+        --purple-bg: #9f7aea14;
+        --green: #48bb78;
+        --green-bg: #48bb7814;
+        --red: #fc5c5c;
+        --red-bg: #fc5c5c14;
+        --amber: #f6ad55;
+        --amber-bg: #f6ad5514;
+        --blue: #63b3ed;
+        --blue-bg: #63b3ed14;
+        --teal: #4fd1c5;
+        --teal-bg: #4fd1c514;
+        --radius: 6px;
+        --radius-lg: 10px;
+        --radius-xl: 16px;
+        --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.6);
+        --font: "Inter", sans-serif;
+        --mono: "JetBrains Mono", monospace;
+        --sidebar: 72px;
+        --panel: 280px;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 13px;
+      }
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border2);
+        border-radius: 3px;
+      }
+      input,
+      select,
+      textarea,
+      button {
+        font-family: var(--font);
+      }
+
+      /* ── LOADING ── */
+      #loading {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+      }
+      #loading.done {
+        display: none;
+      }
+      .load-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 20px;
+        background: var(--accent-bg);
+        border: 1px solid var(--accent-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+      }
+      .load-title {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+      .load-title span {
+        color: var(--accent);
+      }
+      .load-sub {
+        font-size: 11px;
+        color: var(--text3);
+      }
+      .load-bar {
+        width: 200px;
+        height: 2px;
+        background: var(--border);
+        border-radius: 1px;
+        overflow: hidden;
+      }
+      .load-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--purple));
+        animation: lf 0.9s ease forwards;
+      }
+      @keyframes lf {
+        from {
+          width: 0;
+        }
+        to {
+          width: 100%;
+        }
+      }
+
+      /* ── APP SHELL ── */
+      #app {
+        height: 100vh;
+        display: flex;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      /* ── ICON SIDEBAR ── */
+      .icon-sidebar {
+        width: var(--sidebar);
+        flex-shrink: 0;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 12px 0;
+        gap: 4px;
+      }
+      .app-logo {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        margin-bottom: 16px;
+        flex-shrink: 0;
+      }
+      .icon-nav-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        color: var(--text3);
+        transition: all 0.12s;
+        position: relative;
+      }
+      .icon-nav-btn svg {
+        width: 20px;
+        height: 20px;
+      }
+      .icon-nav-btn span {
+        font-size: 8px;
+        letter-spacing: 0.02em;
+      }
+      .icon-nav-btn:hover {
+        background: var(--surface2);
+        color: var(--text2);
+      }
+      .icon-nav-btn.active {
+        background: var(--accent-bg);
+        color: var(--accent);
+      }
+      .icon-nav-btn .badge {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        min-width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+      }
+      .icon-nav-sep {
+        width: 32px;
+        height: 1px;
+        background: var(--border);
+        margin: 4px 0;
+      }
+      .icon-nav-bottom {
+        margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--purple-bg);
+        border: 1px solid var(--purple);
+        color: var(--purple);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      /* ── LEFT PANEL ── */
+      .left-panel {
+        width: var(--panel);
+        flex-shrink: 0;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .panel-header {
+        padding: 16px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .panel-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text3);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 4px;
+      }
+      .panel-subtitle {
+        font-size: 12px;
+        color: var(--text2);
+      }
+      .panel-search {
+        margin: 10px 12px 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 6px 10px;
+      }
+      .panel-search svg {
+        width: 13px;
+        height: 13px;
+        color: var(--text3);
+        flex-shrink: 0;
+      }
+      .panel-search input {
+        border: none;
+        background: transparent;
+        font: inherit;
+        font-size: 12px;
+        color: var(--text);
+        outline: none;
+        flex: 1;
+      }
+      .panel-search input::placeholder {
+        color: var(--text3);
+      }
+      .panel-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+      }
+
+      /* Items in panel */
+      .list-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: all 0.1s;
+        border: 1px solid transparent;
+        margin-bottom: 2px;
+        user-select: none;
+      }
+      .list-item:hover {
+        background: var(--surface2);
+        border-color: var(--border);
+      }
+      .list-item.active {
+        background: var(--accent-bg);
+        border-color: var(--accent-border);
+      }
+      .list-item-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+        background: var(--surface2);
+      }
+      .list-item.active .list-item-icon {
+        background: var(--accent-bg);
+      }
+      .list-item-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .list-item-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .list-item-meta {
+        font-size: 10px;
+        color: var(--text3);
+        margin-top: 1px;
+      }
+      .list-item-badge {
+        font-size: 9px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 3px;
+        flex-shrink: 0;
+        background: var(--accent-bg);
+        color: var(--accent);
+        border: 1px solid var(--accent-border);
+      }
+      .add-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        margin: 4px 8px;
+        border-radius: var(--radius);
+        border: 1px dashed var(--border2);
+        cursor: pointer;
+        font-size: 11px;
+        color: var(--accent);
+        transition: all 0.12s;
+        background: transparent;
+      }
+      .add-btn:hover {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+      }
+      .add-btn svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      /* ── MAIN CONTENT ── */
+      .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* Tab bar */
+      .tab-bar {
+        height: 44px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        gap: 2px;
+        flex-shrink: 0;
+      }
+      .tab {
+        padding: 6px 14px;
+        border-radius: var(--radius);
+        font-size: 12px;
+        cursor: pointer;
+        color: var(--text3);
+        border: 1px solid transparent;
+        transition: all 0.12s;
+        user-select: none;
+      }
+      .tab:hover {
+        color: var(--text2);
+        background: var(--surface2);
+      }
+      .tab.active {
+        color: var(--accent);
+        background: var(--accent-bg);
+        border-color: var(--accent-border);
+      }
+      .tab-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+
+      /* Content area */
+      .content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+      }
+      .content-panel {
+        display: none;
+      }
+      .content-panel.active {
+        display: block;
+      }
+
+      /* ── CARDS & PANELS ── */
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 16px;
+      }
+      .card-header {
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .card-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .card-title svg {
+        width: 15px;
+        height: 15px;
+      }
+      .card-subtitle {
+        font-size: 11px;
+        color: var(--text3);
+      }
+      .card-body {
+        padding: 18px;
+      }
+
+      /* ── FORM ── */
+      .form-row {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-bottom: 14px;
+      }
+      .form-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text2);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .form-label .req {
+        color: var(--red);
+      }
+      .form-input {
+        padding: 8px 11px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        font: inherit;
+        font-size: 13px;
+        color: var(--text);
+        background: var(--surface2);
+        outline: none;
+        transition: border-color 0.12s;
+      }
+      .form-input:focus {
+        border-color: var(--accent);
+      }
+      .form-input::placeholder {
+        color: var(--text3);
+      }
+      .form-grid {
+        display: grid;
+        gap: 14px;
+      }
+      .form-grid.c2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .form-grid.c3 {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      .form-hint {
+        font-size: 10px;
+        color: var(--text3);
+        margin-top: 3px;
+      }
+      textarea.form-input {
+        min-height: 80px;
+        resize: vertical;
+      }
+
+      /* ── CLASSES & VARS ── */
+      .class-block {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 10px;
+        overflow: hidden;
+      }
+      .class-block-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        background: var(--surface3);
+        border-bottom: 1px solid var(--border);
+      }
+      .class-color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .class-name-input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        outline: none;
+      }
+      .class-name-input::placeholder {
+        color: var(--text3);
+        font-weight: 400;
+      }
+      .color-select {
+        padding: 2px 6px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font: inherit;
+        font-size: 11px;
+        background: var(--surface2);
+        color: var(--text2);
+        outline: none;
+      }
+      .del-cls-btn {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        border: none;
+        background: transparent;
+        color: var(--text3);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .del-cls-btn:hover {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .del-cls-btn svg {
+        width: 12px;
+        height: 12px;
+      }
+
+      .vars-area {
+        padding: 10px 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        min-height: 40px;
+      }
+      .var-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        border: 1px solid;
+        font-size: 11px;
+      }
+      .var-pill-tech {
+        font-family: var(--mono);
+        font-weight: 500;
+      }
+      .var-pill-label {
+        color: var(--text3);
+      }
+      .var-pill-del {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        line-height: 1;
+        color: var(--text3);
+        padding: 0;
+        margin-left: 2px;
+      }
+      .var-pill-del:hover {
+        color: var(--red);
+      }
+      .var-add-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        padding: 6px 14px;
+        border-top: 1px solid var(--border);
+      }
+      .var-input-sm {
+        padding: 4px 8px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font: inherit;
+        font-size: 11px;
+        font-family: var(--mono);
+        background: var(--surface);
+        color: var(--text);
+        outline: none;
+        width: 130px;
+      }
+      .var-input-sm:focus {
+        border-color: var(--accent);
+      }
+      .var-input-sm.label {
+        font-family: var(--font);
+        width: 160px;
+      }
+
+      /* ── SQL EDITOR ── */
+      .sql-wrap {
+        position: relative;
+      }
+      .sql-input {
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.7;
+        background: #0d1117;
+        color: #c9d1d9;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px;
+        min-height: 140px;
+        resize: vertical;
+        width: 100%;
+        outline: none;
+      }
+      .sql-input:focus {
+        border-color: var(--accent);
+      }
+      .sql-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 9px;
+        font-weight: 700;
+        background: #161b22;
+        color: #7c85a0;
+        border: 1px solid #30363d;
+      }
+
+      /* ── TABLES ── */
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .data-table th {
+        padding: 8px 12px;
+        text-align: left;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text3);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface2);
+      }
+      .data-table td {
+        padding: 10px 12px;
+        font-size: 12px;
+        color: var(--text2);
+        border-bottom: 1px solid var(--border);
+      }
+      .data-table tr:last-child td {
+        border-bottom: none;
+      }
+      .data-table tr:hover td {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .data-table td strong {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      /* ── BUTTONS ── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 7px 14px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text2);
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        transition: all 0.12s;
+        white-space: nowrap;
+      }
+      .btn:hover {
+        border-color: var(--border2);
+        background: var(--surface3);
+        color: var(--text);
+      }
+      .btn svg {
+        width: 13px;
+        height: 13px;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .btn.primary:hover {
+        background: var(--accent2);
+        border-color: var(--accent2);
+      }
+      .btn.success {
+        background: var(--green);
+        color: #0a1a10;
+        border-color: var(--green);
+      }
+      .btn.success:hover {
+        filter: brightness(1.1);
+      }
+      .btn.danger {
+        background: var(--red-bg);
+        color: var(--red);
+        border-color: var(--red);
+      }
+      .btn.danger:hover {
+        background: var(--red);
+        color: #fff;
+      }
+      .btn.ghost {
+        border-color: transparent;
+        background: transparent;
+      }
+      .btn.ghost:hover {
+        background: var(--surface2);
+      }
+      .btn.sm {
+        padding: 4px 10px;
+        font-size: 11px;
+      }
+      .btn.icon {
+        padding: 6px;
+        width: 30px;
+        height: 30px;
+        justify-content: center;
+      }
+
+      /* ── CHIPS ── */
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 600;
+      }
+      .chip-purple {
+        background: var(--purple-bg);
+        color: var(--purple);
+      }
+      .chip-green {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .chip-blue {
+        background: var(--blue-bg);
+        color: var(--blue);
+      }
+      .chip-amber {
+        background: var(--amber-bg);
+        color: var(--amber);
+      }
+      .chip-red {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .chip-teal {
+        background: var(--teal-bg);
+        color: var(--teal);
+      }
+
+      /* ── EMPTY STATE ── */
+      .empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 56px 24px;
+        text-align: center;
+      }
+      .empty svg {
+        width: 48px;
+        height: 48px;
+        color: var(--text3);
+      }
+      .empty h3 {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text2);
+      }
+      .empty p {
+        font-size: 12px;
+        color: var(--text3);
+        max-width: 300px;
+        line-height: 1.6;
+      }
+
+      /* ── MODAL ── */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.6);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 24px;
+        width: 90%;
+        max-width: 520px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-lg);
+      }
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+      .modal-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .modal-close {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: none;
+        background: var(--surface2);
+        color: var(--text3);
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-close:hover {
+        background: var(--surface3);
+        color: var(--text);
+      }
+      .modal-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+      }
+
+      /* ── TOAST ── */
+      .toast-stack {
+        position: fixed;
+        bottom: 24px;
+        right: 20px;
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: var(--radius-lg);
+        font-size: 12px;
+        box-shadow: var(--shadow);
+        animation: tin 0.2s ease;
+        min-width: 220px;
+      }
+      .toast.success {
+        border-color: var(--green);
+        color: var(--green);
+      }
+      .toast.error {
+        border-color: var(--red);
+        color: var(--red);
+      }
+      .toast.info {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      @keyframes tin {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ── NAV LINKS ── */
+      .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: var(--radius);
+        font-size: 11px;
+        color: var(--text3);
+        text-decoration: none;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        background: var(--surface2);
+        transition: all 0.12s;
+      }
+      .nav-link:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: var(--accent-bg);
+      }
+      .nav-link svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      /* ── STATS CARDS ── */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+      }
+      .stat-num {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 2px;
+      }
+      .stat-label {
+        font-size: 11px;
+        color: var(--text3);
+      }
+      .stat-card.purple .stat-num {
+        color: var(--purple);
+      }
+      .stat-card.green .stat-num {
+        color: var(--green);
+      }
+      .stat-card.blue .stat-num {
+        color: var(--blue);
+      }
+      .stat-card.amber .stat-num {
+        color: var(--amber);
+      }
+
+      /* ── TOP BAR ── */
+      .topbar {
+        height: 44px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .topbar-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .topbar-sep {
+        color: var(--text3);
+        font-size: 11px;
+      }
+
+      /* ── MISC ── */
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 14px 0;
+      }
+      .flex {
+        display: flex;
+        align-items: center;
+      }
+      .gap-6 {
+        gap: 6px;
+      }
+      .gap-8 {
+        gap: 8px;
+      }
+      .gap-12 {
+        gap: 12px;
+      }
+      .ml-auto {
+        margin-left: auto;
+      }
+      .text-muted {
+        color: var(--text3);
+        font-size: 11px;
+      }
+      .fw-6 {
+        font-weight: 600;
+      }
+      .section-heading {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text3);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">
+      <div class="load-icon">⚙️</div>
+      <div class="load-title">SIRH<span>-Doc</span></div>
+      <div class="load-sub">Interface Super Administrateur</div>
+      <div class="load-bar"><div class="load-fill"></div></div>
+    </div>
+
+    <div id="app">
+      <!-- Icon sidebar -->
+      <div class="icon-sidebar">
+        <div class="app-logo">📋</div>
+        <button
+          class="icon-nav-btn active"
+          id="nav-families"
+          onclick="showSection('families', this)"
+          title="Familles"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="2" y="3" width="7" height="7" rx="1" />
+            <rect x="9" y="3" width="7" height="7" rx="1" />
+            <rect x="2" y="12" width="7" height="7" rx="1" />
+            <rect x="9" y="12" width="7" height="7" rx="1" />
+          </svg>
+          <span>Familles</span>
+        </button>
+        <button
+          class="icon-nav-btn"
+          id="nav-etablissements"
+          onclick="showSection('etablissements', this)"
+          title="Établissements"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <span>Étab.</span>
+        </button>
+        <button
+          class="icon-nav-btn"
+          id="nav-admins"
+          onclick="showSection('admins', this)"
+          title="Administrateurs"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 00-3-3.87" />
+            <path d="M16 3.13a4 4 0 010 7.75" />
+          </svg>
+          <span>Admins</span>
+        </button>
+        <div class="icon-nav-sep"></div>
+        <button
+          class="icon-nav-btn"
+          id="nav-dashboard"
+          onclick="showSection('dashboard', this)"
+          title="Tableau de bord"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+          </svg>
+          <span>Board</span>
+        </button>
+        <div class="icon-nav-bottom">
+          <div class="icon-nav-sep" style="width: 32px"></div>
+          <div class="user-avatar" title="Super Admin">SA</div>
+        </div>
+      </div>
+
+      <!-- Left panel -->
+      <div class="left-panel" id="leftPanel">
+        <div class="panel-header">
+          <div class="panel-title" id="panelTitle">Familles de documents</div>
+          <div class="panel-subtitle" id="panelSubtitle">
+            Structure globale du système
+          </div>
+        </div>
+        <div class="panel-search">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            id="searchInput"
+            placeholder="Rechercher..."
+            oninput="filterList()"
+          />
+        </div>
+        <div class="add-btn" id="addBtn" onclick="addItem()">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span id="addBtnLabel">Nouvelle famille</span>
+        </div>
+        <div class="panel-scroll" id="panelList"></div>
+      </div>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="topbar">
+          <span class="chip chip-purple">SUPER ADMIN</span>
+          <div class="topbar-sep">/</div>
+          <span class="topbar-title" id="topbarTitle"
+            >Gestion des familles</span
+          >
+          <div class="ml-auto flex gap-8">
+            <a class="nav-link" href="admin.html">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              Admin Établissement
+            </a>
+            <a class="nav-link" href="user.html">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+              </svg>
+              Utilisateur Final
+            </a>
+          </div>
+        </div>
+
+        <div class="content">
+          <!-- Families -->
+          <div class="content-panel active" id="panel-families">
+            <div id="familyEditorWrap">
+              <div class="empty">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="2" y="3" width="7" height="7" rx="1" />
+                  <rect x="9" y="3" width="7" height="7" rx="1" />
+                  <rect x="2" y="12" width="7" height="7" rx="1" />
+                  <rect x="9" y="12" width="7" height="7" rx="1" />
+                </svg>
+                <h3>Sélectionnez une famille</h3>
+                <p>
+                  Choisissez une famille dans le panneau gauche ou créez-en une
+                  nouvelle.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Établissements -->
+          <div class="content-panel" id="panel-etablissements">
+            <div class="section-heading">Établissements gérés</div>
+            <div id="etabContent"></div>
+          </div>
+
+          <!-- Admins -->
+          <div class="content-panel" id="panel-admins">
+            <div class="section-heading">Administrateurs d'établissements</div>
+            <div id="adminContent"></div>
+          </div>
+
+          <!-- Dashboard -->
+          <div class="content-panel" id="panel-dashboard">
+            <div class="section-heading">Vue d'ensemble</div>
+            <div id="dashboardContent"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: confirm delete -->
+    <div class="modal-overlay" id="modalConfirm">
+      <div class="modal" style="max-width: 420px">
+        <div class="modal-header">
+          <span class="modal-title" id="confirmTitle"
+            >Confirmer la suppression</span
+          >
+          <button class="modal-close" onclick="closeModal('modalConfirm')">
+            ✕
+          </button>
+        </div>
+        <p
+          style="font-size: 13px; color: var(--text2); line-height: 1.6"
+          id="confirmMsg"
+        >
+          Cette action est irréversible.
+        </p>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeModal('modalConfirm')">
+            Annuler
+          </button>
+          <button class="btn danger" id="confirmBtn">Supprimer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: add/edit établissement -->
+    <div class="modal-overlay" id="modalEtab">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" id="etabModalTitle"
+            >Nouvel établissement</span
+          >
+          <button class="modal-close" onclick="closeModal('modalEtab')">
+            ✕
+          </button>
+        </div>
+        <div class="form-grid c2">
+          <div class="form-row" style="margin: 0">
+            <label class="form-label">Nom <span class="req">*</span></label
+            ><input
+              class="form-input"
+              id="etabNom"
+              placeholder="Ex: ISET Tunis"
+            />
+          </div>
+          <div class="form-row" style="margin: 0">
+            <label class="form-label">Ville</label
+            ><input class="form-input" id="etabVille" placeholder="Tunis" />
+          </div>
+        </div>
+        <div class="form-row" style="margin-top: 14px">
+          <label class="form-label">Adresse</label
+          ><input
+            class="form-input"
+            id="etabAdresse"
+            placeholder="Adresse complète"
+          />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Téléphone</label
+          ><input class="form-input" id="etabTel" placeholder="+216 ..." />
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeModal('modalEtab')">Annuler</button>
+          <button class="btn primary" onclick="saveEtab()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: add/edit admin -->
+    <div class="modal-overlay" id="modalAdmin">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" id="adminModalTitle"
+            >Nouvel administrateur</span
+          >
+          <button class="modal-close" onclick="closeModal('modalAdmin')">
+            ✕
+          </button>
+        </div>
+        <div class="form-grid c2">
+          <div class="form-row" style="margin: 0">
+            <label class="form-label"
+              >Nom complet <span class="req">*</span></label
+            ><input class="form-input" id="adminNom" placeholder="Prénom Nom" />
+          </div>
+          <div class="form-row" style="margin: 0">
+            <label class="form-label">E-mail</label
+            ><input
+              class="form-input"
+              id="adminEmail"
+              type="email"
+              placeholder="email@etab.tn"
+            />
+          </div>
+        </div>
+        <div class="form-row" style="margin-top: 14px">
+          <label class="form-label"
+            >Établissement assigné <span class="req">*</span></label
+          >
+          <select class="form-input" id="adminEtab">
+            <option value="">— Choisir —</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeModal('modalAdmin')">
+            Annuler
+          </button>
+          <button class="btn primary" onclick="saveAdmin()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-stack" id="toastStack"></div>
+    <script src="shared.js"></script>
+    <script>
+      // ═══════════════════════════════════════════
+      //  STATE
+      // ═══════════════════════════════════════════
+      let currentSection = "families";
+      let selectedFamId = null;
+      let editingEtabId = null;
+      let editingAdminId = null;
+      let confirmCallback = null;
+
+      // ═══════════════════════════════════════════
+      //  SECTIONS
+      // ═══════════════════════════════════════════
+      const SECTION_META = {
+        families: {
+          title: "Gestion des familles",
+          panelTitle: "Familles de documents",
+          addLabel: "Nouvelle famille",
+          topbar: "Gestion des familles",
+        },
+        etablissements: {
+          title: "Établissements",
+          panelTitle: "Établissements",
+          addLabel: "Nouvel établissement",
+          topbar: "Gestion des établissements",
+        },
+        admins: {
+          title: "Administrateurs",
+          panelTitle: "Administrateurs",
+          addLabel: "Nouvel administrateur",
+          topbar: "Gestion des administrateurs",
+        },
+        dashboard: {
+          title: "Dashboard",
+          panelTitle: "Tableau de bord",
+          addLabel: null,
+          topbar: "Tableau de bord",
+        },
+      };
+
+      function showSection(section, btn) {
+        currentSection = section;
+        document
+          .querySelectorAll(".icon-nav-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        document
+          .querySelectorAll(".content-panel")
+          .forEach((p) => p.classList.remove("active"));
+        document.getElementById("panel-" + section).classList.add("active");
+        const meta = SECTION_META[section];
+        document.getElementById("panelTitle").textContent = meta.panelTitle;
+        document.getElementById("topbarTitle").textContent = meta.topbar;
+        document.getElementById("addBtnLabel").textContent =
+          meta.addLabel || "";
+        document.getElementById("addBtn").style.display = meta.addLabel
+          ? ""
+          : "none";
+        document.getElementById("searchInput").value = "";
+        renderLeftPanel();
+        if (section === "etablissements") renderEtabContent();
+        if (section === "admins") renderAdminContent();
+        if (section === "dashboard") renderDashboard();
+      }
+
+      // ═══════════════════════════════════════════
+      //  LEFT PANEL
+      // ═══════════════════════════════════════════
+      function renderLeftPanel() {
+        const search = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+        const list = document.getElementById("panelList");
+        list.innerHTML = "";
+
+        if (currentSection === "families") {
+          DB.getFamilies()
+            .filter((f) => f.nom.toLowerCase().includes(search))
+            .forEach((fam) => {
+              const tplCount = DB.getTemplates(fam.id).length;
+              const item = document.createElement("div");
+              item.className =
+                "list-item" + (selectedFamId === fam.id ? " active" : "");
+              item.innerHTML = `<div class="list-item-icon">${fam.icon}</div><div class="list-item-body"><div class="list-item-name">${fam.nom}</div><div class="list-item-meta">${fam.classes?.length || 0} classes · ${tplCount} templates</div></div><span class="list-item-badge">${tplCount}</span>`;
+              item.onclick = () => {
+                selectedFamId = fam.id;
+                renderLeftPanel();
+                renderFamilyEditor(fam.id);
+              };
+              list.appendChild(item);
+            });
+        }
+        if (currentSection === "etablissements") {
+          DB.getEtablissements()
+            .filter((e) => e.nom.toLowerCase().includes(search))
+            .forEach((etab) => {
+              const item = document.createElement("div");
+              item.className = "list-item";
+              item.innerHTML = `<div class="list-item-icon">🏛️</div><div class="list-item-body"><div class="list-item-name">${etab.nom}</div><div class="list-item-meta">${etab.ville}</div></div>`;
+              list.appendChild(item);
+            });
+        }
+        if (currentSection === "admins") {
+          DB.getAdmins()
+            .filter((a) => a.nom.toLowerCase().includes(search))
+            .forEach((admin) => {
+              const etab = DB.getEtablissement(admin.etablissementId);
+              const item = document.createElement("div");
+              item.className = "list-item";
+              item.innerHTML = `<div class="list-item-icon" style="font-size:13px;font-weight:700;color:var(--purple)">${admin.nom
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .substring(
+                  0,
+                  2,
+                )}</div><div class="list-item-body"><div class="list-item-name">${admin.nom}</div><div class="list-item-meta">${etab?.nom || "—"}</div></div>`;
+              list.appendChild(item);
+            });
+        }
+      }
+
+      function filterList() {
+        renderLeftPanel();
+      }
+
+      function addItem() {
+        if (currentSection === "families") newFamily();
+        if (currentSection === "etablissements") openEtabModal();
+        if (currentSection === "admins") openAdminModal();
+      }
+
+      // ═══════════════════════════════════════════
+      //  FAMILY EDITOR
+      // ═══════════════════════════════════════════
+      function newFamily() {
+        const id = genId("fam");
+        DB.saveFamily({
+          id,
+          nom: "Nouvelle famille",
+          icon: "📄",
+          description: "",
+          classes: [{ nom: "Personnel", couleur: "#6c63ff", vars: [] }],
+          sql: "SELECT * FROM table WHERE id = :id",
+          createdAt: new Date().toISOString(),
+        });
+        selectedFamId = id;
+        renderLeftPanel();
+        renderFamilyEditor(id);
+        toast("Famille créée", "success");
+      }
+
+      function renderFamilyEditor(famId) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        const templates = DB.getTemplates(famId);
+        const wrap = document.getElementById("familyEditorWrap");
+        wrap.innerHTML = `
+    <div class="flex gap-8" style="margin-bottom:20px">
+      <div>
+        <div class="flex gap-8 align-items:center">
+          <span style="font-size:24px">${fam.icon}</span>
+          <div>
+            <div style="font-size:18px;font-weight:700;color:var(--text)">${fam.nom}</div>
+            <div class="text-muted">${fam.id} · créé le ${new Date(fam.createdAt).toLocaleDateString("fr-FR")}</div>
+          </div>
+        </div>
+      </div>
+      <div class="ml-auto flex gap-8">
+        <button class="btn danger" onclick="deleteFamilyConfirm('${famId}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+          Supprimer
+        </button>
+        <button class="btn success" onclick="saveFamily('${famId}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+          Enregistrer tout
+        </button>
+      </div>
+    </div>
+
+    <!-- Infos générales -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Informations générales
+        </div>
+        <span class="chip chip-purple">Famille</span>
+      </div>
+      <div class="card-body">
+        <div class="form-grid c3">
+          <div class="form-row" style="margin:0">
+            <label class="form-label">Nom <span class="req">*</span></label>
+            <input class="form-input" id="fNom" value="${fam.nom}" placeholder="Ex: Attestation de travail">
+          </div>
+          <div class="form-row" style="margin:0">
+            <label class="form-label">Description</label>
+            <input class="form-input" id="fDesc" value="${fam.description || ""}" placeholder="Description courte">
+          </div>
+          <div class="form-row" style="margin:0">
+            <label class="form-label">Icône (emoji)</label>
+            <input class="form-input" id="fIcon" value="${fam.icon}" placeholder="📋" style="text-align:center;font-size:20px">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Classes & Variables -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+          Classes & Variables
+        </div>
+        <div class="text-muted">${fam.classes.reduce((a, c) => a + c.vars.length, 0)} variables définies</div>
+      </div>
+      <div class="card-body">
+        <div id="classesContainer"></div>
+        <button class="btn" style="margin-top:6px" onclick="addClassBlock('${famId}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Ajouter une classe
+        </button>
+      </div>
+    </div>
+
+    <!-- SQL -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          Requête SQL principale
+        </div>
+        <div class="flex gap-8">
+          <span class="chip chip-teal">SELECT automatique à la génération</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="text-muted" style="margin-bottom:10px">Les paramètres :nom_param seront substitués automatiquement lors de la génération du document.</p>
+        <div class="sql-wrap">
+          <textarea class="sql-input" id="fSql" rows="9">${fam.sql || ""}</textarea>
+          <div class="sql-badge">SQL</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Templates associés -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Templates associés
+        </div>
+        <span class="chip chip-green">${templates.length} template(s)</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        ${
+          templates.length === 0
+            ? '<div class="text-muted" style="padding:16px;text-align:center">Aucun template — créez-en depuis l\'interface Admin Établissement</div>'
+            : `<table class="data-table">
+              <thead><tr><th>Nom</th><th>Établissement</th><th>Mis à jour</th><th>Statut</th></tr></thead>
+              <tbody>${templates
+                .map((t) => {
+                  const etab = DB.getEtablissement(t.etablissementId);
+                  return `<tr><td><strong>${t.nom}</strong></td><td>${etab?.nom || "—"}</td><td>${new Date(t.updatedAt).toLocaleDateString("fr-FR")}</td><td><span class="chip chip-green">Publié</span></td></tr>`;
+                })
+                .join("")}</tbody>
+            </table>`
+        }
+      </div>
+    </div>
+  `;
+        renderClassesContainer(famId);
+      }
+
+      function renderClassesContainer(famId) {
+        const fam = DB.getFamily(famId);
+        const container = document.getElementById("classesContainer");
+        if (!container || !fam) return;
+        container.innerHTML = "";
+        fam.classes.forEach((cls, ci) => {
+          const block = document.createElement("div");
+          block.className = "class-block";
+          block.innerHTML = `
+      <div class="class-block-header">
+        <div class="class-color-dot" style="background:${cls.couleur}"></div>
+        <input class="class-name-input" value="${cls.nom}" placeholder="Nom de la classe" onchange="updateClassProp('${famId}',${ci},'nom',this.value)">
+        <select class="color-select" onchange="updateClassProp('${famId}',${ci},'couleur',this.value)">
+          ${["#6c63ff", "#48bb78", "#9f7aea", "#f6ad55", "#fc5c5c", "#63b3ed", "#4fd1c5", "#ed8936"].map((c) => `<option value="${c}" ${cls.couleur === c ? "selected" : ""}>${c}</option>`).join("")}
+        </select>
+        <button class="del-cls-btn" onclick="deleteClassBlock('${famId}',${ci})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        </button>
+      </div>
+      <div class="vars-area" id="vars_${ci}">
+        ${cls.vars
+          .map(
+            (v, vi) => `
+          <div class="var-pill" style="background:${cls.couleur}15;border-color:${cls.couleur}40;color:${cls.couleur}">
+            <span class="var-pill-tech">{{${v.tech}}}</span>
+            <span class="var-pill-label">→ ${v.label}</span>
+            <button class="var-pill-del" onclick="deleteVar('${famId}',${ci},${vi})">×</button>
+          </div>`,
+          )
+          .join("")}
+      </div>
+      <div class="var-add-row">
+        <input class="var-input-sm" id="vt_${ci}" placeholder="nom_technique">
+        <input class="var-input-sm label" id="vl_${ci}" placeholder="Nom lisible pour l'admin">
+        <button class="btn sm primary" onclick="addVar('${famId}',${ci})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Ajouter
+        </button>
+      </div>
+    `;
+          container.appendChild(block);
+        });
+      }
+
+      function saveFamily(famId) {
+        const fam = DB.getFamily(famId);
+        fam.nom = document.getElementById("fNom")?.value || fam.nom;
+        fam.description = document.getElementById("fDesc")?.value || "";
+        fam.icon = document.getElementById("fIcon")?.value || "📄";
+        fam.sql = document.getElementById("fSql")?.value || "";
+        DB.saveFamily(fam);
+        renderLeftPanel();
+        toast("Famille enregistrée", "success");
+      }
+
+      function deleteFamilyConfirm(famId) {
+        const fam = DB.getFamily(famId);
+        document.getElementById("confirmTitle").textContent =
+          "Supprimer la famille ?";
+        document.getElementById("confirmMsg").textContent =
+          `La famille "${fam.nom}" et tous ses templates (${DB.getTemplates(famId).length}) seront supprimés. Cette action est irréversible.`;
+        confirmCallback = () => {
+          DB.deleteFamily(famId);
+          selectedFamId = null;
+          renderLeftPanel();
+          document.getElementById("familyEditorWrap").innerHTML =
+            `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg><h3>Famille supprimée</h3></div>`;
+          closeModal("modalConfirm");
+          toast("Famille supprimée");
+        };
+        document.getElementById("confirmBtn").onclick = confirmCallback;
+        openModal("modalConfirm");
+      }
+
+      function updateClassProp(famId, ci, prop, val) {
+        const fam = DB.getFamily(famId);
+        fam.classes[ci][prop] = val;
+        DB.saveFamily(fam);
+        if (prop === "couleur") renderClassesContainer(famId);
+      }
+
+      function addClassBlock(famId) {
+        const fam = DB.getFamily(famId);
+        fam.classes.push({
+          nom: "Nouvelle classe",
+          couleur: "#6c63ff",
+          vars: [],
+        });
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+      }
+
+      function deleteClassBlock(famId, ci) {
+        const fam = DB.getFamily(famId);
+        fam.classes.splice(ci, 1);
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+      }
+
+      function addVar(famId, ci) {
+        const tech = document
+          .getElementById(`vt_${ci}`)
+          ?.value.trim()
+          .replace(/\s/g, "_");
+        const label = document.getElementById(`vl_${ci}`)?.value.trim();
+        if (!tech || !label) {
+          toast("Remplissez les deux champs", "error");
+          return;
+        }
+        const fam = DB.getFamily(famId);
+        fam.classes[ci].vars.push({ tech, label });
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        document.getElementById(`vt_${ci}`).value = "";
+        document.getElementById(`vl_${ci}`).value = "";
+      }
+
+      function deleteVar(famId, ci, vi) {
+        const fam = DB.getFamily(famId);
+        fam.classes[ci].vars.splice(vi, 1);
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+      }
+
+      // ═══════════════════════════════════════════
+      //  ÉTABLISSEMENTS
+      // ═══════════════════════════════════════════
+      function renderEtabContent() {
+        const etabs = DB.getEtablissements();
+        document.getElementById("etabContent").innerHTML = `
+    <div class="flex gap-8" style="margin-bottom:16px">
+      <button class="btn primary" onclick="openEtabModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nouvel établissement
+      </button>
+    </div>
+    <div class="card" style="padding:0">
+      <table class="data-table">
+        <thead><tr><th>Établissement</th><th>Ville</th><th>Adresse</th><th>Téléphone</th><th>Administrateur</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${etabs
+            .map((etab) => {
+              const admin = DB.getAdmins().find(
+                (a) => a.etablissementId === etab.id,
+              );
+              return `<tr>
+              <td><strong>${etab.nom}</strong></td>
+              <td>${etab.ville || "—"}</td>
+              <td>${etab.adresse || "—"}</td>
+              <td>${etab.tel || "—"}</td>
+              <td>${admin ? `<span class="chip chip-green">${admin.nom}</span>` : '<span class="chip chip-amber">Non assigné</span>'}</td>
+              <td class="flex gap-6">
+                <button class="btn sm" onclick="openEtabModal('${etab.id}')">Modifier</button>
+                <button class="btn sm danger" onclick="deleteEtabConfirm('${etab.id}')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                </button>
+              </td>
+            </tr>`;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+      }
+
+      function openEtabModal(id = null) {
+        editingEtabId = id;
+        const etab = id ? DB.getEtablissement(id) : null;
+        document.getElementById("etabModalTitle").textContent = id
+          ? "Modifier l'établissement"
+          : "Nouvel établissement";
+        document.getElementById("etabNom").value = etab?.nom || "";
+        document.getElementById("etabVille").value = etab?.ville || "";
+        document.getElementById("etabAdresse").value = etab?.adresse || "";
+        document.getElementById("etabTel").value = etab?.tel || "";
+        openModal("modalEtab");
+      }
+
+      function saveEtab() {
+        const nom = document.getElementById("etabNom").value.trim();
+        if (!nom) {
+          toast("Le nom est requis", "error");
+          return;
+        }
+        const etab = {
+          id: editingEtabId || genId("etab"),
+          nom,
+          ville: document.getElementById("etabVille").value,
+          adresse: document.getElementById("etabAdresse").value,
+          tel: document.getElementById("etabTel").value,
+        };
+        DB.saveEtablissement(etab);
+        closeModal("modalEtab");
+        renderEtabContent();
+        renderLeftPanel();
+        toast(
+          `Établissement ${editingEtabId ? "mis à jour" : "créé"}`,
+          "success",
+        );
+      }
+
+      function deleteEtabConfirm(id) {
+        const etab = DB.getEtablissement(id);
+        document.getElementById("confirmTitle").textContent =
+          "Supprimer l'établissement ?";
+        document.getElementById("confirmMsg").textContent =
+          `"${etab.nom}" et son administrateur associé seront supprimés.`;
+        document.getElementById("confirmBtn").onclick = () => {
+          DB.deleteEtablissement(id);
+          closeModal("modalConfirm");
+          renderEtabContent();
+          renderLeftPanel();
+          toast("Établissement supprimé");
+        };
+        openModal("modalConfirm");
+      }
+
+      // ═══════════════════════════════════════════
+      //  ADMINS
+      // ═══════════════════════════════════════════
+      function renderAdminContent() {
+        const admins = DB.getAdmins();
+        document.getElementById("adminContent").innerHTML = `
+    <div class="flex gap-8" style="margin-bottom:16px">
+      <button class="btn primary" onclick="openAdminModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nouvel administrateur
+      </button>
+    </div>
+    <div class="card" style="padding:0">
+      <table class="data-table">
+        <thead><tr><th>Nom</th><th>E-mail</th><th>Établissement</th><th>Familles accès</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${admins
+            .map((a) => {
+              const etab = DB.getEtablissement(a.etablissementId);
+              return `<tr>
+              <td><strong>${a.nom}</strong></td>
+              <td>${a.email || "—"}</td>
+              <td>${etab ? `<span class="chip chip-blue">${etab.nom}</span>` : '<span class="chip chip-amber">—</span>'}</td>
+              <td><span class="chip chip-purple">${DB.getFamilies().length} famille(s)</span></td>
+              <td class="flex gap-6">
+                <button class="btn sm" onclick="openAdminModal('${a.id}')">Modifier</button>
+                <button class="btn sm danger" onclick="deleteAdminConfirm('${a.id}')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                </button>
+              </td>
+            </tr>`;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+      }
+
+      function openAdminModal(id = null) {
+        editingAdminId = id;
+        const admin = id ? DB.getAdmin(id) : null;
+        document.getElementById("adminModalTitle").textContent = id
+          ? "Modifier l'administrateur"
+          : "Nouvel administrateur";
+        document.getElementById("adminNom").value = admin?.nom || "";
+        document.getElementById("adminEmail").value = admin?.email || "";
+        const sel = document.getElementById("adminEtab");
+        sel.innerHTML = '<option value="">— Choisir —</option>';
+        DB.getEtablissements().forEach((e) => {
+          const opt = document.createElement("option");
+          opt.value = e.id;
+          opt.textContent = e.nom;
+          if (admin?.etablissementId === e.id) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        openModal("modalAdmin");
+      }
+
+      function saveAdmin() {
+        const nom = document.getElementById("adminNom").value.trim();
+        const etabId = document.getElementById("adminEtab").value;
+        if (!nom || !etabId) {
+          toast("Nom et établissement requis", "error");
+          return;
+        }
+        DB.saveAdmin({
+          id: editingAdminId || genId("admin"),
+          nom,
+          email: document.getElementById("adminEmail").value,
+          etablissementId: etabId,
+        });
+        closeModal("modalAdmin");
+        renderAdminContent();
+        renderLeftPanel();
+        toast(
+          `Administrateur ${editingAdminId ? "mis à jour" : "créé"}`,
+          "success",
+        );
+      }
+
+      function deleteAdminConfirm(id) {
+        const admin = DB.getAdmin(id);
+        document.getElementById("confirmTitle").textContent =
+          "Supprimer l'administrateur ?";
+        document.getElementById("confirmMsg").textContent =
+          `"${admin.nom}" sera supprimé.`;
+        document.getElementById("confirmBtn").onclick = () => {
+          DB.deleteAdmin(id);
+          closeModal("modalConfirm");
+          renderAdminContent();
+          renderLeftPanel();
+          toast("Admin supprimé");
+        };
+        openModal("modalConfirm");
+      }
+
+      // ═══════════════════════════════════════════
+      //  DASHBOARD
+      // ═══════════════════════════════════════════
+      function renderDashboard() {
+        const fams = DB.getFamilies(),
+          tpls = DB.get().templates,
+          etabs = DB.getEtablissements(),
+          admins = DB.getAdmins();
+        document.getElementById("dashboardContent").innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card purple"><div class="stat-num">${fams.length}</div><div class="stat-label">Familles de documents</div></div>
+      <div class="stat-card green"><div class="stat-num">${tpls.length}</div><div class="stat-label">Templates créés</div></div>
+      <div class="stat-card blue"><div class="stat-num">${etabs.length}</div><div class="stat-label">Établissements</div></div>
+      <div class="stat-card amber"><div class="stat-num">${admins.length}</div><div class="stat-label">Administrateurs</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Familles et leurs templates</div></div>
+      <div class="card-body" style="padding:0">
+        <table class="data-table">
+          <thead><tr><th>Famille</th><th>Classes</th><th>Variables</th><th>Templates</th><th>Créée le</th></tr></thead>
+          <tbody>${fams
+            .map(
+              (f) => `<tr>
+            <td><span style="font-size:16px">${f.icon}</span> <strong>${f.nom}</strong></td>
+            <td>${f.classes?.length || 0}</td>
+            <td>${f.classes?.reduce((a, c) => a + c.vars.length, 0) || 0}</td>
+            <td>${DB.getTemplates(f.id).length}</td>
+            <td>${new Date(f.createdAt).toLocaleDateString("fr-FR")}</td>
+          </tr>`,
+            )
+            .join("")}</tbody>
+        </table>
+      </div>
+    </div>`;
+      }
+
+      // ═══════════════════════════════════════════
+      //  INIT
+      // ═══════════════════════════════════════════
+      window.addEventListener("DOMContentLoaded", () => {
+        if (!localStorage.getItem(STORE_KEY)) DB.seed();
+        renderLeftPanel();
+        setTimeout(() => {
+          document.getElementById("loading").classList.add("done");
+          document.getElementById("app").style.opacity = "1";
+        }, 700);
+      });
+
+      document.addEventListener("click", (e) => {
+        if (e.target.classList.contains("modal-overlay"))
+          e.target.classList.remove("open");
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape")
+          document
+            .querySelectorAll(".modal-overlay.open")
+            .forEach((m) => m.classList.remove("open"));
+      });
+    </script>
+  </body>
+</html>
+
+
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SIRH-Doc — Éditeur Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600&family=Tajawal:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #f2f2ee;
+        --surface: #fff;
+        --surface2: #f7f7f4;
+        --surface3: #eeeeea;
+        --border: #ddddd8;
+        --border2: #c8c8c2;
+        --text: #1c1c1a;
+        --text2: #56564f;
+        --text3: #96968e;
+        --accent: #1a56db;
+        --accent-bg: #ebf0ff;
+        --accent-bdr: #bfcef8;
+        --green: #0f7b3f;
+        --green-bg: #ecfdf3;
+        --green-bdr: #a7f3c9;
+        --red: #c81d1d;
+        --red-bg: #fff1f1;
+        --amber: #a96300;
+        --amber-bg: #fffbeb;
+        --purple: #5b21b6;
+        --purple-bg: #f5f3ff;
+        --teal: #0e7490;
+        --teal-bg: #ecfeff;
+        --r: 5px;
+        --rlg: 9px;
+        --rxl: 13px;
+        --sh: 0 1px 3px rgba(0, 0, 0, 0.07), 0 4px 14px rgba(0, 0, 0, 0.05);
+        --shlg: 0 8px 32px rgba(0, 0, 0, 0.12);
+        --font: "Inter", sans-serif;
+        --mono: "JetBrains Mono", monospace;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 13px;
+      }
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border2);
+        border-radius: 3px;
+      }
+      input,
+      select,
+      textarea,
+      button {
+        font-family: var(--font);
+      }
+
+      /* LOADING */
+      #loading {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+      }
+      #loading.done {
+        display: none;
+      }
+      .ll {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+      }
+      .ll span {
+        color: var(--accent);
+      }
+      .lb {
+        width: 190px;
+        height: 3px;
+        background: var(--border);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .lbf {
+        height: 100%;
+        background: var(--accent);
+        animation: lf 0.75s ease forwards;
+      }
+      @keyframes lf {
+        from {
+          width: 0;
+        }
+        to {
+          width: 100%;
+        }
+      }
+
+      /* APP SHELL */
+      #app {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      /* TOP NAV */
+      .tnav {
+        height: 44px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        gap: 10px;
+        flex-shrink: 0;
+        z-index: 200;
+      }
+      .tlogo {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .tlogo span {
+        color: var(--accent);
+      }
+      .tsep {
+        width: 1px;
+        height: 20px;
+        background: var(--border);
+      }
+      .tchip {
+        padding: 2px 9px;
+        border-radius: 20px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        background: var(--green-bg);
+        color: var(--green);
+        border: 1px solid var(--green-bdr);
+      }
+      .tetab {
+        font-size: 11px;
+        color: var(--text2);
+      }
+      .tright {
+        margin-left: auto;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .nlink {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 9px;
+        border-radius: var(--r);
+        font-size: 11px;
+        color: var(--text3);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        text-decoration: none;
+        transition: all 0.12s;
+      }
+      .nlink:hover {
+        border-color: var(--border2);
+        color: var(--text);
+      }
+      .nlink svg {
+        width: 11px;
+        height: 11px;
+      }
+
+      /* RIBBON TABS */
+      .rtabs {
+        height: 34px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        padding: 0 10px;
+        flex-shrink: 0;
+        z-index: 190;
+      }
+      .rtab {
+        padding: 0 13px;
+        font-size: 12px;
+        cursor: pointer;
+        color: var(--text3);
+        border-bottom: 2px solid transparent;
+        display: flex;
+        align-items: center;
+        transition: all 0.12s;
+        user-select: none;
+      }
+      .rtab:hover {
+        color: var(--text2);
+      }
+      .rtab.on {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+        font-weight: 500;
+      }
+      .rtab-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 4px;
+      }
+
+      /* RIBBON PANELS */
+      .rpanels {
+        background: var(--surface2);
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+        min-height: 72px;
+        position: relative;
+        z-index: 180;
+      }
+      .rpanel {
+        display: none;
+        padding: 5px 10px;
+        align-items: center;
+        gap: 3px;
+        flex-wrap: wrap;
+        min-height: 72px;
+      }
+      .rpanel.on {
+        display: flex;
+      }
+
+      /* Ribbon groups */
+      .rgrp {
+        display: flex;
+        align-items: stretch;
+        gap: 2px;
+        padding: 0 8px;
+        border-right: 1px solid var(--border);
+        position: relative;
+      }
+      .rgrp:last-child {
+        border-right: none;
+      }
+      .rgrp-label {
+        position: absolute;
+        bottom: -17px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 8px;
+        color: var(--text3);
+        white-space: nowrap;
+        letter-spacing: 0.04em;
+      }
+
+      /* Ribbon buttons */
+      .rb {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        padding: 4px 7px;
+        border-radius: var(--r);
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        color: var(--text2);
+        font: inherit;
+        font-size: 10px;
+        min-width: 34px;
+        transition: all 0.1s;
+        user-select: none;
+      }
+      .rb svg {
+        width: 18px;
+        height: 18px;
+      }
+      .rb:hover {
+        background: var(--surface3);
+        color: var(--text);
+      }
+      .rb.on {
+        background: var(--accent-bg);
+        color: var(--accent);
+      }
+      .rb.lg svg {
+        width: 22px;
+        height: 22px;
+      }
+      .rb.lg {
+        padding: 4px 10px;
+        min-width: 44px;
+      }
+
+      /* Ribbon selects & inputs */
+      .rsel {
+        padding: 3px 20px 3px 7px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        font: inherit;
+        font-size: 11px;
+        color: var(--text);
+        background: var(--surface);
+        outline: none;
+        cursor: pointer;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 0l4.5 5L9 0z' fill='%23999'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 5px center;
+        max-width: 140px;
+      }
+      .rsel:focus {
+        border-color: var(--accent);
+        outline: none;
+      }
+      .rcolor {
+        position: relative;
+        padding: 4px 7px;
+        border-radius: var(--r);
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        font: inherit;
+        font-size: 10px;
+        color: var(--text2);
+      }
+      .rcolor:hover {
+        background: var(--surface3);
+      }
+      .rcolor svg {
+        width: 18px;
+        height: 18px;
+      }
+      .rcolor-bar {
+        height: 3px;
+        width: 18px;
+        border-radius: 2px;
+        transition: background 0.15s;
+      }
+
+      /* Color picker popup */
+      .cpop {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rlg);
+        padding: 10px;
+        display: none;
+        z-index: 300;
+        box-shadow: var(--shlg);
+        width: 196px;
+      }
+      .cpop.on {
+        display: block;
+      }
+      .cswatches {
+        display: grid;
+        grid-template-columns: repeat(8, 22px);
+        gap: 3px;
+        margin-bottom: 7px;
+      }
+      .cswatch {
+        width: 22px;
+        height: 22px;
+        border-radius: 3px;
+        cursor: pointer;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        transition: transform 0.1s;
+      }
+      .cswatch:hover {
+        transform: scale(1.2);
+      }
+      .cpop input[type="color"] {
+        width: 100%;
+        height: 26px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      /* Ribbon number input */
+      .rnuminput {
+        width: 48px;
+        padding: 3px 6px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        font: inherit;
+        font-size: 11px;
+        text-align: center;
+        color: var(--text);
+        background: var(--surface);
+        outline: none;
+      }
+      .rnuminput:focus {
+        border-color: var(--accent);
+      }
+      .rb-sep {
+        width: 1px;
+        background: var(--border);
+        align-self: stretch;
+        margin: 4px 1px;
+      }
+
+      /* MAIN AREA */
+      .main-area {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* SIDEBAR */
+      .sidebar {
+        width: 248px;
+        flex-shrink: 0;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: width 0.2s;
+      }
+      .sidebar.closed {
+        width: 0;
+      }
+      .sbsec {
+        padding: 8px 11px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .sblabel {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--text3);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 7px;
+      }
+      .famsel {
+        width: 100%;
+        padding: 6px 26px 6px 9px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        font: inherit;
+        font-size: 12px;
+        color: var(--text);
+        background: var(--surface2);
+        outline: none;
+        cursor: pointer;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 0l4.5 5L9 0z' fill='%23999'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 7px center;
+        transition: border-color 0.12s;
+      }
+      .famsel:focus {
+        border-color: var(--accent);
+        outline: none;
+      }
+      .tpl-add {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        margin: 5px 7px;
+        border: 1px dashed var(--border2);
+        border-radius: var(--r);
+        cursor: pointer;
+        font-size: 11px;
+        color: var(--green);
+        transition: all 0.12s;
+      }
+      .tpl-add:hover {
+        background: var(--green-bg);
+        border-color: var(--green);
+      }
+      .tpl-add svg {
+        width: 12px;
+        height: 12px;
+      }
+      .tpl-scroll {
+        flex: 1;
+        overflow-y: auto;
+      }
+      .tpl-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 9px 11px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        transition: all 0.1s;
+        position: relative;
+      }
+      .tpl-item:hover {
+        background: var(--surface2);
+      }
+      .tpl-item.on {
+        background: var(--accent-bg);
+        border-left: 3px solid var(--accent);
+      }
+      .tpl-icon {
+        font-size: 15px;
+        margin-top: 1px;
+        flex-shrink: 0;
+      }
+      .tpl-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .tpl-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tpl-meta {
+        font-size: 10px;
+        color: var(--text3);
+        margin-top: 2px;
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+      .tpl-del {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text3);
+        opacity: 0;
+        transition: opacity 0.1s;
+      }
+      .tpl-item:hover .tpl-del {
+        opacity: 1;
+      }
+      .tpl-del:hover {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .tpl-del svg {
+        width: 10px;
+        height: 10px;
+      }
+      .vars-area {
+        border-top: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .vars-scroll {
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 5px 7px;
+      }
+      .vc-hdr {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 5px;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        cursor: pointer;
+        border-radius: 4px;
+        user-select: none;
+        margin-bottom: 1px;
+      }
+      .vc-hdr:hover {
+        background: var(--surface2);
+      }
+      .vchips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        padding: 2px 5px 6px;
+      }
+      .vchip {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        padding: 2px 7px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-family: var(--mono);
+        cursor: pointer;
+        transition: all 0.1s;
+        user-select: none;
+        border: 1px solid;
+        white-space: nowrap;
+      }
+      .vchip:hover {
+        filter: brightness(0.88);
+      }
+
+      /* EDITOR ZONE */
+      .ed-zone {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* Template name bar */
+      .tname-bar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 6px 12px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex-shrink: 0;
+      }
+      .tname-input {
+        flex: 1;
+        border: 1px solid transparent;
+        border-radius: var(--r);
+        padding: 4px 8px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        outline: none;
+        background: transparent;
+      }
+      .tname-input:hover {
+        background: var(--surface2);
+        border-color: var(--border);
+      }
+      .tname-input:focus {
+        background: var(--accent-bg);
+        border-color: var(--accent-bdr);
+      }
+      .save-st {
+        font-size: 10px;
+        color: var(--text3);
+      }
+      .save-st.mod {
+        color: var(--amber);
+      }
+
+      /* Page canvas */
+      .pcanvas {
+        flex: 1;
+        overflow: auto;
+        padding: 20px;
+        background: var(--bg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+      }
+
+      /* Page document */
+      .pdoc {
+        background: #fff;
+        width: 794px;
+        transform-origin: top center;
+        flex-shrink: 0;
+        position: relative;
+      }
+      .pdoc.shadow {
+        box-shadow:
+          0 2px 8px rgba(0, 0, 0, 0.1),
+          0 8px 24px rgba(0, 0, 0, 0.07);
+      }
+
+      /* Header/footer sections */
+      .psec {
+        position: relative;
+      }
+      .psec-lbl {
+        position: absolute;
+        left: -78px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 8px;
+        color: var(--text3);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+        text-align: right;
+        width: 72px;
+        pointer-events: none;
+      }
+      .hdr-line {
+        border-bottom: 1.5px dashed #ccc;
+      }
+      .ftr-line {
+        border-top: 1.5px dashed #ccc;
+      }
+      .sec-focus {
+        outline: 2px solid var(--accent-bdr) !important;
+      }
+
+      /* Quill overrides */
+      .ql-container.ql-snow {
+        border: none !important;
+        font-family: var(--font);
+      }
+      .ql-toolbar.ql-snow {
+        display: none !important;
+      }
+      .ql-editor {
+        padding: 10px 20px !important;
+        min-height: 44px;
+        font-size: 13px;
+        line-height: 1.75;
+        color: #1c1c1a;
+      }
+      .ql-editor.ql-blank::before {
+        font-style: normal !important;
+        color: #bbb;
+        font-size: 12px;
+      }
+      #eq-body .ql-editor {
+        min-height: 520px;
+        padding: 32px 52px !important;
+        font-size: 14px;
+      }
+
+      /* Page number overlay */
+      .page-num-overlay {
+        text-align: center;
+        padding: 4px;
+        font-size: 10px;
+        color: var(--text3);
+        user-select: none;
+        pointer-events: none;
+        display: none;
+      }
+
+      /* BUTTONS */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        border-radius: var(--r);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text2);
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        transition: all 0.12s;
+        white-space: nowrap;
+      }
+      .btn:hover {
+        border-color: var(--border2);
+        background: var(--surface3);
+        color: var(--text);
+      }
+      .btn svg {
+        width: 12px;
+        height: 12px;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .btn.primary:hover {
+        background: #1447b5;
+      }
+      .btn.success {
+        background: var(--green);
+        color: #fff;
+        border-color: var(--green);
+      }
+      .btn.success:hover {
+        filter: brightness(1.08);
+      }
+      .btn.danger {
+        background: var(--red-bg);
+        color: var(--red);
+        border-color: var(--red);
+      }
+      .btn.danger:hover {
+        background: var(--red);
+        color: #fff;
+      }
+      .btn.ghost {
+        border-color: transparent;
+        background: transparent;
+      }
+      .btn.ghost:hover {
+        background: var(--surface2);
+      }
+      .btn.sm {
+        padding: 3px 9px;
+        font-size: 11px;
+      }
+
+      /* MODALS */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.32);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(3px);
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rxl);
+        padding: 22px;
+        width: 90%;
+        max-width: 620px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: var(--shlg);
+      }
+      .modal-sm {
+        max-width: 420px;
+      }
+      .mhdr {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .mtitle {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .mclose {
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+        border: none;
+        background: var(--surface2);
+        color: var(--text3);
+        cursor: pointer;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .mclose:hover {
+        background: var(--surface3);
+      }
+      .mactions {
+        display: flex;
+        gap: 7px;
+        justify-content: flex-end;
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+      }
+      .frow {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+      .flabel {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text2);
+      }
+      .finput {
+        padding: 7px 10px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        font: inherit;
+        font-size: 13px;
+        color: var(--text);
+        background: var(--surface);
+        outline: none;
+        transition: border-color 0.12s;
+      }
+      .finput:focus {
+        border-color: var(--accent);
+      }
+      .fgrid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      /* Table style modal */
+      .table-grid-cells {
+        display: grid;
+        grid-template-columns: repeat(8, 28px);
+        gap: 3px;
+        margin-bottom: 10px;
+      }
+      .tgcell {
+        width: 28px;
+        height: 28px;
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.08s;
+      }
+      .tgcell.hi {
+        background: var(--accent-bg);
+        border-color: var(--accent-bdr);
+      }
+
+      /* Border style options */
+      .border-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        margin-bottom: 12px;
+      }
+      .border-opt {
+        border: 2px solid var(--border);
+        border-radius: var(--r);
+        padding: 7px;
+        cursor: pointer;
+        text-align: center;
+        font-size: 10px;
+        transition: all 0.1s;
+      }
+      .border-opt:hover,
+      .border-opt.sel {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+        color: var(--accent);
+      }
+      .border-preview {
+        height: 28px;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Image modal */
+      .img-preview-wrap {
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        overflow: hidden;
+        margin-bottom: 12px;
+        background: var(--surface2);
+        min-height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .img-preview-wrap img {
+        max-width: 100%;
+        max-height: 200px;
+        display: block;
+      }
+
+      /* PREVIEW */
+      .preview-doc {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 36px 44px;
+        font-size: 14px;
+        line-height: 1.8;
+        color: #1c1c1a;
+        min-height: 300px;
+      }
+      .preview-doc .var-resolved {
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .preview-doc .var-missing {
+        color: var(--red);
+        background: var(--red-bg);
+        padding: 0 3px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-style: italic;
+      }
+      .preview-doc table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      .preview-doc td,
+      .preview-doc th {
+        border: 1px solid #ddd;
+        padding: 8px;
+      }
+      .preview-doc th {
+        background: #f5f7ff;
+        color: #1a56db;
+        font-weight: 600;
+      }
+      .preview-doc hr {
+        border: none;
+        border-top: 1px solid #eee;
+        margin: 10px 0;
+      }
+
+      /* TOAST */
+      .toast-stack {
+        position: fixed;
+        bottom: 22px;
+        right: 18px;
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .toast {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 14px;
+        background: var(--text);
+        color: #fff;
+        border-radius: var(--rlg);
+        font-size: 12px;
+        box-shadow: var(--shlg);
+        animation: ti 0.18s ease;
+        min-width: 190px;
+      }
+      .toast.success {
+        background: #135c30;
+      }
+      .toast.error {
+        background: #a31a1a;
+      }
+      .toast.info {
+        background: var(--accent);
+      }
+      @keyframes ti {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* STATUS BAR */
+      .statusbar {
+        height: 22px;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 14px;
+        font-size: 10px;
+        color: var(--text3);
+        flex-shrink: 0;
+      }
+      .sb-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+      }
+      .sb-dot.ok {
+        background: var(--green);
+      }
+      .sb-dot.mod {
+        background: var(--amber);
+      }
+
+      /* Context menu */
+      .ctxmenu {
+        position: fixed;
+        z-index: 5000;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rlg);
+        padding: 4px;
+        box-shadow: var(--shlg);
+        min-width: 170px;
+        display: none;
+      }
+      .ctxmenu.on {
+        display: block;
+      }
+      .ctx-item {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 10px;
+        border-radius: var(--r);
+        cursor: pointer;
+        font-size: 12px;
+        color: var(--text2);
+        transition: all 0.08s;
+      }
+      .ctx-item:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .ctx-item.danger:hover {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .ctx-item svg {
+        width: 13px;
+        height: 13px;
+        opacity: 0.7;
+      }
+      .ctx-sep {
+        height: 1px;
+        background: var(--border);
+        margin: 3px 0;
+      }
+      .ctx-kbd {
+        margin-left: auto;
+        font-size: 9px;
+        color: var(--text3);
+        font-family: var(--mono);
+      }
+
+      /* EMPTY STATE */
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 52px 24px;
+        text-align: center;
+        flex: 1;
+      }
+      .empty-state svg {
+        width: 44px;
+        height: 44px;
+        color: var(--border2);
+      }
+      .empty-state h3 {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text2);
+      }
+      .empty-state p {
+        font-size: 12px;
+        color: var(--text3);
+        max-width: 260px;
+        line-height: 1.6;
+      }
+
+      /* Print */
+      @media print {
+        .tnav,
+        .rtabs,
+        .rpanels,
+        .sidebar,
+        .tname-bar,
+        .statusbar,
+        .modal-overlay,
+        .toast-stack,
+        .psec-lbl,
+        .ctxmenu {
+          display: none !important;
+        }
+        .main-area,
+        .ed-zone {
+          display: block !important;
+        }
+        .pcanvas {
+          padding: 0 !important;
+          background: #fff !important;
+          overflow: visible !important;
+        }
+        .pdoc {
+          box-shadow: none !important;
+          transform: none !important;
+          width: 100% !important;
+        }
+        #eq-body .ql-editor {
+          min-height: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">
+      <div class="ll">SIRH<span>-Doc</span></div>
+      <div style="font-size: 11px; color: #888">Chargement de l'éditeur...</div>
+      <div class="lb"><div class="lbf"></div></div>
+    </div>
+
+    <div id="app">
+      <!-- TOP NAV -->
+      <nav class="tnav">
+        <div class="tlogo">SIRH<span>-Doc</span></div>
+        <div class="tsep"></div>
+        <span class="tchip">ADMIN ETABLISSEMENT</span>
+        <span class="tetab" id="navEtab">ISET Tunis</span>
+        <div class="tright">
+          <button
+            class="btn ghost sm"
+            id="sidebarToggleBtn"
+            onclick="toggleSidebar()"
+            title="Afficher/masquer panneau"
+            style="padding: 4px"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="1" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+            </svg>
+          </button>
+          <a class="nlink" href="superadmin.html">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M12 1l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" />
+            </svg>
+            Super Admin
+          </a>
+          <a class="nlink" href="user.html">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+            </svg>
+            Utilisateur Final
+          </a>
+        </div>
+      </nav>
+
+      <!-- RIBBON TABS -->
+      <div class="rtabs" id="ribbonTabs">
+        <div class="rtab on" onclick="showRibbon('accueil', this)">Accueil</div>
+        <div class="rtab" onclick="showRibbon('insertion', this)">
+          Insertion
+        </div>
+        <div class="rtab" onclick="showRibbon('tableau', this)">Tableau</div>
+        <div class="rtab" onclick="showRibbon('mise_en_page', this)">
+          Mise en page
+        </div>
+        <div class="rtab" onclick="showRibbon('variables', this)">
+          Variables
+        </div>
+        <div class="rtab-right">
+          <button class="btn ghost sm" onclick="undoAction()">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 14 4 9 9 4" />
+              <path d="M20 20v-7a4 4 0 00-4-4H4" />
+            </svg>
+          </button>
+          <button class="btn ghost sm" onclick="redoAction()">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="15 14 20 9 15 4" />
+              <path d="M4 20v-7a4 4 0 014-4h12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- RIBBON PANELS -->
+      <div class="rpanels">
+        <!-- ACCUEIL -->
+        <div class="rpanel on" id="rp-accueil">
+          <div class="rgrp">
+            <button
+              class="rb lg"
+              id="rb-bold"
+              onclick="fmt('bold')"
+              title="Gras Ctrl+B"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <path d="M6 4h8a4 4 0 010 8H6z" />
+                <path d="M6 12h9a4 4 0 010 8H6z" />
+              </svg>
+              Gras
+            </button>
+            <button
+              class="rb lg"
+              id="rb-italic"
+              onclick="fmt('italic')"
+              title="Italique Ctrl+I"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="19" y1="4" x2="10" y2="4" />
+                <line x1="14" y1="20" x2="5" y2="20" />
+                <line x1="15" y1="4" x2="9" y2="20" />
+              </svg>
+              Italique
+            </button>
+            <button
+              class="rb lg"
+              id="rb-underline"
+              onclick="fmt('underline')"
+              title="Souligné Ctrl+U"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M6 3v7a6 6 0 0012 0V3" />
+                <line x1="4" y1="21" x2="20" y2="21" />
+              </svg>
+              Souligné
+            </button>
+            <button class="rb lg" id="rb-strike" onclick="fmt('strike')">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <path
+                  d="M16 6C16 6 14.5 4 12 4c-2.5 0-4 1.5-4 3 0 3 4 3.5 4 3.5"
+                />
+              </svg>
+              Barré
+            </button>
+            <div class="rgrp-label">Police</div>
+          </div>
+
+          <div
+            class="rgrp"
+            style="flex-direction: column; justify-content: center; gap: 5px"
+          >
+            <div style="display: flex; gap: 4px; align-items: center">
+              <select
+                class="rsel"
+                id="sel-font"
+                onchange="applyFont(this.value)"
+                style="max-width: 150px"
+              >
+                <option value="">Police standard</option>
+                <option value="Inter">Inter</option>
+                <option value="Georgia">Georgia</option>
+                <option value="'Times New Roman'">Times New Roman</option>
+                <option value="Arial">Arial</option>
+                <option value="Verdana">Verdana</option>
+                <option value="'Courier New'">Courier New</option>
+                <option value="Amiri">Amiri (عربي)</option>
+                <option value="Cairo">Cairo (عربي)</option>
+                <option value="Tajawal">Tajawal (عربي)</option>
+              </select>
+              <select
+                class="rsel"
+                id="sel-size"
+                onchange="applySize(this.value)"
+                style="max-width: 70px"
+              >
+                <option value="">Taille</option>
+                <option value="10px">10</option>
+                <option value="11px">11</option>
+                <option value="12px">12</option>
+                <option value="13px">13</option>
+                <option value="14px" selected>14</option>
+                <option value="16px">16</option>
+                <option value="18px">18</option>
+                <option value="20px">20</option>
+                <option value="24px">24</option>
+                <option value="28px">28</option>
+                <option value="36px">36</option>
+              </select>
+            </div>
+            <div style="display: flex; gap: 4px; align-items: center">
+              <div class="rcolor" onclick="toggleCpop('cpop-text', event)">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M4 20h4l10.5-10.5a2.121 2.121 0 00-3-3L5 17v3z" />
+                </svg>
+                <div
+                  class="rcolor-bar"
+                  id="bar-text"
+                  style="background: #1c1c1a"
+                ></div>
+                <div class="cpop" id="cpop-text">
+                  <div
+                    style="
+                      font-size: 10px;
+                      color: var(--text3);
+                      margin-bottom: 6px;
+                    "
+                  >
+                    Couleur du texte
+                  </div>
+                  <div class="cswatches" id="sw-text"></div>
+                  <input
+                    type="color"
+                    id="cc-text"
+                    onchange="applyColor('text', this.value)"
+                  />
+                </div>
+              </div>
+              <div class="rcolor" onclick="toggleCpop('cpop-bg', event)">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" fill="none" />
+                  <path d="M3 9h18M9 21V9" stroke-width="1.5" />
+                </svg>
+                <div
+                  class="rcolor-bar"
+                  id="bar-bg"
+                  style="
+                    background: transparent;
+                    border: 1px solid var(--border);
+                  "
+                ></div>
+                <div class="cpop" id="cpop-bg">
+                  <div
+                    style="
+                      font-size: 10px;
+                      color: var(--text3);
+                      margin-bottom: 6px;
+                    "
+                  >
+                    Surligneur
+                  </div>
+                  <div class="cswatches" id="sw-bg"></div>
+                  <input
+                    type="color"
+                    id="cc-bg"
+                    onchange="applyColor('bg', this.value)"
+                  />
+                </div>
+              </div>
+              <button
+                class="rb"
+                onclick="clearFmt()"
+                title="Effacer mise en forme"
+                style="min-width: 28px"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  style="width: 14px; height: 14px"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+              <div class="rgrp-label">Caractère</div>
+            </div>
+          </div>
+
+          <div class="rgrp">
+            <button class="rb" id="rb-al" onclick="align('left')">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="15" y2="12" />
+                <line x1="3" y1="18" x2="18" y2="18" />
+              </svg>
+              Gauche
+            </button>
+            <button class="rb" id="rb-ac" onclick="align('center')">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="6" y1="12" x2="18" y2="12" />
+                <line x1="4" y1="18" x2="20" y2="18" />
+              </svg>
+              Centre
+            </button>
+            <button class="rb" id="rb-ar" onclick="align('right')">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="9" y1="12" x2="21" y2="12" />
+                <line x1="6" y1="18" x2="21" y2="18" />
+              </svg>
+              Droite
+            </button>
+            <button class="rb" id="rb-aj" onclick="align('justify')">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+              Justifié
+            </button>
+            <div class="rgrp-label">Alignement</div>
+          </div>
+
+          <div class="rgrp">
+            <button class="rb" id="rb-bul" onclick="fmt('list', 'bullet')">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="9" y1="6" x2="20" y2="6" />
+                <line x1="9" y1="12" x2="20" y2="12" />
+                <line x1="9" y1="18" x2="20" y2="18" />
+                <circle cx="4" cy="6" r="1.2" fill="currentColor" />
+                <circle cx="4" cy="12" r="1.2" fill="currentColor" />
+                <circle cx="4" cy="18" r="1.2" fill="currentColor" />
+              </svg>
+              Puces
+            </button>
+            <button class="rb" id="rb-ord" onclick="fmt('list', 'ordered')">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="10" y1="6" x2="21" y2="6" />
+                <line x1="10" y1="12" x2="21" y2="12" />
+                <line x1="10" y1="18" x2="21" y2="18" />
+                <path d="M4 6h1v4M4 10h2" />
+              </svg>
+              Numérotée
+            </button>
+            <button class="rb" onclick="indent(-1)" title="Diminuer retrait">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="11 17 6 12 11 7" />
+                <line x1="18" y1="12" x2="6" y2="12" />
+              </svg>
+              Ret-
+            </button>
+            <button class="rb" onclick="indent(1)" title="Augmenter retrait">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="13 17 18 12 13 7" />
+                <line x1="6" y1="12" x2="18" y2="12" />
+              </svg>
+              Ret+
+            </button>
+            <div class="rgrp-label">Paragraphe</div>
+          </div>
+
+          <div
+            class="rgrp"
+            style="flex-direction: column; justify-content: center; gap: 5px"
+          >
+            <select
+              class="rsel"
+              id="sel-heading"
+              onchange="applyHeading(this.value)"
+            >
+              <option value="">Style de texte</option>
+              <option value="1">Titre 1</option>
+              <option value="2">Titre 2</option>
+              <option value="3">Titre 3</option>
+              <option value="blockquote">Citation</option>
+              <option value="code">Code</option>
+              <option value="">Normal</option>
+            </select>
+            <select
+              class="rsel"
+              id="sel-lineh"
+              onchange="applyLineHeight(this.value)"
+            >
+              <option value="1.4">Interligne 1.4</option>
+              <option value="1.6">Interligne 1.6</option>
+              <option value="1.75" selected>Interligne 1.75</option>
+              <option value="2">Interligne double</option>
+              <option value="2.5">Interligne 2.5</option>
+            </select>
+            <div class="rgrp-label">Style</div>
+          </div>
+        </div>
+
+        <!-- INSERTION -->
+        <div class="rpanel" id="rp-insertion">
+          <div class="rgrp">
+            <button class="rb lg" onclick="openImgModal()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 22px; height: 22px"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              Image
+            </button>
+            <button class="rb lg" onclick="openLinkModal()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 22px; height: 22px"
+              >
+                <path
+                  d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"
+                />
+                <path
+                  d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"
+                />
+              </svg>
+              Lien
+            </button>
+            <button class="rb lg" onclick="insHR()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 22px; height: 22px"
+              >
+                <line x1="3" y1="12" x2="21" y2="12" />
+              </svg>
+              Ligne
+            </button>
+            <div class="rgrp-label">Objets</div>
+          </div>
+          <div class="rgrp">
+            <button class="rb lg" onclick="insSignature()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 22px; height: 22px"
+              >
+                <path d="M20 20H7L3 16l9.5-9.5" />
+                <path d="M15 3l6 6" />
+                <path d="M14 7l2-2 3 3-2 2" />
+              </svg>
+              Signature
+            </button>
+            <button class="rb lg" onclick="insCachet()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 22px; height: 22px"
+              >
+                <path d="M22 11v1a10 10 0 11-9-9.95" />
+                <path d="M22 5L12 15l-3-3" />
+              </svg>
+              Cachet
+            </button>
+            <button class="rb lg" onclick="insPageBreak()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 22px; height: 22px"
+              >
+                <line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="4 2" />
+                <path d="M8 8l-5 5 5 5" />
+                <path d="M16 8l5 5-5 5" />
+              </svg>
+              Saut page
+            </button>
+            <div class="rgrp-label">Éléments institutionnels</div>
+          </div>
+          <div class="rgrp">
+            <button class="rb" onclick="insDate()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              Date
+            </button>
+            <button class="rb" onclick="insNumPage()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M9 9h1v6m0-6H8m0 6h2" />
+              </svg>
+              N° page
+            </button>
+            <div class="rgrp-label">Spéciaux</div>
+          </div>
+        </div>
+
+        <!-- TABLEAU -->
+        <div class="rpanel" id="rp-tableau">
+          <div class="rgrp">
+            <button class="rb lg" onclick="openTableModal()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 22px; height: 22px"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="1" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+                <line x1="3" y1="15" x2="21" y2="15" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+                <line x1="15" y1="3" x2="15" y2="21" />
+              </svg>
+              Tableau
+            </button>
+            <div class="rgrp-label">Insérer</div>
+          </div>
+          <div
+            class="rgrp"
+            style="flex-direction: column; justify-content: center; gap: 5px"
+          >
+            <div style="display: flex; gap: 4px">
+              <select class="rsel" id="sel-bdr-style" style="max-width: 110px">
+                <option value="solid 1px">Plein 1px</option>
+                <option value="solid 2px">Plein 2px</option>
+                <option value="solid 3px">Plein 3px</option>
+                <option value="dashed 1px">Tirets</option>
+                <option value="dotted 1px">Pointillés</option>
+                <option value="double 3px">Double</option>
+                <option value="none">Aucune</option>
+              </select>
+              <div
+                class="rcolor"
+                onclick="toggleCpop('cpop-bdr', event)"
+                title="Couleur bordure"
+                style="min-width: 28px; padding: 3px 6px"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  style="width: 14px; height: 14px"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="1" />
+                </svg>
+                <div
+                  class="rcolor-bar"
+                  id="bar-bdr"
+                  style="background: #000"
+                ></div>
+                <div class="cpop" id="cpop-bdr" style="width: 180px">
+                  <div class="cswatches" id="sw-bdr"></div>
+                  <input
+                    type="color"
+                    id="cc-bdr"
+                    value="#000000"
+                    onchange="
+                      document.getElementById('bar-bdr').style.background =
+                        this.value
+                    "
+                  />
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 3px">
+              <button
+                class="btn sm"
+                onclick="applyTableBorder('all')"
+                title="Toutes bordures"
+              >
+                Toutes
+              </button>
+              <button
+                class="btn sm"
+                onclick="applyTableBorder('outer')"
+                title="Bordures ext."
+              >
+                Ext.
+              </button>
+              <button
+                class="btn sm"
+                onclick="applyTableBorder('inner')"
+                title="Bordures int."
+              >
+                Int.
+              </button>
+              <button
+                class="btn sm"
+                onclick="applyTableBorder('none')"
+                title="Supprimer"
+              >
+                Aucune
+              </button>
+            </div>
+            <div class="rgrp-label">Bordures</div>
+          </div>
+          <div
+            class="rgrp"
+            style="flex-direction: column; justify-content: center; gap: 5px"
+          >
+            <div style="display: flex; gap: 4px">
+              <div
+                class="rcolor"
+                onclick="toggleCpop('cpop-cell-bg', event)"
+                style="padding: 3px 6px"
+                title="Fond cellule"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  style="width: 14px; height: 14px"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="1" fill="none" />
+                </svg>
+                <div
+                  class="rcolor-bar"
+                  id="bar-cbg"
+                  style="
+                    background: transparent;
+                    border: 1px solid var(--border);
+                  "
+                ></div>
+                <div class="cpop" id="cpop-cell-bg" style="width: 180px">
+                  <div class="cswatches" id="sw-cbg"></div>
+                  <input
+                    type="color"
+                    id="cc-cbg"
+                    onchange="applyCellBg(this.value)"
+                  />
+                </div>
+              </div>
+              <select
+                class="rsel"
+                id="sel-cell-align"
+                onchange="applyCellAlign(this.value)"
+                style="max-width: 100px"
+              >
+                <option value="left">Aligner gauche</option>
+                <option value="center">Centrer</option>
+                <option value="right">Droite</option>
+              </select>
+            </div>
+            <div style="display: flex; gap: 3px">
+              <button class="btn sm" onclick="tableAction('add-row')">
+                +Ligne
+              </button>
+              <button class="btn sm" onclick="tableAction('del-row')">
+                -Ligne
+              </button>
+              <button class="btn sm" onclick="tableAction('add-col')">
+                +Col
+              </button>
+              <button class="btn sm" onclick="tableAction('del-col')">
+                -Col
+              </button>
+            </div>
+            <div class="rgrp-label">Cellules</div>
+          </div>
+        </div>
+
+        <!-- MISE EN PAGE -->
+        <div class="rpanel" id="rp-mise_en_page">
+          <div
+            class="rgrp"
+            style="flex-direction: column; justify-content: center; gap: 5px"
+          >
+            <div style="display: flex; gap: 5px; align-items: center">
+              <label style="font-size: 11px; color: var(--text3)"
+                >Taille:</label
+              >
+              <select class="rsel" onchange="setPageSize(this.value)">
+                <option value="794">A4</option>
+                <option value="816">Letter</option>
+                <option value="1123">A3</option>
+              </select>
+            </div>
+            <div style="display: flex; gap: 5px; align-items: center">
+              <label style="font-size: 11px; color: var(--text3)"
+                >Orientation:</label
+              >
+              <button
+                class="rb"
+                id="rb-portrait"
+                onclick="setOrientation('portrait')"
+                style="min-width: 0; padding: 2px 8px; font-size: 10px"
+                class="on"
+              >
+                Portrait
+              </button>
+              <button
+                class="rb"
+                id="rb-landscape"
+                onclick="setOrientation('landscape')"
+                style="min-width: 0; padding: 2px 8px; font-size: 10px"
+              >
+                Paysage
+              </button>
+            </div>
+            <div class="rgrp-label">Page</div>
+          </div>
+          <div
+            class="rgrp"
+            style="flex-direction: column; justify-content: center; gap: 5px"
+          >
+            <div style="display: flex; gap: 5px; align-items: center">
+              <label style="font-size: 11px; color: var(--text3)"
+                >Marges:</label
+              >
+              <select class="rsel" onchange="setMargins(this.value)">
+                <option value="52px">Normales</option>
+                <option value="20px">Étroites</option>
+                <option value="80px">Larges</option>
+              </select>
+            </div>
+            <div style="display: flex; gap: 5px; align-items: center">
+              <label style="font-size: 11px; color: var(--text3)"
+                >Direction:</label
+              >
+              <div
+                style="
+                  display: flex;
+                  border: 1px solid var(--border);
+                  border-radius: var(--r);
+                  overflow: hidden;
+                "
+              >
+                <button
+                  class="rb on"
+                  id="rb-ltr"
+                  onclick="setDir('ltr')"
+                  style="
+                    min-width: 0;
+                    padding: 2px 8px;
+                    font-size: 10px;
+                    border-radius: 0;
+                  "
+                >
+                  LTR
+                </button>
+                <button
+                  class="rb"
+                  id="rb-rtl"
+                  onclick="setDir('rtl')"
+                  style="
+                    min-width: 0;
+                    padding: 2px 8px;
+                    font-size: 10px;
+                    border-radius: 0;
+                  "
+                >
+                  RTL عربي
+                </button>
+              </div>
+            </div>
+            <div class="rgrp-label">Mise en page</div>
+          </div>
+          <div class="rgrp">
+            <button class="rb lg" onclick="focusSection('header')">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 22px; height: 22px"
+              >
+                <rect x="3" y="3" width="18" height="5" rx="1" />
+                <path d="M3 11h18M3 16h18M3 21h18" />
+              </svg>
+              En-tête
+            </button>
+            <button class="rb lg" onclick="focusSection('footer')">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 22px; height: 22px"
+              >
+                <path d="M3 3h18M3 8h18M3 13h18" />
+                <rect x="3" y="16" width="18" height="5" rx="1" />
+              </svg>
+              Pied de page
+            </button>
+            <button class="rb" id="rb-pgnum" onclick="togglePageNum()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                />
+              </svg>
+              N° pages
+            </button>
+            <div class="rgrp-label">Sections</div>
+          </div>
+          <div class="rgrp" style="align-items: center; gap: 6px">
+            <label style="font-size: 11px; color: var(--text3)">Zoom:</label>
+            <button class="btn sm ghost" onclick="setZoom(-10)">&#8722;</button>
+            <span
+              id="zoomLbl"
+              style="font-size: 11px; min-width: 36px; text-align: center"
+              >100%</span
+            >
+            <button class="btn sm ghost" onclick="setZoom(10)">+</button>
+            <button class="btn sm ghost" onclick="setZoom(0)">&#8635;</button>
+          </div>
+        </div>
+
+        <!-- VARIABLES -->
+        <div class="rpanel" id="rp-variables">
+          <div
+            style="
+              flex: 1;
+              display: flex;
+              flex-wrap: wrap;
+              gap: 4px;
+              align-items: center;
+              padding: 4px 0;
+            "
+          >
+            <span
+              style="font-size: 11px; color: var(--text3); margin-right: 4px"
+              >Insérer variable :</span
+            >
+            <div
+              id="quick-var-chips"
+              style="display: flex; flex-wrap: wrap; gap: 3px"
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN AREA -->
+      <div class="main-area">
+        <!-- SIDEBAR -->
+        <div class="sidebar" id="sidebarEl">
+          <div class="sbsec">
+            <div class="sblabel">Famille</div>
+            <select class="famsel" id="famSelAdmin" onchange="onFamChange()">
+              <option value="">— Choisir une famille —</option>
+            </select>
+          </div>
+          <div class="sbsec" style="padding-bottom: 4px; border-bottom: none">
+            <div class="sblabel">Templates</div>
+            <div class="tpl-add" onclick="newTemplate()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Nouveau template
+            </div>
+          </div>
+          <div class="tpl-scroll" id="tplScroll">
+            <div
+              style="
+                padding: 18px;
+                font-size: 11px;
+                color: #aaa;
+                text-align: center;
+              "
+            >
+              Sélectionnez une famille
+            </div>
+          </div>
+          <div class="vars-area">
+            <div class="sbsec" style="padding-bottom: 4px; border-bottom: none">
+              <div class="sblabel">Variables disponibles</div>
+            </div>
+            <div class="vars-scroll" id="varsPanelEl">
+              <div
+                style="
+                  padding: 8px;
+                  font-size: 11px;
+                  color: #aaa;
+                  text-align: center;
+                "
+              >
+                —
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EDITOR ZONE -->
+        <div class="ed-zone" id="edZone">
+          <div class="empty-state">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            <h3>Aucun template ouvert</h3>
+            <p>
+              Sélectionnez une famille, puis un template ou créez-en un nouveau.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATUS BAR -->
+      <div class="statusbar">
+        <div class="sb-dot ok" id="sbDot"></div>
+        <span id="sbText">Prêt</span>
+        <span id="sbWords">0 mots</span>
+        <span id="sbChars">0 car.</span>
+        <span id="sbDir">LTR</span>
+        <span id="sbZoom" style="margin-left: auto">100%</span>
+        <span>Quill v2 · SIRH-Doc</span>
+      </div>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- Delete template -->
+    <div class="modal-overlay" id="modalDelTpl">
+      <div class="modal modal-sm">
+        <div class="mhdr">
+          <span class="mtitle">Supprimer le template ?</span
+          ><button class="mclose" onclick="closeModal('modalDelTpl')">
+            &#x2715;
+          </button>
+        </div>
+        <p style="font-size: 13px; color: var(--text2); line-height: 1.6">
+          Ce template sera définitivement supprimé.
+        </p>
+        <div class="mactions">
+          <button class="btn" onclick="closeModal('modalDelTpl')">
+            Annuler</button
+          ><button class="btn danger" id="delTplBtn">Supprimer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insert table -->
+    <div class="modal-overlay" id="modalTable">
+      <div class="modal modal-sm">
+        <div class="mhdr">
+          <span class="mtitle">Insérer un tableau</span
+          ><button class="mclose" onclick="closeModal('modalTable')">
+            &#x2715;
+          </button>
+        </div>
+        <div style="font-size: 11px; color: var(--text3); margin-bottom: 8px">
+          Survolez pour choisir la taille
+        </div>
+        <div class="table-grid-cells" id="tgCells"></div>
+        <div
+          id="tgSize"
+          style="font-size: 12px; color: var(--text2); margin-bottom: 12px"
+        >
+          Sélectionnez
+        </div>
+        <div class="fgrid2">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Lignes</label
+            ><input
+              class="finput"
+              type="number"
+              id="ti-rows"
+              value="3"
+              min="1"
+              max="20"
+            />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Colonnes</label
+            ><input
+              class="finput"
+              type="number"
+              id="ti-cols"
+              value="3"
+              min="1"
+              max="12"
+            />
+          </div>
+        </div>
+        <div class="frow" style="margin-top: 10px">
+          <label class="flabel">Style de tableau</label>
+          <select class="finput" id="ti-style">
+            <option value="default">Standard (bordures complètes)</option>
+            <option value="header">Avec en-tête coloré</option>
+            <option value="striped">Lignes alternées</option>
+            <option value="minimal">Minimal (bordures simples)</option>
+            <option value="noborder">Sans bordures</option>
+          </select>
+        </div>
+        <div class="mactions">
+          <button class="btn" onclick="closeModal('modalTable')">Annuler</button
+          ><button class="btn primary" onclick="doInsertTable()">
+            Insérer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insert image -->
+    <div class="modal-overlay" id="modalImage">
+      <div class="modal">
+        <div class="mhdr">
+          <span class="mtitle">Insérer une image</span
+          ><button class="mclose" onclick="closeModal('modalImage')">
+            &#x2715;
+          </button>
+        </div>
+        <div class="frow">
+          <label class="flabel">Depuis votre ordinateur</label>
+          <input
+            type="file"
+            id="img-file"
+            accept="image/*"
+            style="font-size: 12px"
+            onchange="previewImgFile(this)"
+          />
+        </div>
+        <div
+          id="img-preview-area"
+          class="img-preview-wrap"
+          style="display: none"
+        >
+          <img id="img-preview" alt="Aperçu" />
+        </div>
+        <div class="frow">
+          <label class="flabel">Ou URL de l'image</label>
+          <input
+            class="finput"
+            type="url"
+            id="img-url"
+            placeholder="https://..."
+            oninput="previewImgUrl(this.value)"
+          />
+        </div>
+        <div class="fgrid2">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Largeur (px)</label
+            ><input
+              class="finput"
+              type="number"
+              id="img-w"
+              placeholder="Auto"
+            />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Position</label>
+            <select class="finput" id="img-align">
+              <option value="left">Gauche</option>
+              <option value="center">Centré</option>
+              <option value="right">Droite</option>
+              <option value="inline">Inline</option>
+            </select>
+          </div>
+        </div>
+        <div class="frow" style="margin-top: 8px">
+          <label class="flabel">Légende (optionnel)</label
+          ><input
+            class="finput"
+            id="img-caption"
+            placeholder="Texte de légende"
+          />
+        </div>
+        <div class="mactions">
+          <button class="btn" onclick="closeModal('modalImage')">Annuler</button
+          ><button class="btn primary" onclick="doInsertImage()">
+            Insérer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insert link -->
+    <div class="modal-overlay" id="modalLink">
+      <div class="modal modal-sm">
+        <div class="mhdr">
+          <span class="mtitle">Insérer un lien</span
+          ><button class="mclose" onclick="closeModal('modalLink')">
+            &#x2715;
+          </button>
+        </div>
+        <div class="frow">
+          <label class="flabel">Texte affiché</label
+          ><input class="finput" id="link-text" placeholder="Texte du lien" />
+        </div>
+        <div class="frow">
+          <label class="flabel">URL</label
+          ><input
+            class="finput"
+            type="url"
+            id="link-url"
+            placeholder="https://"
+          />
+        </div>
+        <div class="mactions">
+          <button class="btn" onclick="closeModal('modalLink')">Annuler</button
+          ><button class="btn primary" onclick="doInsertLink()">Insérer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="modal-overlay" id="modalPreview">
+      <div class="modal" style="max-width: 820px">
+        <div class="mhdr">
+          <span class="mtitle">Aperçu avec données réelles</span>
+          <button class="mclose" onclick="closeModal('modalPreview')">
+            &#x2715;
+          </button>
+        </div>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            color: var(--text2);
+          "
+        >
+          <label>Personne :</label>
+          <select
+            id="prevPerson"
+            onchange="refreshPrev()"
+            style="
+              font-size: 12px;
+              border: 1px solid var(--border);
+              border-radius: 4px;
+              padding: 4px 8px;
+              outline: none;
+            "
+          ></select>
+        </div>
+        <div class="preview-doc" id="prevContent"></div>
+        <div class="mactions">
+          <button class="btn" onclick="closeModal('modalPreview')">
+            Fermer
+          </button>
+          <button class="btn primary" onclick="window.print()">Imprimer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context menu -->
+    <div class="ctxmenu" id="ctxMenu">
+      <div
+        class="ctx-item"
+        onclick="
+          document.execCommand('cut');
+          closeCtx();
+        "
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="6" cy="6" r="3" />
+          <circle cx="6" cy="18" r="3" />
+          <line x1="20" y1="4" x2="8.12" y2="15.88" />
+          <line x1="14.47" y1="14.48" x2="20" y2="20" />
+          <line x1="8.12" y1="8.12" x2="12" y2="12" /></svg
+        >Couper<span class="ctx-kbd">Ctrl+X</span>
+      </div>
+      <div
+        class="ctx-item"
+        onclick="
+          document.execCommand('copy');
+          closeCtx();
+        "
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg
+        >Copier<span class="ctx-kbd">Ctrl+C</span>
+      </div>
+      <div class="ctx-item" onclick="ctxPaste()">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"
+          />
+          <rect x="8" y="2" width="8" height="4" rx="1" /></svg
+        >Coller<span class="ctx-kbd">Ctrl+V</span>
+      </div>
+      <div class="ctx-sep"></div>
+      <div
+        class="ctx-item"
+        onclick="
+          fmt('bold');
+          closeCtx();
+        "
+      >
+        Gras<span class="ctx-kbd">Ctrl+B</span>
+      </div>
+      <div
+        class="ctx-item"
+        onclick="
+          fmt('italic');
+          closeCtx();
+        "
+      >
+        Italique<span class="ctx-kbd">Ctrl+I</span>
+      </div>
+      <div
+        class="ctx-item"
+        onclick="
+          clearFmt();
+          closeCtx();
+        "
+      >
+        Effacer mise en forme
+      </div>
+      <div class="ctx-sep"></div>
+      <div
+        class="ctx-item"
+        onclick="
+          openLinkModal();
+          closeCtx();
+        "
+      >
+        Insérer un lien
+      </div>
+      <div
+        class="ctx-item danger"
+        onclick="
+          delSel();
+          closeCtx();
+        "
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14H6L5 6" /></svg
+        >Supprimer
+      </div>
+    </div>
+
+    <div class="toast-stack" id="toastStack"></div>
+
+    <script src="shared.js"></script>
+    <script>
+      // ===================================================
+      //  STATE
+      // ===================================================
+      var ETAB_ID = "etab_1";
+      var curFamId = null,
+        curTplId = null;
+      var qH = null,
+        qB = null,
+        qF = null,
+        aqQ = null;
+      var zoomLv = 100,
+        pageNums = false,
+        pendingDelId = null;
+      var isLandscape = false;
+      var curTextColor = "#1c1c1a",
+        curBgColor = "transparent";
+
+      var TEXT_COLORS = [
+        "#000000",
+        "#1c1c1a",
+        "#3a3a33",
+        "#555550",
+        "#777770",
+        "#999990",
+        "#cccccc",
+        "#ffffff",
+        "#1a56db",
+        "#1447b5",
+        "#0891b2",
+        "#0f7b3f",
+        "#5b21b6",
+        "#a96300",
+        "#c81d1d",
+        "#be185d",
+        "#dbeafe",
+        "#dcfce7",
+        "#fef9c3",
+        "#fce7f3",
+        "#ede9fe",
+        "#ffedd5",
+        "#fef2f2",
+        "#ecfeff",
+      ];
+      var BG_COLORS = [
+        "transparent",
+        "#fef9c3",
+        "#dcfce7",
+        "#dbeafe",
+        "#fce7f3",
+        "#ede9fe",
+        "#ffedd5",
+        "#fef2f2",
+        "#ecfeff",
+        "#f0f9ff",
+        "#ecfdf5",
+        "#fdf4ff",
+        "#fffbeb",
+        "#fff7ed",
+        "#fdf2f8",
+        "#f8fafc",
+        "#e2e8f0",
+        "#cbd5e1",
+        "#94a3b8",
+        "#64748b",
+        "#334155",
+        "#1e293b",
+        "#0f172a",
+        "#020617",
+      ];
+
+      // ===================================================
+      //  INIT
+      // ===================================================
+      window.addEventListener("DOMContentLoaded", function () {
+        if (!localStorage.getItem(STORE_KEY)) DB.seed();
+        buildColorGrids();
+        buildTableGrid();
+        loadFamiliesDropdown();
+        var etab = DB.getEtablissement(ETAB_ID);
+        if (etab) document.getElementById("navEtab").textContent = etab.nom;
+        setTimeout(function () {
+          document.getElementById("loading").classList.add("done");
+          document.getElementById("app").style.opacity = "1";
+        }, 650);
+      });
+
+      function loadFamiliesDropdown() {
+        var sel = document.getElementById("famSelAdmin");
+        var prev = sel.value;
+        sel.innerHTML = '<option value="">— Choisir une famille —</option>';
+        DB.getFamilies().forEach(function (f) {
+          var o = document.createElement("option");
+          o.value = f.id;
+          o.textContent = (f.icon || "") + " " + f.nom;
+          sel.appendChild(o);
+        });
+        if (prev) sel.value = prev;
+      }
+
+      function buildColorGrids() {
+        buildSwatches("sw-text", TEXT_COLORS, function (c) {
+          applyColor("text", c);
+        });
+        buildSwatches("sw-bg", BG_COLORS, function (c) {
+          applyColor("bg", c);
+        });
+        buildSwatches("sw-bdr", TEXT_COLORS, function (c) {
+          document.getElementById("bar-bdr").style.background = c;
+          document.getElementById("cc-bdr").value = c;
+        });
+        buildSwatches("sw-cbg", BG_COLORS, function (c) {
+          applyCellBg(c);
+        });
+      }
+
+      function buildSwatches(gridId, colors, cb) {
+        var grid = document.getElementById(gridId);
+        if (!grid) return;
+        grid.innerHTML = "";
+        colors.forEach(function (c) {
+          var sw = document.createElement("div");
+          sw.className = "cswatch";
+          sw.style.background =
+            c === "transparent"
+              ? "linear-gradient(135deg,#fff 45%,#f00 45%,#f00 55%,#fff 55%)"
+              : c;
+          sw.title = c;
+          sw.onclick = (function (col) {
+            return function () {
+              cb(col);
+            };
+          })(c);
+          grid.appendChild(sw);
+        });
+      }
+
+      function buildTableGrid() {
+        var grid = document.getElementById("tgCells");
+        if (!grid) return;
+        grid.innerHTML = "";
+        var selR = 0,
+          selC = 0;
+        for (var r = 1; r <= 6; r++) {
+          for (var c = 1; c <= 8; c++) {
+            var cell = document.createElement("div");
+            cell.className = "tgcell";
+            cell.dataset.r = r;
+            cell.dataset.c = c;
+            cell.onmouseenter = (function (rr, cc) {
+              return function () {
+                selR = rr;
+                selC = cc;
+                document.querySelectorAll(".tgcell").forEach(function (el) {
+                  el.classList.toggle(
+                    "hi",
+                    el.dataset.r <= rr && el.dataset.c <= cc,
+                  );
+                });
+                document.getElementById("tgSize").textContent =
+                  "Tableau " + rr + " x " + cc;
+                document.getElementById("ti-rows").value = rr;
+                document.getElementById("ti-cols").value = cc;
+              };
+            })(r, c);
+            grid.appendChild(cell);
+          }
+        }
+      }
+
+      // ===================================================
+      //  RIBBON
+      // ===================================================
+      function showRibbon(name, btn) {
+        document.querySelectorAll(".rtab").forEach(function (t) {
+          t.classList.remove("on");
+        });
+        document.querySelectorAll(".rpanel").forEach(function (p) {
+          p.classList.remove("on");
+        });
+        btn.classList.add("on");
+        var panel = document.getElementById("rp-" + name);
+        if (panel) panel.classList.add("on");
+      }
+
+      function toggleSidebar() {
+        document.getElementById("sidebarEl").classList.toggle("closed");
+      }
+
+      // ===================================================
+      //  FAMILY / TEMPLATE
+      // ===================================================
+      function onFamChange() {
+        curFamId = document.getElementById("famSelAdmin").value;
+        curTplId = null;
+        buildVarsPanel(curFamId);
+        buildQuickVarChips(curFamId);
+        renderTplList(curFamId);
+        clearEditor();
+      }
+
+      function buildVarsPanel(famId) {
+        var panel = document.getElementById("varsPanelEl");
+        panel.innerHTML = "";
+        if (!famId) return;
+        var fam = DB.getFamily(famId);
+        if (!fam) return;
+        fam.classes.forEach(function (cls) {
+          var hdr = document.createElement("div");
+          hdr.className = "vc-hdr";
+          hdr.style.color = cls.couleur || "#555";
+          hdr.textContent = cls.nom;
+          var chips = document.createElement("div");
+          chips.className = "vchips";
+          cls.vars.forEach(function (v) {
+            var chip = document.createElement("span");
+            chip.className = "vchip";
+            chip.style.cssText =
+              "background:" +
+              (cls.couleur || "#555") +
+              "15;color:" +
+              (cls.couleur || "#555") +
+              ";border-color:" +
+              (cls.couleur || "#555") +
+              "44";
+            chip.textContent = v.label;
+            chip.title = "{{" + v.tech + "}}";
+            chip.onclick = (function (tech) {
+              return function () {
+                insertVar(tech);
+              };
+            })(v.tech);
+            chips.appendChild(chip);
+          });
+          panel.appendChild(hdr);
+          panel.appendChild(chips);
+        });
+      }
+
+      function buildQuickVarChips(famId) {
+        var container = document.getElementById("quick-var-chips");
+        container.innerHTML = "";
+        if (!famId) return;
+        var fam = DB.getFamily(famId);
+        if (!fam) return;
+        fam.classes.forEach(function (cls) {
+          cls.vars.slice(0, 4).forEach(function (v) {
+            var chip = document.createElement("span");
+            chip.className = "vchip";
+            chip.style.cssText =
+              "background:" +
+              (cls.couleur || "#555") +
+              "15;color:" +
+              (cls.couleur || "#555") +
+              ";border-color:" +
+              (cls.couleur || "#555") +
+              "44";
+            chip.textContent = v.label;
+            chip.title = "{{" + v.tech + "}}";
+            chip.onclick = (function (tech) {
+              return function () {
+                insertVar(tech);
+              };
+            })(v.tech);
+            container.appendChild(chip);
+          });
+        });
+      }
+
+      function renderTplList(famId) {
+        var scroll = document.getElementById("tplScroll");
+        scroll.innerHTML = "";
+        if (!famId) {
+          scroll.innerHTML =
+            '<div style="padding:18px;font-size:11px;color:#aaa;text-align:center">Sélectionnez une famille</div>';
+          return;
+        }
+        var tpls = DB.getTemplates(famId, ETAB_ID);
+        if (!tpls || tpls.length === 0) {
+          scroll.innerHTML =
+            '<div style="padding:14px;font-size:11px;color:#aaa;text-align:center">Aucun template — créez-en un</div>';
+          return;
+        }
+        tpls.forEach(function (tpl) {
+          var item = document.createElement("div");
+          item.className = "tpl-item" + (curTplId === tpl.id ? " on" : "");
+          var icon = document.createElement("span");
+          icon.className = "tpl-icon";
+          icon.textContent = "📄";
+          var body = document.createElement("div");
+          body.className = "tpl-body";
+          var name = document.createElement("div");
+          name.className = "tpl-name";
+          name.textContent = tpl.nom;
+          var meta = document.createElement("div");
+          meta.className = "tpl-meta";
+          meta.textContent = new Date(tpl.updatedAt).toLocaleDateString(
+            "fr-FR",
+          );
+          var badge = document.createElement("span");
+          badge.style.cssText =
+            "background:var(--green-bg);color:var(--green);padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700";
+          badge.textContent = "Publié";
+          meta.appendChild(badge);
+          body.appendChild(name);
+          body.appendChild(meta);
+          var del = document.createElement("button");
+          del.className = "tpl-del";
+          del.title = "Supprimer";
+          del.innerHTML =
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>';
+          del.onclick = (function (id) {
+            return function (e) {
+              e.stopPropagation();
+              confirmDelTpl(id);
+            };
+          })(tpl.id);
+          item.appendChild(icon);
+          item.appendChild(body);
+          item.appendChild(del);
+          item.onclick = (function (id) {
+            return function () {
+              openTemplate(id);
+            };
+          })(tpl.id);
+          scroll.appendChild(item);
+        });
+      }
+
+      function newTemplate() {
+        if (!curFamId) {
+          toast("Sélectionnez d'abord une famille", "error");
+          return;
+        }
+        var fam = DB.getFamily(curFamId);
+        var id = genId("tpl");
+        DB.saveTemplate({
+          id: id,
+          familyId: curFamId,
+          etablissementId: ETAB_ID,
+          nom: "Nouveau template — " + fam.nom,
+          updatedAt: new Date().toISOString(),
+          header:
+            '<p style="text-align:center"><strong>{{nom_etab}}</strong></p><p style="text-align:center;font-size:11px;color:#888">{{adresse_etab}} — Tél : {{tel_etab}}</p>',
+          body: "<p>Rédigez ici le contenu du document.</p><p><br></p><p>Insérez des variables depuis le panneau gauche, par exemple : <strong>{{nom_prenom}}</strong>, <strong>{{poste}}</strong>.</p>",
+          footer:
+            '<p style="text-align:center;font-size:11px;color:#aaa">Document officiel — {{nom_etab}} — {{date_jour}}</p>',
+        });
+        curTplId = id;
+        renderTplList(curFamId);
+        openTemplate(id);
+        toast("Nouveau template créé", "success");
+      }
+
+      function clearEditor() {
+        document.getElementById("edZone").innerHTML =
+          '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><h3>Sélectionnez un template</h3><p>Choisissez un template ou créez-en un nouveau.</p></div>';
+        qH = qB = qF = null;
+      }
+
+      function openTemplate(tplId) {
+        var tpl = DB.getTemplate(tplId);
+        if (!tpl) return;
+        curTplId = tplId;
+        renderTplList(curFamId);
+        buildEditorUI(tpl);
+      }
+
+      // ===================================================
+      //  BUILD EDITOR
+      // ===================================================
+      function buildEditorUI(tpl) {
+        var zone = document.getElementById("edZone");
+        // Build via DOM to avoid backtick issues
+        zone.innerHTML = "";
+
+        // Name bar
+        var namebar = document.createElement("div");
+        namebar.className = "tname-bar";
+        namebar.innerHTML =
+          '<input class="tname-input" id="tnameInput" value="' +
+          escHtml(tpl.nom) +
+          '">' +
+          '<span class="save-st" id="saveSt">Prêt</span>';
+        var btnPrev = document.createElement("button");
+        btnPrev.className = "btn ghost sm";
+        btnPrev.innerHTML = "&#128065; Aperçu";
+        btnPrev.onclick = openPreviewModal;
+        var btnSave = document.createElement("button");
+        btnSave.className = "btn success";
+        btnSave.innerHTML = "&#128190; Enregistrer (Ctrl+S)";
+        btnSave.onclick = saveTemplate;
+        namebar.appendChild(btnPrev);
+        namebar.appendChild(btnSave);
+        zone.appendChild(namebar);
+
+        // Canvas
+        var canvas = document.createElement("div");
+        canvas.className = "pcanvas";
+        canvas.id = "pCanvas";
+
+        var pdoc = document.createElement("div");
+        pdoc.className = "pdoc shadow";
+        pdoc.id = "pDoc";
+
+        // Header section
+        var hdrSec = document.createElement("div");
+        hdrSec.className = "psec hdr-line";
+        hdrSec.id = "sec-header";
+        var hdrLbl = document.createElement("div");
+        hdrLbl.className = "psec-lbl";
+        hdrLbl.textContent = "En-tête";
+        var hdrQ = document.createElement("div");
+        hdrQ.id = "eq-header";
+        hdrSec.appendChild(hdrLbl);
+        hdrSec.appendChild(hdrQ);
+
+        // Body section
+        var bodySec = document.createElement("div");
+        bodySec.className = "psec";
+        bodySec.id = "sec-body";
+        var bodyLbl = document.createElement("div");
+        bodyLbl.className = "psec-lbl";
+        bodyLbl.textContent = "Corps";
+        var bodyQ = document.createElement("div");
+        bodyQ.id = "eq-body";
+        bodySec.appendChild(bodyLbl);
+        bodySec.appendChild(bodyQ);
+
+        // Footer section
+        var ftrSec = document.createElement("div");
+        ftrSec.className = "psec ftr-line";
+        ftrSec.id = "sec-footer";
+        var ftrLbl = document.createElement("div");
+        ftrLbl.className = "psec-lbl";
+        ftrLbl.textContent = "Pied de page";
+        var ftrQ = document.createElement("div");
+        ftrQ.id = "eq-footer";
+        ftrSec.appendChild(ftrLbl);
+        ftrSec.appendChild(ftrQ);
+
+        // Page number overlay
+        var pgnum = document.createElement("div");
+        pgnum.className = "page-num-overlay";
+        pgnum.id = "pageNumOverlay";
+        pgnum.textContent = "— Page 1 —";
+
+        pdoc.appendChild(hdrSec);
+        pdoc.appendChild(bodySec);
+        pdoc.appendChild(ftrSec);
+        pdoc.appendChild(pgnum);
+        canvas.appendChild(pdoc);
+        zone.appendChild(canvas);
+
+        // Init Quill
+        setTimeout(function () {
+          var opts = {
+            theme: "snow",
+            modules: { toolbar: false, history: { delay: 400, maxStack: 200 } },
+          };
+          qH = new Quill(
+            "#eq-header",
+            Object.assign({}, opts, {
+              placeholder: "En-tête — logo, nom établissement, adresse...",
+            }),
+          );
+          qB = new Quill(
+            "#eq-body",
+            Object.assign({}, opts, {
+              placeholder:
+                "Corps du document — insérez votre contenu et vos variables...",
+            }),
+          );
+          qF = new Quill(
+            "#eq-footer",
+            Object.assign({}, opts, {
+              placeholder: "Pied de page — numéros, mentions légales...",
+            }),
+          );
+
+          qH.clipboard.dangerouslyPasteHTML(0, tpl.header || "");
+          qB.clipboard.dangerouslyPasteHTML(0, tpl.body || "");
+          qF.clipboard.dangerouslyPasteHTML(0, tpl.footer || "");
+
+          aqQ = qB;
+          [qH, qB, qF].forEach(function (q) {
+            q.root.addEventListener("focus", function () {
+              aqQ = q;
+            });
+            q.root.addEventListener("contextmenu", function (e) {
+              e.preventDefault();
+              showCtxMenu(e);
+            });
+            q.on("text-change", onTxtChange);
+            q.on("selection-change", updateRibbonState);
+          });
+          zoomLv = 100;
+        }, 60);
+      }
+
+      function escHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      // ===================================================
+      //  FORMATTING
+      // ===================================================
+      function fmt(format, value) {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        if (!r) return;
+        if (value !== undefined) {
+          var curr = q.getFormat(r);
+          q.format(format, curr[format] === value ? false : value);
+        } else {
+          var curr2 = q.getFormat(r);
+          q.format(format, !curr2[format]);
+        }
+        updateRibbonState();
+      }
+
+      function align(dir) {
+        var q = aqQ || qB;
+        if (!q) return;
+        q.format("align", dir === "left" ? false : dir);
+        updateRibbonState();
+      }
+
+      function indent(delta) {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        if (!r) return;
+        var curr = q.getFormat(r);
+        var lv = (curr.indent || 0) + delta;
+        q.format("indent", Math.max(0, Math.min(8, lv)));
+      }
+
+      function clearFmt() {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        if (r) q.removeFormat(r.index, r.length);
+      }
+
+      function applyFont(val) {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        if (r && r.length > 0) q.format("font", val || false);
+      }
+
+      function applySize(val) {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        if (r && r.length > 0) q.format("size", val || false);
+      }
+
+      function applyHeading(val) {
+        var q = aqQ || qB;
+        if (!q) return;
+        q.format("header", false);
+        q.format("blockquote", false);
+        q.format("code-block", false);
+        if (val === "blockquote") q.format("blockquote", true);
+        else if (val === "code") q.format("code-block", true);
+        else if (val) q.format("header", parseInt(val));
+      }
+
+      function applyLineHeight(val) {
+        var q = aqQ || qB;
+        if (!q) return;
+        q.root.style.lineHeight = val;
+      }
+
+      function applyColor(type, color) {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        if (!r) return;
+        if (type === "text") {
+          curTextColor = color;
+          q.format(
+            "color",
+            color === "#000000" || color === "#1c1c1a" ? false : color,
+          );
+          document.getElementById("bar-text").style.background = color;
+        } else {
+          curBgColor = color;
+          q.format("background", color === "transparent" ? false : color);
+          var bar = document.getElementById("bar-bg");
+          bar.style.background =
+            color === "transparent" ? "transparent" : color;
+          bar.style.border =
+            color === "transparent" ? "1px solid var(--border)" : "none";
+        }
+        closeAllCpops();
+      }
+
+      function toggleCpop(id, e) {
+        e.stopPropagation();
+        var pop = document.getElementById(id);
+        var wasOpen = pop.classList.contains("on");
+        closeAllCpops();
+        if (!wasOpen) pop.classList.add("on");
+      }
+      function closeAllCpops() {
+        document.querySelectorAll(".cpop.on").forEach(function (p) {
+          p.classList.remove("on");
+        });
+      }
+
+      // ===================================================
+      //  DIR & ZOOM & PAGE
+      // ===================================================
+      function setDir(dir) {
+        var q = aqQ || qB;
+        if (!q) return;
+        q.format("direction", dir === "rtl" ? "rtl" : false);
+        q.format("align", dir === "rtl" ? "right" : false);
+        document.getElementById("rb-ltr").classList.toggle("on", dir === "ltr");
+        document.getElementById("rb-rtl").classList.toggle("on", dir === "rtl");
+        document.getElementById("sbDir").textContent = dir.toUpperCase();
+      }
+
+      function setZoom(delta) {
+        if (delta === 0) zoomLv = 100;
+        else zoomLv = Math.max(40, Math.min(200, zoomLv + delta));
+        var doc = document.getElementById("pDoc");
+        if (doc) {
+          doc.style.transform = "scale(" + zoomLv / 100 + ")";
+          var extra = zoomLv > 100 ? (zoomLv - 100) * 6 + "px" : "0";
+          doc.style.marginBottom = extra;
+        }
+        document.getElementById("zoomLbl").textContent = zoomLv + "%";
+        document.getElementById("sbZoom").textContent = zoomLv + "%";
+      }
+
+      function setPageSize(w) {
+        var doc = document.getElementById("pDoc");
+        if (doc) doc.style.width = w + "px";
+      }
+
+      function setOrientation(ori) {
+        isLandscape = ori === "landscape";
+        var doc = document.getElementById("pDoc");
+        if (doc) doc.style.width = isLandscape ? "1122px" : "794px";
+        document
+          .getElementById("rb-portrait")
+          .classList.toggle("on", ori === "portrait");
+        document
+          .getElementById("rb-landscape")
+          .classList.toggle("on", ori === "landscape");
+      }
+
+      function setMargins(val) {
+        var eq = document.getElementById("eq-body");
+        if (eq && eq.querySelector(".ql-editor")) {
+          eq.querySelector(".ql-editor").style.padding =
+            "20px " + val + " !important";
+        }
+      }
+
+      function focusSection(sec) {
+        if (sec === "header" && qH) {
+          qH.focus();
+          aqQ = qH;
+        } else if (sec === "footer" && qF) {
+          qF.focus();
+          aqQ = qF;
+        }
+      }
+
+      function togglePageNum() {
+        pageNums = !pageNums;
+        var overlay = document.getElementById("pageNumOverlay");
+        if (overlay) overlay.style.display = pageNums ? "block" : "none";
+        document.getElementById("rb-pgnum").classList.toggle("on", pageNums);
+      }
+
+      // ===================================================
+      //  INSERTIONS
+      // ===================================================
+      function insertVar(tech) {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        var idx = r ? r.index : q.getLength() - 1;
+        q.insertText(idx, "{{" + tech + "}}", {
+          color: "#1a56db",
+          background: "#ebf0ff",
+        });
+        q.setSelection(idx + tech.length + 4);
+        q.focus();
+      }
+
+      function insHR() {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        var idx = r ? r.index : q.getLength() - 1;
+        q.clipboard.dangerouslyPasteHTML(
+          idx,
+          '<hr style="border:none;border-top:1px solid #ddd;margin:12px 0"><p><br></p>',
+        );
+      }
+
+      function insSignature() {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        var idx = r ? r.index : q.getLength() - 1;
+        q.clipboard.dangerouslyPasteHTML(
+          idx,
+          "<p><br></p>" +
+            '<p style="text-align:right">Le Directeur de l\'Établissement</p>' +
+            '<p style="text-align:right"><br></p>' +
+            '<p style="text-align:right"><em>Signature et cachet officiel</em></p>' +
+            '<p style="text-align:right">{{directeur}}</p>' +
+            "<p><br></p>",
+        );
+        toast("Bloc signature inséré");
+      }
+
+      function insCachet() {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        var idx = r ? r.index : q.getLength() - 1;
+        q.clipboard.dangerouslyPasteHTML(
+          idx,
+          '<p style="text-align:center;border:2px dashed #bfcef8;padding:24px 16px;color:#1a56db;border-radius:8px;font-size:12px;font-style:italic;background:#ebf0ff20">[Cachet officiel de l\'établissement]</p>',
+        );
+      }
+
+      function insPageBreak() {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        var idx = r ? r.index : q.getLength() - 1;
+        q.clipboard.dangerouslyPasteHTML(
+          idx,
+          '<hr style="border:none;border-top:2px dashed #ddd;margin:16px 0"><p><br></p>',
+        );
+      }
+
+      function insDate() {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        var idx = r ? r.index : q.getLength() - 1;
+        var d = new Date().toLocaleDateString("fr-FR", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        q.insertText(idx, d);
+      }
+
+      function insNumPage() {
+        var q = aqQ || qF || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        var idx = r ? r.index : q.getLength() - 1;
+        q.insertText(idx, "{{page_num}}", {
+          color: "#1a56db",
+          background: "#ebf0ff",
+        });
+      }
+
+      // ===================================================
+      //  TABLE
+      // ===================================================
+      function openTableModal() {
+        openModal("modalTable");
+      }
+
+      function doInsertTable() {
+        var rows = parseInt(document.getElementById("ti-rows").value) || 3;
+        var cols = parseInt(document.getElementById("ti-cols").value) || 3;
+        var style = document.getElementById("ti-style").value;
+        var html = buildTableHTML(rows, cols, style);
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection(true);
+        q.clipboard.dangerouslyPasteHTML(
+          r ? r.index : q.getLength() - 1,
+          html + "<p><br></p>",
+        );
+        closeModal("modalTable");
+        toast("Tableau " + rows + "x" + cols + " inséré");
+      }
+
+      function buildTableHTML(rows, cols, style) {
+        var hdrBg = "#ebf0ff",
+          hdrColor = "#1a56db",
+          border = "1px solid #ddd";
+        var evenBg = "transparent",
+          oddBg = "#f8f9fc";
+        if (style === "minimal") {
+          hdrBg = "#f7f7f4";
+          hdrColor = "#333";
+          border = "1px solid #eee";
+        }
+        if (style === "noborder") {
+          border = "none";
+          hdrBg = "transparent";
+          hdrColor = "#555";
+        }
+        var html =
+          '<table style="border-collapse:collapse;width:100%;margin:8px 0">';
+        for (var r = 0; r < rows; r++) {
+          html += "<tr>";
+          for (var c = 0; c < cols; c++) {
+            if (
+              r === 0 &&
+              (style === "default" || style === "header" || style === "striped")
+            ) {
+              html +=
+                '<th style="padding:8px 10px;background:' +
+                hdrBg +
+                ";color:" +
+                hdrColor +
+                ";font-weight:600;border:" +
+                border +
+                ';text-align:left">En-tête ' +
+                (c + 1) +
+                "</th>";
+            } else {
+              var bg =
+                style === "striped" && r % 2 === 0 ? oddBg : "transparent";
+              html +=
+                '<td style="padding:8px 10px;border:' +
+                border +
+                ";background:" +
+                bg +
+                '"></td>';
+            }
+          }
+          html += "</tr>";
+        }
+        html += "</table>";
+        return html;
+      }
+
+      // Table borders actions
+      function applyTableBorder(type) {
+        var bdStyle = document.getElementById("sel-bdr-style").value;
+        var parts = bdStyle.split(" ");
+        var style = parts[0],
+          width = parts[1] || "1px";
+        var color = document.getElementById("cc-bdr").value || "#000";
+        var border = width + " " + style + " " + color;
+        toast(
+          "Utilisez l'éditeur Quill pour modifier les bordures directement dans la cellule",
+          "info",
+        );
+      }
+
+      function applyCellBg(color) {
+        closeAllCpops();
+        var bar = document.getElementById("bar-cbg");
+        if (bar) {
+          bar.style.background =
+            color === "transparent" ? "transparent" : color;
+          bar.style.border =
+            color === "transparent" ? "1px solid var(--border)" : "none";
+        }
+        toast("Sélectionnez les cellules puis réappliquez", "info");
+      }
+
+      function applyCellAlign(dir) {
+        toast("Sélectionnez les cellules à aligner", "info");
+      }
+
+      function tableAction(action) {
+        toast(
+          "Raccourci : sélectionnez le tableau dans l'éditeur pour modifier",
+          "info",
+        );
+      }
+
+      // ===================================================
+      //  IMAGE
+      // ===================================================
+      function openImgModal() {
+        openModal("modalImage");
+      }
+
+      function previewImgFile(input) {
+        var file = input.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          document.getElementById("img-preview").src = e.target.result;
+          document.getElementById("img-preview-area").style.display = "flex";
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function previewImgUrl(url) {
+        if (!url) return;
+        document.getElementById("img-preview").src = url;
+        document.getElementById("img-preview-area").style.display = "flex";
+      }
+
+      function doInsertImage() {
+        var q = aqQ || qB;
+        if (!q) return;
+        var fileInput = document.getElementById("img-file");
+        var url = document.getElementById("img-url").value;
+        var w = document.getElementById("img-w").value;
+        var alignVal = document.getElementById("img-align").value;
+        var caption = document.getElementById("img-caption").value;
+
+        var wStyle = w
+          ? "width:" + w + "px;max-width:100%;"
+          : "max-width:100%;";
+        var containerStyle = "margin:8px 0;";
+        if (alignVal === "center") containerStyle += "text-align:center;";
+        else if (alignVal === "right") containerStyle += "text-align:right;";
+        else if (alignVal === "left") containerStyle += "text-align:left;";
+
+        function doInsert(src) {
+          var r = q.getSelection(true);
+          var idx = r ? r.index : q.getLength() - 1;
+          var capHtml = caption
+            ? '<p style="font-size:11px;color:#888;text-align:center;margin-top:2px"><em>' +
+              escHtml(caption) +
+              "</em></p>"
+            : "";
+          q.clipboard.dangerouslyPasteHTML(
+            idx,
+            '<div style="' +
+              containerStyle +
+              '"><img src="' +
+              src +
+              '" style="' +
+              wStyle +
+              'border-radius:4px" alt="image"></div>' +
+              capHtml +
+              "<p><br></p>",
+          );
+          closeModal("modalImage");
+          toast("Image insérée");
+          document.getElementById("img-file").value = "";
+          document.getElementById("img-url").value = "";
+          document.getElementById("img-preview-area").style.display = "none";
+          document.getElementById("img-w").value = "";
+          document.getElementById("img-caption").value = "";
+        }
+
+        if (fileInput.files[0]) {
+          var reader = new FileReader();
+          reader.onload = function (e) {
+            doInsert(e.target.result);
+          };
+          reader.readAsDataURL(fileInput.files[0]);
+        } else if (url) {
+          doInsert(url);
+        } else {
+          toast("Sélectionnez une image ou entrez une URL", "error");
+        }
+      }
+
+      // ===================================================
+      //  LINK
+      // ===================================================
+      function openLinkModal() {
+        var q = aqQ || qB;
+        if (q) {
+          var r = q.getSelection();
+          if (r && r.length > 0)
+            document.getElementById("link-text").value = q.getText(
+              r.index,
+              r.length,
+            );
+        }
+        openModal("modalLink");
+      }
+
+      function doInsertLink() {
+        var q = aqQ || qB;
+        if (!q) return;
+        var text = document.getElementById("link-text").value;
+        var url = document.getElementById("link-url").value;
+        if (!url) {
+          toast("URL requise", "error");
+          return;
+        }
+        var r = q.getSelection(true);
+        var idx = r ? r.index : q.getLength() - 1;
+        if (text) q.insertText(idx, text, { link: url, color: "#1a56db" });
+        else q.format("link", url);
+        closeModal("modalLink");
+        document.getElementById("link-text").value = "";
+        document.getElementById("link-url").value = "";
+        toast("Lien inséré");
+      }
+
+      // ===================================================
+      //  SAVE / DELETE
+      // ===================================================
+      function saveTemplate() {
+        if (!curTplId || !qB) return;
+        var tpl = DB.getTemplate(curTplId);
+        var nameInput = document.getElementById("tnameInput");
+        if (nameInput) tpl.nom = nameInput.value || tpl.nom;
+        tpl.header = qH ? qH.root.innerHTML : "";
+        tpl.body = qB.root.innerHTML;
+        tpl.footer = qF ? qF.root.innerHTML : "";
+        tpl.updatedAt = new Date().toISOString();
+        DB.saveTemplate(tpl);
+        renderTplList(curFamId);
+        var st = document.getElementById("saveSt");
+        if (st) {
+          st.textContent = "Enregistré ✓";
+          st.className = "save-st";
+        }
+        var dot = document.getElementById("sbDot");
+        if (dot) dot.className = "sb-dot ok";
+        var txt = document.getElementById("sbText");
+        if (txt) txt.textContent = "Enregistré";
+        toast("Template enregistré", "success");
+      }
+
+      function confirmDelTpl(id) {
+        pendingDelId = id;
+        document.getElementById("delTplBtn").onclick = function () {
+          DB.deleteTemplate(pendingDelId);
+          if (curTplId === pendingDelId) {
+            curTplId = null;
+            clearEditor();
+          }
+          renderTplList(curFamId);
+          closeModal("modalDelTpl");
+          toast("Template supprimé");
+        };
+        openModal("modalDelTpl");
+      }
+
+      // ===================================================
+      //  PREVIEW
+      // ===================================================
+      function openPreviewModal() {
+        if (!curTplId || !qB) return;
+        var sel = document.getElementById("prevPerson");
+        sel.innerHTML = "";
+        DB.getPersonnel(ETAB_ID).forEach(function (p) {
+          var o = document.createElement("option");
+          o.value = p.id;
+          o.textContent = p.nom_prenom + " — " + p.poste;
+          sel.appendChild(o);
+        });
+        refreshPrev();
+        openModal("modalPreview");
+      }
+
+      function refreshPrev() {
+        var pId = document.getElementById("prevPerson").value;
+        var person = DB.getPerson(pId);
+        if (!person || !qB) return;
+        var raw =
+          (qH ? qH.root.innerHTML : "") +
+          '<hr style="border:none;border-top:1px solid #eee;margin:10px 0">' +
+          qB.root.innerHTML +
+          '<hr style="border:none;border-top:1px solid #eee;margin:10px 0">' +
+          (qF ? qF.root.innerHTML : "");
+        document.getElementById("prevContent").innerHTML = resolveVars(
+          raw,
+          person,
+        );
+      }
+
+      // ===================================================
+      //  RIBBON STATE
+      // ===================================================
+      function updateRibbonState() {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection();
+        if (!r) return;
+        var f = q.getFormat(r);
+        ["bold", "italic", "underline", "strike"].forEach(function (k) {
+          var btn = document.getElementById("rb-" + k);
+          if (btn) btn.classList.toggle("on", !!f[k]);
+        });
+        var al = f.align || "left";
+        var alMap = { al: "left", ac: "center", ar: "right", aj: "justify" };
+        Object.keys(alMap).forEach(function (k) {
+          var btn = document.getElementById("rb-" + k);
+          if (btn)
+            btn.classList.toggle(
+              "on",
+              al === alMap[k] || (k === "al" && !f.align),
+            );
+        });
+        var bul = document.getElementById("rb-bul");
+        if (bul) bul.classList.toggle("on", f.list === "bullet");
+        var ord = document.getElementById("rb-ord");
+        if (ord) ord.classList.toggle("on", f.list === "ordered");
+      }
+
+      function onTxtChange() {
+        var st = document.getElementById("saveSt");
+        if (st) {
+          st.textContent = "Modifié";
+          st.className = "save-st mod";
+        }
+        var dot = document.getElementById("sbDot");
+        if (dot) dot.className = "sb-dot mod";
+        var txt = document.getElementById("sbText");
+        if (txt) txt.textContent = "Modifié";
+        var bodyQ = document.getElementById("eq-body");
+        if (bodyQ) {
+          var text =
+            (bodyQ.querySelector(".ql-editor") || {}).textContent || "";
+          var words = text.trim() ? text.trim().split(/\s+/).length : 0;
+          var sw = document.getElementById("sbWords");
+          if (sw) sw.textContent = words + " mots";
+          var sc = document.getElementById("sbChars");
+          if (sc) sc.textContent = text.length + " car.";
+        }
+      }
+
+      // ===================================================
+      //  UNDO / REDO
+      // ===================================================
+      function undoAction() {
+        var q = aqQ || qB;
+        if (q && q.history) q.history.undo();
+      }
+      function redoAction() {
+        var q = aqQ || qB;
+        if (q && q.history) q.history.redo();
+      }
+
+      // ===================================================
+      //  CONTEXT MENU
+      // ===================================================
+      function showCtxMenu(e) {
+        var menu = document.getElementById("ctxMenu");
+        menu.style.left = Math.min(e.clientX, window.innerWidth - 190) + "px";
+        menu.style.top = Math.min(e.clientY, window.innerHeight - 280) + "px";
+        menu.classList.add("on");
+      }
+      function closeCtx() {
+        document.getElementById("ctxMenu").classList.remove("on");
+      }
+      function ctxPaste() {
+        navigator.clipboard.readText().then(function (t) {
+          var q = aqQ || qB;
+          if (!q) return;
+          var r = q.getSelection(true);
+          var idx = r ? r.index : 0;
+          q.insertText(idx, t);
+        });
+        closeCtx();
+      }
+      function delSel() {
+        var q = aqQ || qB;
+        if (!q) return;
+        var r = q.getSelection();
+        if (r) q.deleteText(r.index, r.length);
+      }
+
+      // ===================================================
+      //  MODAL UTILS
+      // ===================================================
+      function openModal(id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.add("open");
+      }
+      function closeModal(id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.remove("open");
+      }
+
+      // ===================================================
+      //  KEYBOARD SHORTCUTS
+      // ===================================================
+      document.addEventListener("keydown", function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+          e.preventDefault();
+          saveTemplate();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+          e.preventDefault();
+          undoAction();
+        }
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          (e.key === "y" || (e.key === "z" && e.shiftKey))
+        ) {
+          e.preventDefault();
+          redoAction();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === "p") {
+          e.preventDefault();
+          window.print();
+        }
+        if (e.key === "Escape") {
+          closeCtx();
+          closeAllCpops();
+          document
+            .querySelectorAll(".modal-overlay.open")
+            .forEach(function (m) {
+              m.classList.remove("open");
+            });
+        }
+      });
+      document.addEventListener("click", function (e) {
+        closeCtx();
+        if (!e.target.closest(".rcolor")) closeAllCpops();
+        if (e.target.classList.contains("modal-overlay"))
+          e.target.classList.remove("open");
+      });
+    </script>
+  </body>
+</html>

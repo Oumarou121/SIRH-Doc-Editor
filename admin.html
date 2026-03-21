@@ -1,0 +1,5474 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>SIRH-Doc — Éditeur Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600&family=Tajawal:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ═══════════════════════════════════════════════════════════════
+   RESET & VARIABLES
+═══════════════════════════════════════════════════════════════ */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --font: "IBM Plex Sans", sans-serif;
+        --mono: "IBM Plex Mono", monospace;
+        --bg: #f0f2f5;
+        --surface: #fff;
+        --surface2: #f7f8fa;
+        --surface3: #eef0f3;
+        --border: #d9dce3;
+        --border2: #b8bcc8;
+        --text: #1a1d2e;
+        --text2: #555870;
+        --text3: #9499b0;
+        --accent: #2563eb;
+        --accent2: #1d4ed8;
+        --accent-bg: rgba(37, 99, 235, 0.08);
+        --accent-bdr: rgba(37, 99, 235, 0.25);
+        --green: #16a34a;
+        --green-bg: rgba(22, 163, 74, 0.08);
+        --green-bdr: rgba(22, 163, 74, 0.2);
+        --red: #dc2626;
+        --red-bg: rgba(220, 38, 38, 0.08);
+        --amber: #d97706;
+        --amber-bg: rgba(217, 119, 6, 0.08);
+        --purple: #7c3aed;
+        --purple-bg: rgba(124, 58, 237, 0.08);
+        --purple-bdr: rgba(124, 58, 237, 0.25);
+        --r: 4px;
+        --rlg: 8px;
+        --rxl: 12px;
+        --sh: 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.06);
+        --shlg: 0 8px 32px rgba(0, 0, 0, 0.12);
+        /* Page A4 */
+        --page-w: 210mm;
+        --page-h: 297mm;
+        --page-mt: 20mm;
+        --page-mb: 20mm;
+        --page-ml: 25mm;
+        --page-mr: 25mm;
+        --header-h: 20mm;
+        --footer-h: 14mm;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 13px;
+      }
+      input,
+      select,
+      textarea,
+      button {
+        font-family: var(--font);
+      }
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border2);
+        border-radius: 3px;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+   LOADING
+═══════════════════════════════════════════════════════════════ */
+      #loading {
+        position: fixed;
+        inset: 0;
+        background: #fff;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+      }
+      #loading.done {
+        display: none;
+      }
+      .ll {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+        color: var(--text);
+      }
+      .ll span {
+        color: var(--accent);
+      }
+      .lb {
+        width: 180px;
+        height: 3px;
+        background: var(--border);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .lbf {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 3px;
+        animation: lf 1.6s ease forwards;
+      }
+      @keyframes lf {
+        from {
+          width: 0;
+        }
+        to {
+          width: 100%;
+        }
+      }
+      .lsub {
+        font-size: 11px;
+        color: var(--text3);
+      }
+      .lbadge {
+        font-size: 9px;
+        padding: 2px 8px;
+        border-radius: 20px;
+        background: var(--green-bg);
+        color: var(--green);
+        border: 1px solid var(--green-bdr);
+        font-weight: 700;
+        letter-spacing: 0.05em;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+   APP SHELL
+═══════════════════════════════════════════════════════════════ */
+      #app {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        transition: opacity 0.25s;
+      }
+
+      /* ── TOP NAV ─────────────────────────── */
+      .tnav {
+        height: 44px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        gap: 8px;
+        flex-shrink: 0;
+        z-index: 300;
+      }
+      .tlogo {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: -0.4px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .tlogo-icon {
+        width: 26px;
+        height: 26px;
+        background: var(--accent);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .tlogo-text {
+        color: var(--text);
+      }
+      .tlogo-text span {
+        color: var(--accent);
+      }
+      .tdiv {
+        width: 1px;
+        height: 20px;
+        background: var(--border);
+      }
+      .tchip {
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        background: var(--accent-bg);
+        color: var(--accent);
+        border: 1px solid var(--accent-bdr);
+      }
+      .tetab {
+        font-size: 11px;
+        color: var(--text3);
+        font-weight: 500;
+      }
+      .tright {
+        margin-left: auto;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .nlink {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 5px 10px;
+        border-radius: var(--r);
+        font-size: 11px;
+        color: var(--text2);
+        border: 1px solid var(--border);
+        background: transparent;
+        text-decoration: none;
+        transition: all 0.12s;
+        cursor: pointer;
+        font-weight: 500;
+      }
+      .nlink:hover {
+        border-color: var(--border2);
+        color: var(--text);
+        background: var(--surface2);
+      }
+      .nlink svg {
+        width: 11px;
+        height: 11px;
+      }
+
+      /* ── MAIN LAYOUT ─────────────────────── */
+      .main-area {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* ── SIDEBAR ─────────────────────────── */
+      .sidebar {
+        width: 260px;
+        flex-shrink: 0;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: width 0.2s;
+      }
+      .sidebar.closed {
+        width: 0;
+        border: none;
+      }
+      .sbsec {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .sblabel {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--text3);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 6px;
+      }
+      .famsel {
+        width: 100%;
+        padding: 6px 28px 6px 9px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        font: inherit;
+        font-size: 12px;
+        color: var(--text);
+        background: var(--surface2)
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 0l4.5 5L9 0z' fill='%239499b0'/%3E%3C/svg%3E")
+          no-repeat right 8px center;
+        -webkit-appearance: none;
+        outline: none;
+        cursor: pointer;
+      }
+      .famsel:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-bg);
+      }
+      .tpl-add {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 9px;
+        margin: 6px 8px;
+        border: 1px dashed var(--border2);
+        border-radius: var(--r);
+        cursor: pointer;
+        font-size: 11px;
+        color: var(--green);
+        transition: all 0.12s;
+        font-weight: 500;
+      }
+      .tpl-add:hover {
+        background: var(--green-bg);
+        border-color: var(--green);
+      }
+      .tpl-scroll {
+        flex: 1;
+        overflow-y: auto;
+      }
+      .tpl-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .tpl-item:hover {
+        background: var(--surface2);
+      }
+      .tpl-item.on {
+        background: var(--accent-bg);
+        border-left: 3px solid var(--accent);
+      }
+      .tpl-item.on .tpl-name {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .tpl-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .tpl-name {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tpl-meta {
+        font-size: 9px;
+        color: var(--text3);
+        margin-top: 2px;
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .tpl-del {
+        width: 20px;
+        height: 20px;
+        border-radius: 3px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text3);
+        opacity: 0;
+        transition: all 0.1s;
+        flex-shrink: 0;
+      }
+      .tpl-item:hover .tpl-del {
+        opacity: 1;
+      }
+      .tpl-del:hover {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .tpl-del svg {
+        width: 11px;
+        height: 11px;
+      }
+
+      /* ── VARS PANEL ─────────────────────── */
+      .vars-area {
+        border-top: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .vars-scroll {
+        max-height: 220px;
+        overflow-y: auto;
+        padding: 4px 8px 8px;
+      }
+      .vc-hdr {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 4px;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        cursor: default;
+        border-radius: 3px;
+        user-select: none;
+      }
+      .vchips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        padding: 2px 4px 6px;
+      }
+      .vchip {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 7px;
+        border-radius: 3px;
+        font-size: 9px;
+        font-family: var(--mono);
+        cursor: pointer;
+        transition: all 0.1s;
+        user-select: none;
+        border: 1px solid;
+        white-space: nowrap;
+      }
+      .vchip:hover {
+        filter: brightness(0.9);
+      }
+      .vchip.is-list {
+        border-style: dashed;
+      }
+      .vchip-badge {
+        font-size: 7px;
+        font-weight: 700;
+        padding: 1px 3px;
+        border-radius: 2px;
+        background: var(--purple-bg);
+        color: var(--purple);
+        margin-right: 3px;
+        letter-spacing: 0.04em;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+   EDITOR ZONE
+═══════════════════════════════════════════════════════════════ */
+      .ed-zone {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        background: var(--bg);
+      }
+
+      /* ── NAME BAR ───────────────────────── */
+      .tname-bar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 6px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .tname-input {
+        flex: 1;
+        border: 1px solid transparent;
+        border-radius: var(--r);
+        padding: 4px 9px;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        outline: none;
+        background: transparent;
+      }
+      .tname-input:hover {
+        background: var(--surface2);
+        border-color: var(--border);
+      }
+      .tname-input:focus {
+        background: var(--accent-bg);
+        border-color: var(--accent-bdr);
+      }
+      .save-st {
+        font-size: 10px;
+        color: var(--text3);
+        white-space: nowrap;
+      }
+      .save-st.mod {
+        color: var(--amber);
+        font-weight: 600;
+      }
+      .page-count-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 600;
+        background: var(--surface3);
+        color: var(--text2);
+        border: 1px solid var(--border);
+      }
+
+      /* ── SECTION TABS ───────────────────── */
+      .sec-tabs {
+        display: flex;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 0 12px;
+        flex-shrink: 0;
+        align-items: center;
+      }
+      .sec-tab {
+        padding: 8px 14px;
+        font-size: 11px;
+        cursor: pointer;
+        color: var(--text3);
+        border-bottom: 2px solid transparent;
+        transition: all 0.12s;
+        user-select: none;
+        font-weight: 500;
+      }
+      .sec-tab:hover {
+        color: var(--text2);
+      }
+      .sec-tab.on {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+        font-weight: 600;
+      }
+      .sec-tab.disabled {
+        opacity: 0.3;
+        pointer-events: none;
+      }
+      .sec-toggle {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .toggle-btn {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 10px;
+        color: var(--text3);
+        cursor: pointer;
+        padding: 3px 8px;
+        border-radius: var(--r);
+        border: 1px solid var(--border);
+        background: transparent;
+        transition: all 0.12s;
+        white-space: nowrap;
+        font-weight: 500;
+      }
+      .toggle-btn:hover {
+        border-color: var(--border2);
+        color: var(--text);
+      }
+      .toggle-btn.on {
+        background: var(--accent-bg);
+        color: var(--accent);
+        border-color: var(--accent-bdr);
+      }
+
+      /* ── TOOLBAR ────────────────────────── */
+      .ed-toolbar {
+        background: var(--surface);
+        border-bottom: 2px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1px;
+        padding: 4px 8px;
+        flex-shrink: 0;
+        min-height: 40px;
+      }
+      .tb-grp {
+        display: flex;
+        align-items: center;
+        gap: 1px;
+        padding: 0 4px;
+        border-right: 1px solid var(--border);
+      }
+      .tb-grp:last-child {
+        border-right: none;
+      }
+      .tb-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: transparent;
+        border-radius: var(--r);
+        cursor: pointer;
+        color: var(--text2);
+        font-size: 12px;
+        transition: all 0.1s;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .tb-btn:hover {
+        background: var(--surface3);
+        color: var(--text);
+      }
+      .tb-btn.on {
+        background: var(--accent-bg);
+        color: var(--accent);
+      }
+      .tb-btn svg {
+        width: 14px;
+        height: 14px;
+        pointer-events: none;
+      }
+      .tb-btn[data-tip]:hover::after {
+        content: attr(data-tip);
+        position: absolute;
+        bottom: -26px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--text);
+        color: #fff;
+        font-size: 10px;
+        padding: 2px 7px;
+        border-radius: 3px;
+        white-space: nowrap;
+        z-index: 999;
+        pointer-events: none;
+      }
+      .tb-sel {
+        height: 28px;
+        padding: 0 22px 0 7px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        font: inherit;
+        font-size: 11px;
+        color: var(--text);
+        background: var(--surface2)
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 0l4.5 5L9 0z' fill='%239499b0'/%3E%3C/svg%3E")
+          no-repeat right 5px center;
+        -webkit-appearance: none;
+        outline: none;
+        cursor: pointer;
+      }
+      .tb-sel:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent-bg);
+      }
+      .tb-clr {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+        padding: 4px 5px;
+        border: none;
+        background: transparent;
+        border-radius: var(--r);
+        cursor: pointer;
+        color: var(--text2);
+        transition: all 0.1s;
+      }
+      .tb-clr:hover {
+        background: var(--surface3);
+      }
+      .tb-clr svg {
+        width: 14px;
+        height: 14px;
+      }
+      .tb-clr-bar {
+        height: 3px;
+        width: 14px;
+        border-radius: 2px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+      }
+      .cpop {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rlg);
+        padding: 12px;
+        display: none;
+        z-index: 500;
+        box-shadow: var(--shlg);
+        width: 192px;
+      }
+      .cpop.on {
+        display: block;
+      }
+      .cswatches {
+        display: grid;
+        grid-template-columns: repeat(8, 22px);
+        gap: 3px;
+        margin-bottom: 8px;
+      }
+      .cswatch {
+        width: 22px;
+        height: 22px;
+        border-radius: 3px;
+        cursor: pointer;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        transition: transform 0.1s;
+      }
+      .cswatch:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 0 2px var(--accent);
+      }
+      .cpop input[type="color"] {
+        width: 100%;
+        height: 28px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        cursor: pointer;
+        padding: 2px;
+      }
+
+      /* ── PAGE CANVAS ─────────────────────── */
+      .pcanvas {
+        flex: 1;
+        overflow: auto;
+        background: #c8cdd8;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px 20px 40px;
+      }
+      .zoom-scaler {
+        transition: transform 0.1s;
+        transform-origin: top center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* ── A4 PAGE ─────────────────────────── */
+      .a4-page {
+        width: var(--page-w);
+        height: var(--page-h);
+        background: #fff;
+        box-shadow:
+          0 2px 12px rgba(0, 0, 0, 0.18),
+          0 0 0 1px rgba(0, 0, 0, 0.08);
+        position: relative;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 16px;
+        overflow: hidden;
+      }
+      .a4-page-num {
+        position: absolute;
+        bottom: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 9px;
+        color: rgba(0, 0, 0, 0.35);
+        user-select: none;
+        white-space: nowrap;
+      }
+      .a4-header {
+        padding: 5mm var(--page-mr) 3mm var(--page-ml);
+        border-bottom: 1px dashed #c8cdd8;
+        flex-shrink: 0;
+        min-height: var(--header-h);
+        position: relative;
+      }
+      .a4-footer {
+        padding: 3mm var(--page-mr) 5mm var(--page-ml);
+        border-top: 1px dashed #c8cdd8;
+        flex-shrink: 0;
+        min-height: var(--footer-h);
+        position: relative;
+        margin-top: auto;
+      }
+      .a4-hf-label {
+        position: absolute;
+        right: 4px;
+        top: 4px;
+        font-size: 8px;
+        color: #bbb;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        pointer-events: none;
+      }
+      #sec-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+        padding: 5mm var(--page-mr) 5mm var(--page-ml);
+      }
+      #sec-body.no-header {
+        padding-top: var(--page-mt);
+      }
+      #sec-body.no-footer {
+        padding-bottom: var(--page-mb);
+      }
+      .overflow-warning {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #f59e0b, #ef4444);
+        z-index: 10;
+        pointer-events: none;
+        border-radius: 0 0 2px 2px;
+      }
+
+      /* ── DOC CONTENT (Tiptap) ───────────── */
+      .tiptap-wrapper {
+        width: 100%;
+        height: 100%;
+      }
+      .tiptap-wrapper .ProseMirror {
+        width: 100%;
+        height: 100%;
+        min-height: 40px;
+        outline: none;
+        caret-color: var(--accent);
+        font-family: "Times New Roman", Times, serif;
+        font-size: 12pt;
+        line-height: 1.6;
+        color: #111;
+      }
+      .tiptap-wrapper .ProseMirror:focus {
+        outline: none;
+      }
+      .tiptap-wrapper .ProseMirror p {
+        font-size: 12pt;
+        line-height: 1.6;
+        color: #111;
+        margin: 0 0 0.4em;
+      }
+      .tiptap-wrapper .ProseMirror p:last-child {
+        margin-bottom: 0;
+      }
+      .tiptap-wrapper .ProseMirror h1 {
+        font-size: 22pt;
+        font-weight: 700;
+        margin: 0.8em 0 0.4em;
+      }
+      .tiptap-wrapper .ProseMirror h2 {
+        font-size: 18pt;
+        font-weight: 700;
+        margin: 0.7em 0 0.3em;
+      }
+      .tiptap-wrapper .ProseMirror h3 {
+        font-size: 14pt;
+        font-weight: 700;
+        margin: 0.6em 0 0.3em;
+      }
+      .tiptap-wrapper .ProseMirror h4 {
+        font-size: 12pt;
+        font-weight: 700;
+        margin: 0.5em 0 0.2em;
+      }
+      .tiptap-wrapper .ProseMirror ul {
+        padding-left: 2em;
+        list-style-type: disc;
+        margin: 0.4em 0;
+      }
+      .tiptap-wrapper .ProseMirror ol {
+        padding-left: 2em;
+        list-style-type: decimal;
+        margin: 0.4em 0;
+      }
+      .tiptap-wrapper .ProseMirror li {
+        display: list-item;
+      }
+      .tiptap-wrapper .ProseMirror blockquote {
+        border-left: 3px solid var(--border2);
+        margin: 0.8em 0;
+        padding-left: 1em;
+        color: var(--text2);
+        font-style: italic;
+      }
+      .tiptap-wrapper .ProseMirror hr {
+        border: none;
+        border-top: 1.5px solid #c8cdd8;
+        margin: 12px 0;
+      }
+      .tiptap-wrapper .ProseMirror table {
+        border-collapse: collapse;
+        width: 100%;
+        max-width: 100%;
+        table-layout: fixed;
+        margin: 8px 0;
+        word-wrap: break-word;
+      }
+      .tiptap-wrapper .ProseMirror td,
+      .tiptap-wrapper .ProseMirror th {
+        border: 1px solid #c8cdd8;
+        padding: 7px 10px;
+        min-width: 0;
+        position: relative;
+        overflow: hidden;
+        word-break: break-word;
+      }
+      .tiptap-wrapper .ProseMirror th {
+        background: #eef2ff;
+        color: #1d4ed8;
+        font-weight: 600;
+      }
+      .tiptap-wrapper .ProseMirror .selectedCell::after {
+        z-index: 2;
+        position: absolute;
+        content: "";
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        background: rgba(37, 99, 235, 0.1);
+        pointer-events: none;
+      }
+      .tiptap-wrapper .ProseMirror img {
+        max-width: 100%;
+        height: auto;
+      }
+      .tiptap-wrapper .ProseMirror a {
+        color: #2563eb;
+        text-decoration: underline;
+      }
+      .tiptap-wrapper .ProseMirror p.is-empty::before {
+        color: var(--text3);
+        content: attr(data-placeholder);
+        float: left;
+        height: 0;
+        pointer-events: none;
+      }
+      .a4-header:focus-within,
+      #sec-body:focus-within,
+      .a4-footer:focus-within {
+        outline: 2px solid var(--accent-bdr);
+        outline-offset: -2px;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════════════════ */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        border-radius: var(--r);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text2);
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        transition: all 0.12s;
+        white-space: nowrap;
+        font-weight: 500;
+      }
+      .btn:hover {
+        border-color: var(--border2);
+        background: var(--surface3);
+        color: var(--text);
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .btn.primary:hover {
+        background: var(--accent2);
+      }
+      .btn.success {
+        background: transparent;
+        color: var(--green);
+        border-color: var(--green-bdr);
+      }
+      .btn.success:hover {
+        background: var(--green-bg);
+      }
+      .btn.danger {
+        background: var(--red-bg);
+        color: var(--red);
+        border-color: var(--red);
+      }
+      .btn.danger:hover {
+        background: var(--red);
+        color: #fff;
+      }
+      .btn.ghost {
+        border-color: transparent;
+        background: transparent;
+      }
+      .btn.ghost:hover {
+        background: var(--surface2);
+      }
+      .btn.sm {
+        padding: 4px 9px;
+        font-size: 11px;
+      }
+      .btn.xs {
+        padding: 2px 6px;
+        font-size: 10px;
+      }
+      .btn svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+   MODALS
+═══════════════════════════════════════════════════════════════ */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        background: rgba(0, 0, 0, 0.35);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(2px);
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rxl);
+        padding: 22px;
+        width: 90%;
+        max-width: 660px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: var(--shlg);
+      }
+      .modal-sm {
+        max-width: 440px;
+      }
+      .mhdr {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .mtitle {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .mclose {
+        width: 28px;
+        height: 28px;
+        border-radius: var(--r);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text3);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      }
+      .mclose:hover {
+        background: var(--red-bg);
+        color: var(--red);
+        border-color: var(--red);
+      }
+      .mactions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+      }
+      .frow {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+      .flabel {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text2);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .finput {
+        padding: 7px 10px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        font: inherit;
+        font-size: 12px;
+        color: var(--text);
+        background: var(--surface2);
+        outline: none;
+        transition: all 0.12s;
+      }
+      .finput:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-bg);
+      }
+      .fgrid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .fgrid3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+      }
+
+      /* ── Table grid picker ──────────────── */
+      .tgcells {
+        display: grid;
+        grid-template-columns: repeat(10, 22px);
+        gap: 2px;
+        margin-bottom: 8px;
+      }
+      .tgcell {
+        width: 22px;
+        height: 22px;
+        border: 1px solid var(--border);
+        border-radius: 2px;
+        cursor: pointer;
+        transition: all 0.07s;
+      }
+      .tgcell.hi {
+        background: var(--accent-bg);
+        border-color: var(--accent);
+      }
+
+      /* ── Image modal ────────────────────── */
+      .img-pre-wrap {
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        overflow: hidden;
+        margin-bottom: 10px;
+        background: var(--surface2);
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .img-pre-wrap img {
+        max-width: 100%;
+        max-height: 150px;
+        display: block;
+      }
+
+      /* ── Export modal ───────────────────── */
+      .export-opts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      .export-opt {
+        border: 2px solid var(--border);
+        border-radius: var(--rlg);
+        padding: 14px;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: center;
+      }
+      .export-opt:hover,
+      .export-opt.on {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+      }
+      .export-opt-icon {
+        font-size: 28px;
+        margin-bottom: 6px;
+      }
+      .export-opt-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .export-opt-desc {
+        font-size: 10px;
+        color: var(--text3);
+        margin-top: 2px;
+      }
+
+      /* ── Preview modal ──────────────────── */
+      .preview-a4-wrap {
+        overflow: auto;
+        max-height: 72vh;
+        background: #c8cdd8;
+        padding: 20px;
+        border-radius: var(--r);
+      }
+      .preview-page {
+        background: #fff;
+        border-radius: 2px;
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+      }
+      .preview-page .prev-header {
+        padding: 5mm 25mm 3mm 25mm;
+        border-bottom: 1px solid #e2e8f0;
+        flex-shrink: 0;
+      }
+      .preview-page .prev-body {
+        flex: 1;
+        padding: 5mm 25mm;
+        overflow: hidden;
+        font-family: "Times New Roman", Times, serif;
+        font-size: 12pt;
+        line-height: 1.6;
+        color: #111;
+      }
+      .preview-page .prev-body.no-header {
+        padding-top: 20mm;
+      }
+      .preview-page .prev-body.no-footer {
+        padding-bottom: 20mm;
+      }
+      .preview-page .prev-footer {
+        padding: 3mm 25mm 5mm 25mm;
+        border-top: 1px solid #e2e8f0;
+        flex-shrink: 0;
+        margin-top: auto;
+        font-family: "Times New Roman", Times, serif;
+        font-size: 12pt;
+        line-height: 1.6;
+        color: #111;
+      }
+      .preview-page .var-resolved {
+        color: #2563eb;
+        font-weight: 500;
+        background: #eff6ff;
+        padding: 0 3px;
+        border-radius: 2px;
+      }
+      .preview-page .var-missing {
+        color: #dc2626;
+        background: #fef2f2;
+        padding: 0 3px;
+        border-radius: 2px;
+        font-size: 0.9em;
+        font-style: italic;
+      }
+      .preview-page table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      .preview-page td,
+      .preview-page th {
+        border: 1px solid #c8cdd8;
+        padding: 7px 10px;
+      }
+      .preview-page th {
+        background: #eef2ff;
+        color: #1d4ed8;
+        font-weight: 600;
+      }
+      .preview-page ul {
+        padding-left: 2em;
+        list-style-type: disc;
+        margin: 0.4em 0;
+      }
+      .preview-page li {
+        display: list-item;
+      }
+
+      /* ── Page settings modal ────────────── */
+      .page-margin-viz {
+        display: grid;
+        grid-template-columns: 40px 1fr 40px;
+        grid-template-rows: 40px 1fr 40px;
+        gap: 2px;
+        margin-bottom: 12px;
+        background: #f0f2f5;
+        border-radius: 6px;
+        padding: 8px;
+      }
+      .pmv-side {
+        background: var(--accent-bg);
+        border: 1px solid var(--accent-bdr);
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--accent);
+      }
+      .pmv-center {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 3px;
+      }
+
+      /* ── Watermark ──────────────────────── */
+      .a4-watermark {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        z-index: 0;
+        overflow: hidden;
+      }
+      .a4-watermark span {
+        font-weight: 900;
+        transform: rotate(-35deg);
+        user-select: none;
+        white-space: nowrap;
+        display: block;
+      }
+
+      /* ── Table toolbar ──────────────────── */
+      .tbl-toolbar {
+        position: fixed;
+        z-index: 4000;
+        background: var(--text);
+        border-radius: 8px;
+        display: none;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1px;
+        padding: 4px 6px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+        pointer-events: auto;
+      }
+      .tbl-toolbar.on {
+        display: flex;
+      }
+      .tbl-tb-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 26px;
+        height: 26px;
+        border: none;
+        background: transparent;
+        border-radius: 4px;
+        cursor: pointer;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 10px;
+        font-weight: 600;
+        padding: 0 5px;
+        gap: 3px;
+        white-space: nowrap;
+        transition: all 0.1s;
+      }
+      .tbl-tb-btn:hover {
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+      }
+      .tbl-tb-btn.danger:hover {
+        background: rgba(220, 38, 38, 0.55);
+        color: #fff;
+      }
+      .tbl-tb-btn svg {
+        width: 12px;
+        height: 12px;
+        flex-shrink: 0;
+      }
+      .tbl-tb-sep {
+        width: 1px;
+        height: 18px;
+        background: rgba(255, 255, 255, 0.18);
+        margin: 0 3px;
+      }
+      .tbl-cell-clr-wrap {
+        position: relative;
+      }
+      .tbl-clr-pop {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rlg);
+        padding: 10px;
+        z-index: 4100;
+        box-shadow: var(--shlg);
+        display: none;
+        width: 180px;
+      }
+      .tbl-clr-pop.on {
+        display: block;
+      }
+      .tbl-clr-swatches {
+        display: grid;
+        grid-template-columns: repeat(8, 20px);
+        gap: 3px;
+        margin-bottom: 7px;
+      }
+      .tbl-clr-sw {
+        width: 20px;
+        height: 20px;
+        border-radius: 2px;
+        cursor: pointer;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        transition: transform 0.1s;
+      }
+      .tbl-clr-sw:hover {
+        transform: scale(1.18);
+        box-shadow: 0 0 0 2px var(--accent);
+      }
+      .tbl-clr-pop input[type="color"] {
+        width: 100%;
+        height: 26px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        cursor: pointer;
+        padding: 2px;
+      }
+
+      /* ── Search panel ───────────────────── */
+      .search-panel {
+        position: fixed;
+        top: 110px;
+        right: 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rlg);
+        padding: 14px;
+        box-shadow: var(--shlg);
+        z-index: 700;
+        display: none;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 300px;
+      }
+      .search-panel.on {
+        display: flex;
+      }
+      .search-panel input {
+        padding: 6px 9px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        font: inherit;
+        font-size: 12px;
+        outline: none;
+        background: var(--surface2);
+        color: var(--text);
+        flex: 1;
+      }
+      .search-panel input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent-bg);
+      }
+
+      /* ── Context menu ───────────────────── */
+      .ctxmenu {
+        position: fixed;
+        z-index: 5000;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rlg);
+        padding: 4px;
+        box-shadow: var(--shlg);
+        min-width: 170px;
+        display: none;
+      }
+      .ctxmenu.on {
+        display: block;
+      }
+      .ctx-item {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 10px;
+        border-radius: var(--r);
+        cursor: pointer;
+        font-size: 12px;
+        color: var(--text2);
+        transition: all 0.08s;
+      }
+      .ctx-item:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .ctx-item.danger:hover {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .ctx-sep {
+        height: 1px;
+        background: var(--border);
+        margin: 3px 0;
+      }
+      .ctx-kbd {
+        margin-left: auto;
+        font-size: 9px;
+        color: var(--text3);
+        font-family: var(--mono);
+      }
+
+      /* ── Image resize ───────────────────── */
+      .img-resize-wrap {
+        display: inline-block;
+        position: relative;
+        line-height: 0;
+        user-select: none;
+      }
+      .img-resize-wrap img {
+        display: block;
+        max-width: 100%;
+      }
+      .img-resize-wrap.selected img {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .img-handle {
+        position: absolute;
+        width: 9px;
+        height: 9px;
+        background: #fff;
+        border: 1.5px solid var(--accent);
+        border-radius: 1px;
+        z-index: 20;
+        box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.3);
+      }
+      .img-handle.nw {
+        top: -5px;
+        left: -5px;
+        cursor: nw-resize;
+      }
+      .img-handle.n {
+        top: -5px;
+        left: 50%;
+        transform: translateX(-50%);
+        cursor: n-resize;
+      }
+      .img-handle.ne {
+        top: -5px;
+        right: -5px;
+        cursor: ne-resize;
+      }
+      .img-handle.e {
+        top: 50%;
+        right: -5px;
+        transform: translateY(-50%);
+        cursor: e-resize;
+      }
+      .img-handle.se {
+        bottom: -5px;
+        right: -5px;
+        cursor: se-resize;
+      }
+      .img-handle.s {
+        bottom: -5px;
+        left: 50%;
+        transform: translateX(-50%);
+        cursor: s-resize;
+      }
+      .img-handle.sw {
+        bottom: -5px;
+        left: -5px;
+        cursor: sw-resize;
+      }
+      .img-handle.w {
+        top: 50%;
+        left: -5px;
+        transform: translateY(-50%);
+        cursor: w-resize;
+      }
+      .img-size-badge {
+        position: absolute;
+        bottom: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.72);
+        color: #fff;
+        font-size: 9px;
+        font-family: var(--mono);
+        padding: 2px 7px;
+        border-radius: 3px;
+        white-space: nowrap;
+        pointer-events: none;
+        display: none;
+      }
+      .img-resize-wrap.resizing .img-size-badge {
+        display: block;
+      }
+
+      /* ── Empty state ────────────────────── */
+      .empty-state {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        color: var(--text3);
+        padding: 48px;
+      }
+      .empty-state svg {
+        width: 52px;
+        height: 52px;
+        opacity: 0.2;
+      }
+      .empty-state h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text2);
+      }
+      .empty-state p {
+        font-size: 12px;
+        text-align: center;
+        max-width: 280px;
+        line-height: 1.7;
+      }
+
+      /* ── Status bar ─────────────────────── */
+      .statusbar {
+        height: 24px;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 14px;
+        font-size: 10px;
+        color: var(--text3);
+        flex-shrink: 0;
+      }
+      .sb-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+      }
+      .sb-dot.ok {
+        background: var(--green);
+      }
+      .sb-dot.mod {
+        background: var(--amber);
+      }
+
+      /* ── Toast ──────────────────────────── */
+      .toast-stack {
+        position: fixed;
+        bottom: 24px;
+        right: 18px;
+        z-index: 3000;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 14px;
+        background: var(--text);
+        color: #fff;
+        border-radius: var(--rlg);
+        font-size: 12px;
+        box-shadow: var(--shlg);
+        animation: ti 0.18s ease;
+        min-width: 200px;
+      }
+      .toast.success {
+        background: #15803d;
+      }
+      .toast.error {
+        background: #dc2626;
+      }
+      .toast.info {
+        background: var(--accent);
+      }
+      @keyframes ti {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ── Print ──────────────────────────── */
+      #print-render-area {
+        display: none;
+      }
+      @media print {
+        .tnav,
+        .ed-toolbar,
+        .sec-tabs,
+        .sidebar,
+        .statusbar,
+        .modal-overlay,
+        .ctxmenu,
+        .search-panel,
+        .tname-bar,
+        .a4-page-num,
+        .a4-hf-label,
+        .a4-watermark,
+        .overflow-warning,
+        .empty-state,
+        #emptyState,
+        .tbl-toolbar {
+          display: none !important;
+        }
+        #mainPage,
+        #ghostPages {
+          display: none !important;
+        }
+        #print-render-area {
+          display: block !important;
+        }
+        html,
+        body {
+          overflow: visible !important;
+          height: auto !important;
+        }
+        #app {
+          height: auto !important;
+          overflow: visible !important;
+          display: block !important;
+        }
+        .main-area {
+          display: block !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+        .ed-zone {
+          display: block !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+        .pcanvas {
+          display: block !important;
+          height: auto !important;
+          overflow: visible !important;
+          padding: 0 !important;
+          background: white !important;
+        }
+        .zoom-scaler {
+          transform: none !important;
+          display: block !important;
+        }
+        @page {
+          size: A4 portrait;
+          margin: 0;
+        }
+        #print-render-area .a4-page {
+          width: 210mm !important;
+          min-height: 297mm !important;
+          margin: 0 auto !important;
+          background: white !important;
+          box-shadow: none !important;
+          page-break-after: always !important;
+          break-after: page !important;
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        #print-render-area .a4-page:last-child {
+          page-break-after: auto !important;
+          break-after: auto !important;
+        }
+        #print-render-area .a4-header {
+          padding: 5mm 25mm 3mm 25mm !important;
+          border-bottom: 1px solid #e2e8f0 !important;
+        }
+        #print-render-area .a4-footer {
+          padding: 3mm 25mm 5mm 25mm !important;
+          border-top: 1px solid #e2e8f0 !important;
+          margin-top: auto !important;
+        }
+        #print-render-area .a4-body {
+          flex: 1 !important;
+          padding: 5mm 25mm !important;
+          font-family: "Times New Roman", Times, serif !important;
+          font-size: 12pt !important;
+          line-height: 1.6 !important;
+          color: #111 !important;
+          overflow: visible !important;
+        }
+        #print-render-area .a4-body.no-header {
+          padding-top: 20mm !important;
+        }
+        #print-render-area .a4-body.no-footer {
+          padding-bottom: 20mm !important;
+        }
+        #print-render-area table {
+          border-collapse: collapse !important;
+          width: 100% !important;
+        }
+        #print-render-area td,
+        #print-render-area th {
+          border: 1px solid #c8cdd8 !important;
+          padding: 7px 10px !important;
+        }
+        #print-render-area th {
+          background: #eef2ff !important;
+          color: #1d4ed8 !important;
+          font-weight: 600 !important;
+        }
+        #print-render-area ul,
+        #print-render-area ol {
+          padding-left: 2em !important;
+          list-style: revert !important;
+        }
+        #print-render-area li {
+          display: list-item !important;
+        }
+        .var-resolved {
+          color: #111 !important;
+          font-weight: inherit !important;
+          background: none !important;
+          padding: 0 !important;
+        }
+        .var-missing {
+          color: #dc2626 !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ═══════════════════════════════════════════════════════════
+     LOADING
+══════════════════════════════════════════════════════════════ -->
+    <div id="loading">
+      <div class="ll">SIRH-<span>Doc</span></div>
+      <div class="lb"><div class="lbf"></div></div>
+      <div class="lsub" id="loadSub">Chargement de Tiptap…</div>
+      <div class="lbadge">MIT LICENSE · 100% GRATUIT</div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+     APP
+══════════════════════════════════════════════════════════════ -->
+    <div id="app">
+      <!-- TOP NAV -->
+      <div class="tnav">
+        <div class="tlogo">
+          <div class="tlogo-icon">SD</div>
+          <div class="tlogo-text">SIRH-<span>Doc</span></div>
+        </div>
+        <div class="tdiv"></div>
+        <span class="tchip">ADMIN</span>
+        <span class="tetab" id="etabLabel"></span>
+        <div class="tright">
+          <div class="nlink" onclick="toggleSidebar()">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+            Panneau
+          </div>
+          <div class="nlink" onclick="openPageSettings()">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="4" y="2" width="16" height="20" rx="2" />
+              <line x1="8" y1="7" x2="16" y2="7" />
+              <line x1="8" y1="11" x2="16" y2="11" />
+              <line x1="8" y1="15" x2="12" y2="15" />
+            </svg>
+            Mise en page
+          </div>
+          <a class="nlink" href="superAdmin.html">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+            </svg>
+            Super Admin
+          </a>
+          <a class="nlink" href="user.html">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            Utilisateur
+          </a>
+        </div>
+      </div>
+
+      <!-- MAIN -->
+      <div class="main-area">
+        <!-- SIDEBAR -->
+        <div class="sidebar" id="sidebarEl">
+          <div class="sbsec">
+            <div class="sblabel">Famille de documents</div>
+            <select class="famsel" id="famSelAdmin" onchange="onFamChange()">
+              <option value="">— Choisir une famille —</option>
+            </select>
+          </div>
+          <div class="sbsec" style="padding-bottom: 4px; border-bottom: none">
+            <div class="sblabel">Templates</div>
+            <div class="tpl-add" onclick="newTemplate()">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                style="width: 11px; height: 11px"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Nouveau template
+            </div>
+          </div>
+          <div class="tpl-scroll" id="tplScroll">
+            <div
+              style="
+                padding: 18px;
+                font-size: 11px;
+                color: var(--text3);
+                text-align: center;
+                line-height: 1.6;
+              "
+            >
+              Sélectionnez une famille<br />pour voir les templates
+            </div>
+          </div>
+
+          <!-- Variables panel -->
+          <div class="vars-area">
+            <div class="sbsec" style="padding-bottom: 4px; border-bottom: none">
+              <div class="sblabel">Variables disponibles</div>
+              <div
+                style="font-size: 9px; color: var(--text3); margin-bottom: 4px"
+              >
+                Cliquez pour insérer ·
+                <span style="color: var(--purple)">LIST</span> = variable liste
+              </div>
+            </div>
+            <div class="vars-scroll" id="varsPanelEl">
+              <div
+                style="
+                  padding: 10px;
+                  font-size: 11px;
+                  color: var(--text3);
+                  text-align: center;
+                "
+              >
+                —
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EDITOR ZONE -->
+        <div class="ed-zone" id="edZone">
+          <!-- Empty state -->
+          <div class="empty-state" id="emptyState">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            <h3>Aucun template ouvert</h3>
+            <p>
+              Sélectionnez une famille puis un template, ou créez un nouveau
+              template.
+            </p>
+          </div>
+
+          <!-- Editor inner -->
+          <div
+            id="editorInner"
+            style="
+              display: none;
+              flex-direction: column;
+              flex: 1;
+              overflow: hidden;
+            "
+          >
+            <!-- Name bar -->
+            <div class="tname-bar">
+              <input
+                class="tname-input"
+                id="tnameInput"
+                placeholder="Nom du template"
+              />
+              <span class="save-st" id="saveSt">Prêt</span>
+              <span class="page-count-badge" id="pageCountBadge"
+                >📄 1 page</span
+              >
+              <button class="btn ghost sm" onclick="openPreviewModal()">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  style="width: 13px; height: 13px"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                Aperçu
+              </button>
+              <button class="btn ghost sm" onclick="openExportModal()">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  style="width: 13px; height: 13px"
+                >
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Exporter
+              </button>
+              <button class="btn success" onclick="saveTemplate()">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  style="width: 13px; height: 13px"
+                >
+                  <path
+                    d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"
+                  />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                Enregistrer
+                <span style="font-size: 9px; opacity: 0.65">Ctrl+S</span>
+              </button>
+            </div>
+
+            <!-- Section tabs -->
+            <div class="sec-tabs">
+              <div
+                class="sec-tab disabled"
+                id="tab-header"
+                onclick="switchSection('header')"
+              >
+                📋 En-tête
+              </div>
+              <div
+                class="sec-tab on"
+                id="tab-body"
+                onclick="switchSection('body')"
+              >
+                📄 Corps
+              </div>
+              <div
+                class="sec-tab disabled"
+                id="tab-footer"
+                onclick="switchSection('footer')"
+              >
+                📑 Pied de page
+              </div>
+              <div class="sec-toggle">
+                <div
+                  class="toggle-btn"
+                  id="toggleHeader"
+                  onclick="toggleSection('header')"
+                >
+                  📋 En-tête OFF
+                </div>
+                <div
+                  class="toggle-btn"
+                  id="toggleFooter"
+                  onclick="toggleSection('footer')"
+                >
+                  📑 Pied OFF
+                </div>
+              </div>
+            </div>
+
+            <!-- TOOLBAR -->
+            <div class="ed-toolbar" id="edToolbar">
+              <!-- Undo/Redo -->
+              <div class="tb-grp">
+                <button
+                  class="tb-btn"
+                  onclick="edCmd('undo')"
+                  data-tip="Annuler Ctrl+Z"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M3 7v6h6" />
+                    <path d="M3 13a9 9 0 106-8.5" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="edCmd('redo')"
+                  data-tip="Rétablir Ctrl+Y"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M21 7v6h-6" />
+                    <path d="M21 13a9 9 0 11-6-8.5" />
+                  </svg>
+                </button>
+              </div>
+              <!-- Heading -->
+              <div class="tb-grp">
+                <select
+                  class="tb-sel"
+                  id="tb-heading"
+                  onchange="applyHeading(this.value)"
+                  style="min-width: 110px"
+                >
+                  <option value="paragraph">Paragraphe</option>
+                  <option value="h1">Titre 1</option>
+                  <option value="h2">Titre 2</option>
+                  <option value="h3">Titre 3</option>
+                  <option value="h4">Titre 4</option>
+                </select>
+              </div>
+              <!-- Font family -->
+              <div class="tb-grp">
+                <select
+                  class="tb-sel"
+                  id="tb-font"
+                  onchange="applyFontFamily(this.value)"
+                  style="min-width: 120px"
+                >
+                  <option value="">— Police —</option>
+                  <option value="Arial,Helvetica,sans-serif">Arial</option>
+                  <option value="Georgia,serif">Georgia</option>
+                  <option value="'Times New Roman',Times,serif" selected>
+                    Times New Roman
+                  </option>
+                  <option value="Verdana,Geneva,sans-serif">Verdana</option>
+                  <option value="Calibri,sans-serif">Calibri</option>
+                  <option value="'Courier New',Courier,monospace">
+                    Courier New
+                  </option>
+                  <option value="Amiri,serif">Amiri (عربي)</option>
+                  <option value="Cairo,sans-serif">Cairo (عربي)</option>
+                  <option value="Tajawal,sans-serif">Tajawal (عربي)</option>
+                </select>
+              </div>
+              <!-- Font size -->
+              <div class="tb-grp">
+                <select
+                  class="tb-sel"
+                  id="tb-size"
+                  onchange="applyFontSize(this.value)"
+                  style="min-width: 62px"
+                >
+                  <option value="">— pt —</option>
+                  <option value="8pt">8</option>
+                  <option value="9pt">9</option>
+                  <option value="10pt">10</option>
+                  <option value="11pt">11</option>
+                  <option value="12pt" selected>12</option>
+                  <option value="14pt">14</option>
+                  <option value="16pt">16</option>
+                  <option value="18pt">18</option>
+                  <option value="20pt">20</option>
+                  <option value="24pt">24</option>
+                  <option value="28pt">28</option>
+                  <option value="36pt">36</option>
+                  <option value="48pt">48</option>
+                </select>
+              </div>
+              <!-- Text styles -->
+              <div class="tb-grp">
+                <button
+                  class="tb-btn"
+                  id="tb-bold"
+                  onclick="edCmd('toggleBold')"
+                  data-tip="Gras Ctrl+B"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                  >
+                    <path d="M6 4h8a4 4 0 010 8H6z" />
+                    <path d="M6 12h9a4 4 0 010 8H6z" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  id="tb-italic"
+                  onclick="edCmd('toggleItalic')"
+                  data-tip="Italique Ctrl+I"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="19" y1="4" x2="10" y2="4" />
+                    <line x1="14" y1="20" x2="5" y2="20" />
+                    <line x1="15" y1="4" x2="9" y2="20" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  id="tb-underline"
+                  onclick="edCmd('toggleUnderline')"
+                  data-tip="Souligné Ctrl+U"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M6 3v7a6 6 0 0012 0V3" />
+                    <line x1="4" y1="21" x2="20" y2="21" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  id="tb-strike"
+                  onclick="edCmd('toggleStrike')"
+                  data-tip="Barré"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="4" y1="12" x2="20" y2="12" />
+                    <path
+                      d="M17.5 6.5C16.5 5.3 14.8 4.5 12 4.5c-3 0-5 1.5-5 4"
+                    />
+                    <path
+                      d="M6.5 17.5C7.5 18.7 9.2 19.5 12 19.5c3 0 5-1.5 5-4"
+                    />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  id="tb-superscript"
+                  onclick="edCmd('toggleSuperscript')"
+                  data-tip="Exposant"
+                  style="font-size: 11px; font-weight: 700"
+                >
+                  X<sup style="font-size: 7px">2</sup>
+                </button>
+                <button
+                  class="tb-btn"
+                  id="tb-subscript"
+                  onclick="edCmd('toggleSubscript')"
+                  data-tip="Indice"
+                  style="font-size: 11px; font-weight: 700"
+                >
+                  X<sub style="font-size: 7px">2</sub>
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="edCmd('unsetAllMarks')"
+                  data-tip="Effacer mise en forme"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    style="width: 12px; height: 12px"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <!-- Colors -->
+              <div class="tb-grp">
+                <div
+                  class="tb-clr"
+                  onclick="toggleCpop('cpop-text', event)"
+                  data-tip="Couleur texte"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M4 20h4l10.5-10.5a2.121 2.121 0 00-3-3L5 17v3z" />
+                  </svg>
+                  <div
+                    class="tb-clr-bar"
+                    id="bar-text"
+                    style="background: #1a1d2e"
+                  ></div>
+                  <div class="cpop" id="cpop-text">
+                    <div
+                      style="
+                        font-size: 9px;
+                        color: var(--text3);
+                        margin-bottom: 6px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                        letter-spacing: 0.05em;
+                      "
+                    >
+                      Couleur du texte
+                    </div>
+                    <div class="cswatches" id="sw-text"></div>
+                    <input
+                      type="color"
+                      id="cc-text"
+                      value="#000000"
+                      onchange="applyTextColor(this.value)"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="tb-clr"
+                  onclick="toggleCpop('cpop-bg', event)"
+                  data-tip="Surligner"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M9 11l-6 6v3h3l6-6m0 0l3.5-3.5a2 2 0 00-3-3L9 11"
+                    />
+                    <line x1="14" y1="7" x2="17" y2="10" />
+                  </svg>
+                  <div
+                    class="tb-clr-bar"
+                    id="bar-bg"
+                    style="background: #fef9c3; border-color: #d4b800"
+                  ></div>
+                  <div class="cpop" id="cpop-bg">
+                    <div
+                      style="
+                        font-size: 9px;
+                        color: var(--text3);
+                        margin-bottom: 6px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                        letter-spacing: 0.05em;
+                      "
+                    >
+                      Surligneur
+                    </div>
+                    <div class="cswatches" id="sw-bg"></div>
+                    <input
+                      type="color"
+                      id="cc-bg"
+                      onchange="applyHighlight(this.value)"
+                    />
+                  </div>
+                </div>
+              </div>
+              <!-- Alignment -->
+              <div class="tb-grp">
+                <button
+                  class="tb-btn"
+                  id="tb-al"
+                  onclick="applyAlign('left')"
+                  data-tip="Gauche"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="15" y2="12" />
+                    <line x1="3" y1="18" x2="18" y2="18" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  id="tb-ac"
+                  onclick="applyAlign('center')"
+                  data-tip="Centrer"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="6" y1="12" x2="18" y2="12" />
+                    <line x1="4" y1="18" x2="20" y2="18" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  id="tb-ar"
+                  onclick="applyAlign('right')"
+                  data-tip="Droite"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="9" y1="12" x2="21" y2="12" />
+                    <line x1="6" y1="18" x2="21" y2="18" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  id="tb-aj"
+                  onclick="applyAlign('justify')"
+                  data-tip="Justifier"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <!-- Lists & dir -->
+              <div class="tb-grp">
+                <button
+                  class="tb-btn"
+                  id="tb-bul"
+                  onclick="edCmd('toggleBulletList')"
+                  data-tip="Liste à puces"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="9" y1="6" x2="20" y2="6" />
+                    <line x1="9" y1="12" x2="20" y2="12" />
+                    <line x1="9" y1="18" x2="20" y2="18" />
+                    <circle cx="4" cy="6" r="1.5" fill="currentColor" />
+                    <circle cx="4" cy="12" r="1.5" fill="currentColor" />
+                    <circle cx="4" cy="18" r="1.5" fill="currentColor" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  id="tb-ord"
+                  onclick="edCmd('toggleOrderedList')"
+                  data-tip="Liste numérotée"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="10" y1="6" x2="21" y2="6" />
+                    <line x1="10" y1="12" x2="21" y2="12" />
+                    <line x1="10" y1="18" x2="21" y2="18" />
+                    <path
+                      d="M4 6h1v4M4 10h2M4 15a2 2 0 014 0v1a2 2 0 01-4 0"
+                      stroke-width="1.5"
+                    />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="edCmd('liftListItem')"
+                  data-tip="Réduire retrait"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="11 17 6 12 11 7" />
+                    <line x1="18" y1="12" x2="6" y2="12" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="edCmd('sinkListItem')"
+                  data-tip="Augmenter retrait"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="13 17 18 12 13 7" />
+                    <line x1="6" y1="12" x2="18" y2="12" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  id="tb-ltr"
+                  onclick="applyDir('ltr')"
+                  data-tip="LTR"
+                  style="font-size: 9px; font-weight: 700"
+                >
+                  LTR
+                </button>
+                <button
+                  class="tb-btn"
+                  id="tb-rtl"
+                  onclick="applyDir('rtl')"
+                  data-tip="RTL"
+                  style="font-size: 9px; font-weight: 700"
+                >
+                  RTL
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="edCmd('toggleBlockquote')"
+                  data-tip="Citation"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"
+                    />
+                    <path
+                      d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <!-- Insert -->
+              <div class="tb-grp">
+                <button
+                  class="tb-btn"
+                  onclick="openImgModal()"
+                  data-tip="Image"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="openTableModal()"
+                  data-tip="Tableau"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="1" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="3" y1="15" x2="21" y2="15" />
+                    <line x1="9" y1="3" x2="9" y2="21" />
+                    <line x1="15" y1="3" x2="15" y2="21" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="openLinkModal()"
+                  data-tip="Lien"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"
+                    />
+                    <path
+                      d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"
+                    />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="insHR()"
+                  data-tip="Ligne horizontale"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                  </svg>
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="insPageBreak()"
+                  data-tip="Saut de page"
+                  style="font-size: 13px"
+                >
+                  ⏸
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="insDate()"
+                  data-tip="Date du jour"
+                  style="font-size: 13px"
+                >
+                  📅
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="insSignature()"
+                  data-tip="Bloc signature"
+                  style="font-size: 13px"
+                >
+                  ✍
+                </button>
+                <button
+                  class="tb-btn"
+                  onclick="openWatermarkModal()"
+                  data-tip="Filigrane"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                </button>
+              </div>
+              <!-- Search -->
+              <div class="tb-grp">
+                <button
+                  class="tb-btn"
+                  onclick="openSearchPanel()"
+                  data-tip="Rechercher Ctrl+F"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </button>
+              </div>
+              <!-- Zoom -->
+              <div class="tb-grp" style="align-items: center; gap: 4px">
+                <span
+                  style="font-size: 9px; color: var(--text3); font-weight: 600"
+                  >ZOOM</span
+                >
+                <button
+                  class="btn xs ghost"
+                  onclick="setZoom(-10)"
+                  style="font-size: 14px; width: 22px; padding: 0"
+                >
+                  −
+                </button>
+                <span
+                  id="zoomLbl"
+                  style="
+                    font-size: 11px;
+                    min-width: 36px;
+                    text-align: center;
+                    font-weight: 600;
+                    color: var(--text2);
+                  "
+                  >100%</span
+                >
+                <button
+                  class="btn xs ghost"
+                  onclick="setZoom(10)"
+                  style="font-size: 14px; width: 22px; padding: 0"
+                >
+                  +
+                </button>
+                <button class="btn xs ghost" onclick="setZoom(0)">↺</button>
+              </div>
+            </div>
+
+            <!-- PAGE CANVAS -->
+            <div class="pcanvas" id="pCanvas">
+              <div class="zoom-scaler" id="zoomScaler">
+                <div class="a4-page" id="mainPage">
+                  <div
+                    class="a4-watermark"
+                    id="docWatermark"
+                    style="display: none"
+                  >
+                    <span id="wmText">CONFIDENTIEL</span>
+                  </div>
+                  <div id="sec-header" style="display: none">
+                    <div class="a4-header">
+                      <div class="a4-hf-label">EN-TÊTE</div>
+                      <div class="tiptap-wrapper" id="ck-header"></div>
+                    </div>
+                  </div>
+                  <div id="sec-body">
+                    <div class="tiptap-wrapper" id="ck-body"></div>
+                  </div>
+                  <div id="sec-footer" style="display: none">
+                    <div class="a4-footer">
+                      <div class="a4-hf-label">PIED DE PAGE</div>
+                      <div class="tiptap-wrapper" id="ck-footer"></div>
+                    </div>
+                  </div>
+                  <div
+                    class="overflow-warning"
+                    id="overflowWarn"
+                    style="display: none"
+                  ></div>
+                  <div class="a4-page-num">Page 1</div>
+                </div>
+                <div id="ghostPages"></div>
+              </div>
+            </div>
+          </div>
+          <!-- /editorInner -->
+        </div>
+        <!-- /ed-zone -->
+      </div>
+      <!-- /main-area -->
+
+      <!-- STATUS BAR -->
+      <div class="statusbar">
+        <div class="sb-dot ok" id="sbDot"></div>
+        <span id="sbText">Prêt</span>
+        <span id="sbWords">0 mots</span>
+        <span id="sbChars">0 car.</span>
+        <span id="sbDir">LTR</span>
+        <span id="sbFont" style="font-family: var(--mono)">Tiptap MIT</span>
+        <span id="sbZoom" style="margin-left: auto">100%</span>
+        <span>A4 · Tiptap v2.4 · SIRH-Doc</span>
+      </div>
+    </div>
+    <!-- /app -->
+
+    <!-- ═══════════════════════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════════════════════════ -->
+
+    <!-- Delete template -->
+    <div class="modal-overlay" id="modalDelTpl">
+      <div class="modal modal-sm">
+        <div class="mhdr">
+          <span class="mtitle">Supprimer le template ?</span
+          ><button class="mclose" onclick="closeModal('modalDelTpl')">✕</button>
+        </div>
+        <p style="font-size: 12px; color: var(--text2); line-height: 1.7">
+          Ce template sera définitivement supprimé.
+        </p>
+        <div class="mactions">
+          <button class="btn" onclick="closeModal('modalDelTpl')">
+            Annuler</button
+          ><button class="btn danger" id="delTplBtn">Supprimer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table picker -->
+    <div class="modal-overlay" id="modalTable">
+      <div class="modal modal-sm">
+        <div class="mhdr">
+          <span class="mtitle">Insérer un tableau</span
+          ><button class="mclose" onclick="closeModal('modalTable')">✕</button>
+        </div>
+        <div style="font-size: 10px; color: var(--text3); margin-bottom: 8px">
+          Survolez la grille pour sélectionner la taille
+        </div>
+        <div class="tgcells" id="tgCells"></div>
+        <div
+          id="tgSize"
+          style="
+            font-size: 11px;
+            color: var(--text2);
+            margin-bottom: 12px;
+            min-height: 16px;
+            font-weight: 600;
+          "
+        >
+          Sélectionnez une taille…
+        </div>
+        <div class="fgrid2">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Lignes</label
+            ><input
+              class="finput"
+              type="number"
+              id="ti-rows"
+              value="3"
+              min="1"
+              max="25"
+            />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Colonnes</label
+            ><input
+              class="finput"
+              type="number"
+              id="ti-cols"
+              value="3"
+              min="1"
+              max="15"
+            />
+          </div>
+        </div>
+        <div class="mactions">
+          <button class="btn" onclick="closeModal('modalTable')">Annuler</button
+          ><button class="btn primary" onclick="doInsertTable()">
+            Insérer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image -->
+    <div class="modal-overlay" id="modalImage">
+      <div class="modal">
+        <div class="mhdr">
+          <span class="mtitle">Insérer une image</span
+          ><button class="mclose" onclick="closeModal('modalImage')">✕</button>
+        </div>
+        <div class="frow">
+          <label class="flabel">Fichier local</label
+          ><input
+            type="file"
+            id="img-file"
+            accept="image/*"
+            style="font-size: 12px"
+            onchange="previewImgFile(this)"
+          />
+        </div>
+        <div id="img-preview-area" class="img-pre-wrap" style="display: none">
+          <img id="img-preview" alt="" />
+        </div>
+        <div class="frow">
+          <label class="flabel">URL de l'image</label
+          ><input
+            class="finput"
+            type="url"
+            id="img-url"
+            placeholder="https://exemple.com/image.png"
+            oninput="previewImgUrl(this.value)"
+          />
+        </div>
+        <div class="fgrid2">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Largeur (px ou %)</label
+            ><input class="finput" type="text" id="img-w" placeholder="Auto" />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Alignement</label
+            ><select class="finput" id="img-align">
+              <option value="center">Centré</option>
+              <option value="left">Gauche</option>
+              <option value="right">Droite</option>
+            </select>
+          </div>
+        </div>
+        <div class="frow" style="margin-top: 8px">
+          <label class="flabel">Légende (optionnel)</label
+          ><input
+            class="finput"
+            id="img-caption"
+            placeholder="Texte de légende…"
+          />
+        </div>
+        <div class="mactions">
+          <button class="btn" onclick="closeModal('modalImage')">Annuler</button
+          ><button class="btn primary" onclick="doInsertImage()">
+            Insérer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Link -->
+    <div class="modal-overlay" id="modalLink">
+      <div class="modal modal-sm">
+        <div class="mhdr">
+          <span class="mtitle">Insérer un lien</span
+          ><button class="mclose" onclick="closeModal('modalLink')">✕</button>
+        </div>
+        <div class="frow">
+          <label class="flabel">Texte affiché</label
+          ><input class="finput" id="link-text" placeholder="Texte du lien" />
+        </div>
+        <div class="frow">
+          <label class="flabel">URL</label
+          ><input
+            class="finput"
+            type="url"
+            id="link-url"
+            placeholder="https://…"
+          />
+        </div>
+        <div class="mactions">
+          <button class="btn" onclick="closeModal('modalLink')">Annuler</button
+          ><button class="btn primary" onclick="doInsertLink()">Insérer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Watermark -->
+    <div class="modal-overlay" id="modalWatermark">
+      <div class="modal modal-sm">
+        <div class="mhdr">
+          <span class="mtitle">Filigrane de page</span
+          ><button class="mclose" onclick="closeModal('modalWatermark')">
+            ✕
+          </button>
+        </div>
+        <div class="frow">
+          <label class="flabel">Texte</label
+          ><input class="finput" id="wm-text" value="CONFIDENTIEL" />
+        </div>
+        <div class="fgrid3">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Couleur</label
+            ><input
+              type="color"
+              class="finput"
+              id="wm-color"
+              value="#000000"
+              style="height: 34px; padding: 3px"
+            />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Opacité %</label
+            ><input
+              class="finput"
+              type="number"
+              id="wm-opacity"
+              value="7"
+              min="1"
+              max="80"
+            />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Taille px</label
+            ><input
+              class="finput"
+              type="number"
+              id="wm-size"
+              value="80"
+              min="20"
+              max="250"
+            />
+          </div>
+        </div>
+        <div class="mactions">
+          <button class="btn danger" onclick="removeWatermark()">
+            Supprimer
+          </button>
+          <button class="btn" onclick="closeModal('modalWatermark')">
+            Annuler
+          </button>
+          <button class="btn primary" onclick="applyWatermark()">
+            Appliquer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page settings -->
+    <div class="modal-overlay" id="modalPageSettings">
+      <div class="modal modal-sm">
+        <div class="mhdr">
+          <span class="mtitle">Mise en page — Marges A4</span
+          ><button class="mclose" onclick="closeModal('modalPageSettings')">
+            ✕
+          </button>
+        </div>
+        <div style="font-size: 11px; color: var(--text3); margin-bottom: 14px">
+          Marges en millimètres. Format fixe A4 (210×297mm)
+        </div>
+        <div class="fgrid2">
+          <div class="frow">
+            <label class="flabel">Haut (mm)</label
+            ><input
+              class="finput"
+              type="number"
+              id="pg-mt"
+              value="20"
+              min="5"
+              max="60"
+            />
+          </div>
+          <div class="frow">
+            <label class="flabel">Bas (mm)</label
+            ><input
+              class="finput"
+              type="number"
+              id="pg-mb"
+              value="20"
+              min="5"
+              max="60"
+            />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Gauche (mm)</label
+            ><input
+              class="finput"
+              type="number"
+              id="pg-ml"
+              value="25"
+              min="5"
+              max="60"
+            />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Droite (mm)</label
+            ><input
+              class="finput"
+              type="number"
+              id="pg-mr"
+              value="25"
+              min="5"
+              max="60"
+            />
+          </div>
+        </div>
+        <div class="mactions">
+          <button class="btn" onclick="resetPageMargins()">
+            Réinitialiser
+          </button>
+          <button class="btn" onclick="closeModal('modalPageSettings')">
+            Annuler
+          </button>
+          <button class="btn primary" onclick="applyPageMargins()">
+            Appliquer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="modal-overlay" id="modalPreview">
+      <div class="modal" style="max-width: 880px">
+        <div class="mhdr">
+          <span class="mtitle">Aperçu du document</span>
+          <button class="mclose" onclick="closeModal('modalPreview')">✕</button>
+        </div>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+          "
+        >
+          <div style="font-size: 12px; color: var(--text2); font-weight: 600">
+            Bénéficiaire :
+          </div>
+          <select
+            id="prevPerson"
+            onchange="refreshPrev()"
+            style="
+              font-size: 12px;
+              border: 1px solid var(--border);
+              border-radius: var(--r);
+              padding: 5px 10px;
+              outline: none;
+              background: var(--surface2);
+              color: var(--text);
+            "
+          ></select>
+          <button
+            id="prevPrintBtn"
+            class="btn sm primary"
+            onclick="printPagedDocument()"
+          >
+            🖨 Imprimer / PDF
+          </button>
+          <span
+            style="
+              font-size: 10px;
+              color: var(--text3);
+              background: var(--accent-bg);
+              padding: 2px 8px;
+              border-radius: 3px;
+              border: 1px solid var(--accent-bdr);
+            "
+            >✓ Aperçu identique à l'impression</span
+          >
+        </div>
+        <div class="preview-a4-wrap" id="previewA4Wrap">
+          <div class="preview-page" id="prevContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div class="modal-overlay" id="modalExport">
+      <div class="modal modal-sm">
+        <div class="mhdr">
+          <span class="mtitle">Exporter le document</span
+          ><button class="mclose" onclick="closeModal('modalExport')">✕</button>
+        </div>
+        <div class="export-opts">
+          <div
+            class="export-opt on"
+            id="exp-html"
+            onclick="selectExport('html')"
+          >
+            <div class="export-opt-icon">🌐</div>
+            <div class="export-opt-title">HTML</div>
+            <div class="export-opt-desc">Fichier .html autonome</div>
+          </div>
+          <div
+            class="export-opt"
+            id="exp-print"
+            onclick="selectExport('print')"
+          >
+            <div class="export-opt-icon">🖨️</div>
+            <div class="export-opt-title">Imprimer / PDF</div>
+            <div class="export-opt-desc">Via l'impression navigateur</div>
+          </div>
+          <div class="export-opt" id="exp-txt" onclick="selectExport('txt')">
+            <div class="export-opt-icon">📄</div>
+            <div class="export-opt-title">Texte brut</div>
+            <div class="export-opt-desc">Sans mise en forme</div>
+          </div>
+          <div
+            class="export-opt"
+            id="exp-template"
+            onclick="selectExport('template')"
+          >
+            <div class="export-opt-icon">📋</div>
+            <div class="export-opt-title">Template JSON</div>
+            <div class="export-opt-desc">Sauvegarde &amp; partage</div>
+          </div>
+        </div>
+        <div class="frow">
+          <label class="flabel">Nom du fichier</label
+          ><input class="finput" id="exp-filename" placeholder="document" />
+        </div>
+        <div style="margin-bottom: 12px">
+          <label
+            style="
+              font-size: 11px;
+              display: flex;
+              gap: 6px;
+              align-items: center;
+              cursor: pointer;
+              color: var(--text2);
+            "
+          >
+            <input type="checkbox" id="exp-resolve" checked />Résoudre les
+            variables avec un bénéficiaire
+          </label>
+          <select
+            id="exp-person"
+            style="
+              margin-top: 6px;
+              width: 100%;
+              font-size: 12px;
+              border: 1px solid var(--border);
+              border-radius: var(--r);
+              padding: 5px 9px;
+              outline: none;
+              background: var(--surface2);
+              color: var(--text);
+            "
+          ></select>
+        </div>
+        <div class="mactions">
+          <button class="btn" onclick="closeModal('modalExport')">
+            Annuler</button
+          ><button class="btn primary" onclick="doExport()">Télécharger</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search panel -->
+    <div class="search-panel" id="searchPanel">
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        "
+      >
+        <span style="font-size: 12px; font-weight: 700; color: var(--text)"
+          >Rechercher / Remplacer</span
+        >
+        <button
+          onclick="closeSearchPanel()"
+          style="
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text3);
+          "
+        >
+          ✕
+        </button>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center">
+        <input id="srch-find" placeholder="Rechercher…" oninput="doSearch()" />
+        <span
+          id="srch-count"
+          style="
+            font-size: 10px;
+            color: var(--text3);
+            white-space: nowrap;
+            min-width: 36px;
+          "
+          >0/0</span
+        >
+        <button class="btn sm ghost" onclick="srchNav(-1)">↑</button>
+        <button class="btn sm ghost" onclick="srchNav(1)">↓</button>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center">
+        <input id="srch-replace" placeholder="Remplacer par…" />
+        <button class="btn sm" onclick="doReplaceOne()">1×</button>
+        <button class="btn sm" onclick="doReplaceAll()">Tout</button>
+      </div>
+      <label
+        style="
+          font-size: 10px;
+          display: flex;
+          gap: 5px;
+          align-items: center;
+          cursor: pointer;
+          color: var(--text2);
+        "
+      >
+        <input type="checkbox" id="srch-case" />Respecter la casse
+      </label>
+    </div>
+
+    <!-- Table toolbar -->
+    <div class="tbl-toolbar" id="tblToolbar">
+      <button
+        class="tbl-tb-btn"
+        onclick="tblCmd('addRowBefore')"
+        title="Ligne avant"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="1" />
+          <line x1="3" y1="9" x2="21" y2="9" />
+          <line x1="12" y1="3" x2="12" y2="9" /></svg
+        >↑
+      </button>
+      <button
+        class="tbl-tb-btn"
+        onclick="tblCmd('addRowAfter')"
+        title="Ligne après"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="1" />
+          <line x1="3" y1="15" x2="21" y2="15" />
+          <line x1="12" y1="15" x2="12" y2="21" /></svg
+        >↓
+      </button>
+      <button
+        class="tbl-tb-btn danger"
+        onclick="tblCmd('deleteRow')"
+        title="Suppr. ligne"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="18" y1="8" x2="21" y2="5" />
+          <line x1="18" y1="16" x2="21" y2="19" /></svg
+        >−L
+      </button>
+      <div class="tbl-tb-sep"></div>
+      <button
+        class="tbl-tb-btn"
+        onclick="tblCmd('addColumnBefore')"
+        title="Col. avant"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="1" />
+          <line x1="9" y1="3" x2="9" y2="21" />
+          <line x1="3" y1="12" x2="9" y2="12" /></svg
+        >←
+      </button>
+      <button
+        class="tbl-tb-btn"
+        onclick="tblCmd('addColumnAfter')"
+        title="Col. après"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="1" />
+          <line x1="15" y1="3" x2="15" y2="21" />
+          <line x1="15" y1="12" x2="21" y2="12" /></svg
+        >→
+      </button>
+      <button
+        class="tbl-tb-btn danger"
+        onclick="tblCmd('deleteColumn')"
+        title="Suppr. col."
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="12" y1="3" x2="12" y2="21" />
+          <line x1="8" y1="18" x2="5" y2="21" />
+          <line x1="16" y1="18" x2="19" y2="21" /></svg
+        >−C
+      </button>
+      <div class="tbl-tb-sep"></div>
+      <button
+        class="tbl-tb-btn"
+        onclick="tblCmd('mergeCells')"
+        title="Fusionner"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="1" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <polyline points="8 8 3 12 8 16" />
+          <polyline points="16 8 21 12 16 16" />
+        </svg>
+      </button>
+      <button class="tbl-tb-btn" onclick="tblCmd('splitCell')" title="Diviser">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="1" />
+          <line x1="12" y1="3" x2="12" y2="21" />
+        </svg>
+      </button>
+      <div class="tbl-tb-sep"></div>
+      <button
+        class="tbl-tb-btn"
+        onclick="tblCmd('toggleHeaderRow')"
+        title="En-tête ligne"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="1" />
+          <rect
+            x="3"
+            y="3"
+            width="18"
+            height="6"
+            rx="1"
+            fill="rgba(255,255,255,.25)"
+          /></svg
+        >H
+      </button>
+      <button
+        class="tbl-tb-btn"
+        onclick="tblCmd('toggleHeaderColumn')"
+        title="En-tête col."
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="1" />
+          <rect
+            x="3"
+            y="3"
+            width="6"
+            height="18"
+            rx="1"
+            fill="rgba(255,255,255,.25)"
+          /></svg
+        >H
+      </button>
+      <div class="tbl-tb-sep"></div>
+      <!-- Cell background color -->
+      <div class="tbl-cell-clr-wrap">
+        <button
+          class="tbl-tb-btn"
+          onclick="toggleTblClrPop(event)"
+          id="tblClrBtn"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+              fill="rgba(255,255,255,.2)"
+            />
+          </svg>
+          <span
+            id="tblClrPreview"
+            style="
+              width: 12px;
+              height: 12px;
+              border-radius: 2px;
+              border: 1px solid rgba(255, 255, 255, 0.4);
+              background: #fff;
+              display: inline-block;
+            "
+          ></span>
+        </button>
+        <div class="tbl-clr-pop" id="tblClrPop">
+          <div
+            style="
+              font-size: 9px;
+              color: var(--text3);
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              margin-bottom: 6px;
+            "
+          >
+            Fond de cellule
+          </div>
+          <div class="tbl-clr-swatches" id="tblClrSwatches"></div>
+          <input
+            type="color"
+            id="tblClrCustom"
+            value="#ffffff"
+            onchange="applyTblCellBg(this.value)"
+          />
+        </div>
+      </div>
+      <!-- Cell text color -->
+      <div class="tbl-cell-clr-wrap">
+        <button
+          class="tbl-tb-btn"
+          onclick="toggleTblTxtPop(event)"
+          title="Couleur texte"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M4 20h4l10.5-10.5a2.121 2.121 0 00-3-3L5 17v3z" />
+          </svg>
+          <span
+            id="tblTxtPreview"
+            style="
+              width: 12px;
+              height: 12px;
+              border-radius: 2px;
+              border: 1px solid rgba(255, 255, 255, 0.4);
+              background: #111;
+              display: inline-block;
+            "
+          ></span>
+        </button>
+        <div class="tbl-clr-pop" id="tblTxtPop">
+          <div
+            style="
+              font-size: 9px;
+              color: var(--text3);
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              margin-bottom: 6px;
+            "
+          >
+            Couleur du texte
+          </div>
+          <div class="tbl-clr-swatches" id="tblTxtSwatches"></div>
+          <input
+            type="color"
+            id="tblTxtCustom"
+            value="#111111"
+            onchange="applyTblCellTxt(this.value)"
+          />
+        </div>
+      </div>
+      <div class="tbl-tb-sep"></div>
+      <button
+        class="tbl-tb-btn danger"
+        onclick="tblCmd('deleteTable')"
+        title="Supprimer tableau"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14H6L5 6" />
+          <path d="M10 11v6M14 11v6" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Context menu -->
+    <div class="ctxmenu" id="ctxMenu">
+      <div
+        class="ctx-item"
+        onclick="
+          edCmd('undo');
+          closeCtx();
+        "
+      >
+        Annuler<span class="ctx-kbd">Ctrl+Z</span>
+      </div>
+      <div
+        class="ctx-item"
+        onclick="
+          edCmd('redo');
+          closeCtx();
+        "
+      >
+        Rétablir<span class="ctx-kbd">Ctrl+Y</span>
+      </div>
+      <div class="ctx-sep"></div>
+      <div
+        class="ctx-item"
+        onclick="
+          edCmd('toggleBold');
+          closeCtx();
+        "
+      >
+        Gras<span class="ctx-kbd">Ctrl+B</span>
+      </div>
+      <div
+        class="ctx-item"
+        onclick="
+          edCmd('toggleItalic');
+          closeCtx();
+        "
+      >
+        Italique<span class="ctx-kbd">Ctrl+I</span>
+      </div>
+      <div
+        class="ctx-item"
+        onclick="
+          edCmd('toggleUnderline');
+          closeCtx();
+        "
+      >
+        Souligné<span class="ctx-kbd">Ctrl+U</span>
+      </div>
+      <div class="ctx-sep"></div>
+      <div
+        class="ctx-item danger"
+        onclick="
+          edCmd('unsetAllMarks');
+          closeCtx();
+        "
+      >
+        Effacer la mise en forme
+      </div>
+    </div>
+
+    <!-- Print render area -->
+    <div id="print-render-area"></div>
+
+    <div class="toast-stack" id="toastStack"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+     SHARED.JS — DB, resolveVars, resolveVarsRaw, insertListVar
+     toast, openModal, closeModal, genId, PRINT_PAGE_CSS
+══════════════════════════════════════════════════════════════ -->
+    <script src="shared.js"></script>
+
+    <!-- ═══════════════════════════════════════════════════════════
+     TIPTAP MODULE
+══════════════════════════════════════════════════════════════ -->
+    <script type="module">
+      const ESM = "https://esm.sh";
+      const V = "2.4.0";
+      document.getElementById("loadSub").textContent =
+        "Téléchargement des modules Tiptap…";
+
+      const { Extension, Mark } = await import(`${ESM}/@tiptap/core@${V}`);
+
+      const [
+        { Editor },
+        { default: StarterKit },
+        { default: TextAlign },
+        { default: FontFamily },
+        { default: Color },
+        { default: TextStyle },
+        { default: Highlight },
+        { default: Underline },
+        { default: Subscript },
+        { default: Superscript },
+        { default: Link },
+        { default: Image },
+        { default: Table },
+        { default: TableRow },
+        { default: TableCell },
+        { default: TableHeader },
+        { default: Placeholder },
+      ] = await Promise.all([
+        import(`${ESM}/@tiptap/core@${V}`),
+        import(`${ESM}/@tiptap/starter-kit@${V}`),
+        import(`${ESM}/@tiptap/extension-text-align@${V}`),
+        import(`${ESM}/@tiptap/extension-font-family@${V}`),
+        import(`${ESM}/@tiptap/extension-color@${V}`),
+        import(`${ESM}/@tiptap/extension-text-style@${V}`),
+        import(`${ESM}/@tiptap/extension-highlight@${V}`),
+        import(`${ESM}/@tiptap/extension-underline@${V}`),
+        import(`${ESM}/@tiptap/extension-subscript@${V}`),
+        import(`${ESM}/@tiptap/extension-superscript@${V}`),
+        import(`${ESM}/@tiptap/extension-link@${V}`),
+        import(`${ESM}/@tiptap/extension-image@${V}`),
+        import(`${ESM}/@tiptap/extension-table@${V}`),
+        import(`${ESM}/@tiptap/extension-table-row@${V}`),
+        import(`${ESM}/@tiptap/extension-table-cell@${V}`),
+        import(`${ESM}/@tiptap/extension-table-header@${V}`),
+        import(`${ESM}/@tiptap/extension-placeholder@${V}`),
+      ]);
+
+      document.getElementById("loadSub").textContent =
+        "Initialisation des éditeurs…";
+
+      // ── FontSize extension ──────────────────────────────────────────
+      const FontSize = TextStyle.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            fontSize: {
+              default: null,
+              parseHTML: (el) => el.style.fontSize || null,
+              renderHTML: (attrs) =>
+                attrs.fontSize ? { style: `font-size:${attrs.fontSize}` } : {},
+            },
+          };
+        },
+        addCommands() {
+          return {
+            ...this.parent?.(),
+            setFontSize:
+              (fs) =>
+              ({ chain }) =>
+                chain().setMark(this.name, { fontSize: fs }).run(),
+            unsetFontSize:
+              () =>
+              ({ chain }) =>
+                chain()
+                  .setMark(this.name, { fontSize: null })
+                  .removeEmptyTextStyle()
+                  .run(),
+          };
+        },
+      });
+
+      // ── TableCell/Header with background & text color ───────────────
+      const TableCellExt = TableCell.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            backgroundColor: {
+              default: null,
+              parseHTML: (el) => el.style.backgroundColor || null,
+              renderHTML: (attrs) => {
+                let s = "";
+                if (attrs.backgroundColor)
+                  s += `background-color:${attrs.backgroundColor};`;
+                if (attrs.textColor) s += `color:${attrs.textColor};`;
+                return s ? { style: s } : {};
+              },
+            },
+            textColor: {
+              default: null,
+              parseHTML: (el) => el.style.color || null,
+              renderHTML: () => ({}),
+            },
+          };
+        },
+      });
+      const TableHeaderExt = TableHeader.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            backgroundColor: {
+              default: null,
+              parseHTML: (el) => el.style.backgroundColor || null,
+              renderHTML: (attrs) => {
+                let s = "";
+                if (attrs.backgroundColor)
+                  s += `background-color:${attrs.backgroundColor};`;
+                if (attrs.textColor) s += `color:${attrs.textColor};`;
+                return s ? { style: s } : {};
+              },
+            },
+            textColor: {
+              default: null,
+              parseHTML: (el) => el.style.color || null,
+              renderHTML: () => ({}),
+            },
+          };
+        },
+      });
+
+      // ═══════════════════════════════════════════════════════════════
+      //  STATE
+      // ═══════════════════════════════════════════════════════════════
+      const ETAB_ID = "etab_1";
+      let curFamId = null,
+        curTplId = null,
+        pendingDelId = null;
+      let editorHeader = null,
+        editorBody = null,
+        editorFooter = null;
+      let activeEditor = null;
+      let zoomLv = 100;
+      let headerEnabled = false,
+        footerEnabled = false;
+      let expMode = "html";
+      let pageCheckTimer = null,
+        pagedPreviewHTML = "";
+
+      // Image resize state (module-level)
+      let _activeResizeImg = null,
+        _activeResizeImgEl = null;
+
+      // ── Expose insertVar for chips & insertListVar from shared.js ───
+      window.insertVar = function (tech) {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        ed.chain()
+          .focus()
+          .insertContent({
+            type: "text",
+            text: `{{${tech}}}`,
+            marks: [{ type: "textStyle", attrs: { color: "#2563eb" } }],
+          })
+          .run();
+      };
+
+      // insertListVar is already defined in shared.js (async, uses _promptListMode)
+      // We expose the active editor for it:
+      window.__getActiveEditor = () => activeEditor || editorBody;
+
+      // ── Color palettes ──────────────────────────────────────────────
+      const TEXT_COLORS = [
+        "#000000",
+        "#1a1d2e",
+        "#374151",
+        "#6b7280",
+        "#9ca3af",
+        "#d1d5db",
+        "#dc2626",
+        "#ea580c",
+        "#d97706",
+        "#16a34a",
+        "#0284c7",
+        "#7c3aed",
+        "#db2777",
+        "#ffffff",
+        "#fef9c3",
+        "#dbeafe",
+        "#dcfce7",
+        "#fce7f3",
+        "#f3e8ff",
+        "#ffedd5",
+        "#fee2e2",
+        "#e0f2fe",
+      ];
+      const BG_COLORS = [
+        "transparent",
+        "#fef9c3",
+        "#dbeafe",
+        "#dcfce7",
+        "#fce7f3",
+        "#f3e8ff",
+        "#ffedd5",
+        "#fee2e2",
+        "#e0f2fe",
+        "#f0fdf4",
+        "#fdf4ff",
+        "#fff1f2",
+        "#1e293b",
+        "#1d4ed8",
+        "#15803d",
+        "#7e22ce",
+        "#9f1239",
+        "#c2410c",
+      ];
+      const CELL_COLORS = [
+        "transparent",
+        "#ffffff",
+        "#f8fafc",
+        "#dbeafe",
+        "#dcfce7",
+        "#fef9c3",
+        "#fee2e2",
+        "#fce7f3",
+        "#f3e8ff",
+        "#ffedd5",
+        "#e0f2fe",
+        "#f0fdf4",
+        "#1e3a5f",
+        "#1d4ed8",
+        "#15803d",
+        "#7c2d12",
+        "#7c3aed",
+        "#9f1239",
+        "#374151",
+        "#111827",
+        "#0c4a6e",
+        "#064e3b",
+      ];
+      const CELL_TXT = [
+        "#111111",
+        "#ffffff",
+        "#1d4ed8",
+        "#15803d",
+        "#dc2626",
+        "#d97706",
+        "#7c3aed",
+        "#0891b2",
+        "#374151",
+        "#6b7280",
+        "#e11d48",
+        "#0369a1",
+        "#166534",
+        "#92400e",
+        "#6d28d9",
+        "#be123c",
+        "#047857",
+        "#1e3a5f",
+      ];
+
+      // ═══════════════════════════════════════════════════════════════
+      //  TIPTAP EDITOR FACTORY
+      // ═══════════════════════════════════════════════════════════════
+      function createEditor(elementId, placeholder, onUpdate, onFocus) {
+        const el = document.getElementById(elementId);
+        if (!el) return null;
+        el.innerHTML = "";
+        const div = document.createElement("div");
+        el.appendChild(div);
+
+        const editor = new Editor({
+          element: div,
+          extensions: [
+            StarterKit.configure({ heading: { levels: [1, 2, 3, 4] } }),
+            FontSize,
+            Color,
+            FontFamily,
+            Highlight.configure({ multicolor: true }),
+            Underline,
+            Subscript,
+            Superscript,
+            TextAlign.configure({ types: ["heading", "paragraph"] }),
+            Link.configure({ openOnClick: false, autolink: true }),
+            Image.configure({ inline: false, allowBase64: true }),
+            Table.configure({ resizable: true }),
+            TableRow,
+            TableCellExt,
+            TableHeaderExt,
+            Placeholder.configure({
+              placeholder: placeholder || "Rédigez ici…",
+            }),
+          ],
+          content: "",
+          onUpdate: () => {
+            if (onUpdate) onUpdate();
+            setTimeout(() => activateImageResizers(editor), 60);
+          },
+          onFocus: () => {
+            if (onFocus) onFocus(editor);
+          },
+          onSelectionUpdate: () => {
+            if (activeEditor === editor) {
+              syncToolbar();
+              positionTblToolbar();
+            }
+          },
+        });
+
+        div.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          showCtxMenu(e);
+        });
+        return editor;
+      }
+
+      function getEditorHTML(ed) {
+        return ed ? ed.getHTML() : "";
+      }
+      function setEditorHTML(ed, html) {
+        if (ed && html) ed.commands.setContent(html, false);
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      //  TOOLBAR SYNC
+      // ═══════════════════════════════════════════════════════════════
+      function syncToolbar() {
+        const ed = activeEditor;
+        if (!ed) return;
+        const toggles = {
+          "tb-bold": ed.isActive("bold"),
+          "tb-italic": ed.isActive("italic"),
+          "tb-underline": ed.isActive("underline"),
+          "tb-strike": ed.isActive("strike"),
+          "tb-superscript": ed.isActive("superscript"),
+          "tb-subscript": ed.isActive("subscript"),
+          "tb-bul": ed.isActive("bulletList"),
+          "tb-ord": ed.isActive("orderedList"),
+          "tb-al": ed.isActive({ textAlign: "left" }),
+          "tb-ac": ed.isActive({ textAlign: "center" }),
+          "tb-ar": ed.isActive({ textAlign: "right" }),
+          "tb-aj": ed.isActive({ textAlign: "justify" }),
+        };
+        Object.entries(toggles).forEach(([id, on]) =>
+          document.getElementById(id)?.classList.toggle("on", on),
+        );
+
+        const hSel = document.getElementById("tb-heading");
+        if (hSel) {
+          if (ed.isActive("heading", { level: 1 })) hSel.value = "h1";
+          else if (ed.isActive("heading", { level: 2 })) hSel.value = "h2";
+          else if (ed.isActive("heading", { level: 3 })) hSel.value = "h3";
+          else if (ed.isActive("heading", { level: 4 })) hSel.value = "h4";
+          else hSel.value = "paragraph";
+        }
+        try {
+          const attrs = ed.getAttributes("textStyle");
+          const fSel = document.getElementById("tb-font");
+          if (fSel && attrs?.fontFamily) {
+            for (const opt of fSel.options) {
+              if (
+                opt.value &&
+                attrs.fontFamily
+                  .toLowerCase()
+                  .includes(
+                    opt.value
+                      .split(",")[0]
+                      .replace(/'/g, "")
+                      .trim()
+                      .toLowerCase(),
+                  )
+              ) {
+                fSel.value = opt.value;
+                break;
+              }
+            }
+          }
+          const sSel = document.getElementById("tb-size");
+          if (sSel) sSel.value = attrs?.fontSize || "12pt";
+        } catch (_) {}
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      //  EDITOR COMMANDS (exposed globally)
+      // ═══════════════════════════════════════════════════════════════
+      window.edCmd = function (cmd, opts) {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        try {
+          ed.chain().focus()[cmd](opts).run();
+        } catch (_) {}
+      };
+
+      window.applyHeading = function (val) {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        if (val === "paragraph") ed.chain().focus().setParagraph().run();
+        else
+          ed.chain()
+            .focus()
+            .toggleHeading({ level: parseInt(val.replace("h", "")) })
+            .run();
+      };
+
+      window.applyFontFamily = function (val) {
+        if (!val) return;
+        const ed = activeEditor || editorBody;
+        if (ed) ed.chain().focus().setFontFamily(val).run();
+        document.getElementById("tb-font").value = val;
+      };
+
+      window.applyFontSize = function (val) {
+        if (!val) return;
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        try {
+          ed.chain().focus().setFontSize(val).run();
+        } catch (_) {
+          ed.chain().focus().setMark("textStyle", { fontSize: val }).run();
+        }
+        document.getElementById("tb-size").value = val;
+      };
+
+      window.applyTextColor = function (color) {
+        const ed = activeEditor || editorBody;
+        if (ed) ed.chain().focus().setColor(color).run();
+        document.getElementById("bar-text").style.background = color;
+        closeAllCpops();
+      };
+
+      window.applyHighlight = function (color) {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        if (color === "transparent" || !color)
+          ed.chain().focus().unsetHighlight().run();
+        else ed.chain().focus().setHighlight({ color }).run();
+        document.getElementById("bar-bg").style.background =
+          color || "transparent";
+        closeAllCpops();
+      };
+
+      window.applyAlign = function (dir) {
+        const ed = activeEditor || editorBody;
+        if (ed) ed.chain().focus().setTextAlign(dir).run();
+      };
+
+      window.applyDir = function (dir) {
+        document.getElementById("tb-ltr").classList.toggle("on", dir === "ltr");
+        document.getElementById("tb-rtl").classList.toggle("on", dir === "rtl");
+        document.getElementById("sbDir").textContent = dir.toUpperCase();
+        const ed = activeEditor || editorBody;
+        if (ed) {
+          const root = ed.view.dom;
+          root.style.direction = dir;
+          root.style.textAlign = dir === "rtl" ? "right" : "left";
+        }
+        toast(dir === "rtl" ? "Mode RTL activé" : "Mode LTR activé", "info");
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      //  TABLES
+      // ═══════════════════════════════════════════════════════════════
+      window.doInsertTable = function () {
+        const rows = parseInt(document.getElementById("ti-rows").value) || 3;
+        const cols = parseInt(document.getElementById("ti-cols").value) || 3;
+        const ed = activeEditor || editorBody;
+        if (ed)
+          ed.chain()
+            .focus()
+            .insertTable({ rows, cols, withHeaderRow: true })
+            .run();
+        closeModal("modalTable");
+        toast(`Tableau ${rows}×${cols} inséré`);
+      };
+
+      window.tblCmd = function (cmd) {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        try {
+          ed.chain().focus()[cmd]().run();
+        } catch (e) {
+          console.warn("tblCmd", cmd, e);
+        }
+        positionTblToolbar();
+      };
+
+      function positionTblToolbar() {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        const tb = document.getElementById("tblToolbar");
+        const inTable =
+          ed.isActive("table") ||
+          ed.isActive("tableCell") ||
+          ed.isActive("tableHeader");
+        if (!inTable) {
+          tb.classList.remove("on");
+          return;
+        }
+        let tableEl = null;
+        try {
+          const { from } = ed.state.selection;
+          if (from > 0) {
+            const node = ed.view.domAtPos(from);
+            let el = node.node;
+            if (el.nodeType === 3) el = el.parentElement;
+            tableEl = el.closest("table");
+          }
+        } catch (_) {}
+        if (!tableEl) tableEl = ed.view.dom.querySelector("table");
+        if (!tableEl) {
+          tb.classList.remove("on");
+          return;
+        }
+        const rect = tableEl.getBoundingClientRect();
+        tb.style.top = rect.top - 44 + "px";
+        tb.style.left = Math.max(8, rect.left) + "px";
+        tb.classList.add("on");
+      }
+
+      function applyTblAttr(attrKey, color) {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        const val = color === "transparent" ? null : color;
+        const { state, dispatch } = ed.view;
+        const { doc, selection } = state;
+        const tr = state.tr;
+        let changed = false;
+        const domSelected = ed.view.dom.querySelectorAll(".selectedCell");
+        const processNode = (node, pos) => {
+          if (
+            node.type.name === "tableCell" ||
+            node.type.name === "tableHeader"
+          ) {
+            const tryDOM = () => {
+              try {
+                return ed.view.nodeDOM(pos);
+              } catch (_) {
+                return null;
+              }
+            };
+            const dn = tryDOM();
+            const isSelected =
+              domSelected.length > 0
+                ? dn && dn.classList?.contains("selectedCell")
+                : selection.from >= pos && selection.from < pos + node.nodeSize;
+            if (isSelected) {
+              tr.setNodeMarkup(pos, undefined, {
+                ...node.attrs,
+                [attrKey]: val,
+              });
+              changed = true;
+            }
+          }
+        };
+        doc.descendants(processNode);
+        if (changed) dispatch(tr);
+      }
+
+      window.applyTblCellBg = function (color) {
+        applyTblAttr("backgroundColor", color);
+        document.getElementById("tblClrPreview").style.background =
+          color || "transparent";
+        closeTblPops();
+        toast("Fond appliqué", "success");
+      };
+      window.applyTblCellTxt = function (color) {
+        applyTblAttr("textColor", color);
+        document.getElementById("tblTxtPreview").style.background = color;
+        closeTblPops();
+        toast("Couleur texte appliquée", "success");
+      };
+
+      window.toggleTblClrPop = function (e) {
+        e.stopPropagation();
+        const p = document.getElementById("tblClrPop");
+        const was = p.classList.contains("on");
+        closeTblPops();
+        if (!was) p.classList.add("on");
+      };
+      window.toggleTblTxtPop = function (e) {
+        e.stopPropagation();
+        const p = document.getElementById("tblTxtPop");
+        const was = p.classList.contains("on");
+        closeTblPops();
+        if (!was) p.classList.add("on");
+      };
+      function closeTblPops() {
+        document.getElementById("tblClrPop").classList.remove("on");
+        document.getElementById("tblTxtPop").classList.remove("on");
+      }
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".tbl-cell-clr-wrap")) closeTblPops();
+      });
+
+      // ═══════════════════════════════════════════════════════════════
+      //  IMAGES
+      // ═══════════════════════════════════════════════════════════════
+      window.previewImgFile = function (input) {
+        const f = input.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = (e) => {
+          document.getElementById("img-preview").src = e.target.result;
+          document.getElementById("img-preview-area").style.display = "flex";
+        };
+        r.readAsDataURL(f);
+      };
+      window.previewImgUrl = function (url) {
+        if (!url) return;
+        document.getElementById("img-preview").src = url;
+        document.getElementById("img-preview-area").style.display = "flex";
+      };
+      window.doInsertImage = function () {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        const fi = document.getElementById("img-file");
+        const url = document.getElementById("img-url").value;
+        const cap = document.getElementById("img-caption").value;
+        function ins(src) {
+          ed.chain()
+            .focus()
+            .setImage({ src, alt: cap || "image", title: cap || "" })
+            .run();
+          closeModal("modalImage");
+          toast("Image insérée");
+          fi.value = "";
+          document.getElementById("img-url").value = "";
+          document.getElementById("img-preview-area").style.display = "none";
+          setTimeout(() => activateImageResizers(ed), 80);
+        }
+        if (fi.files[0]) {
+          const r = new FileReader();
+          r.onload = (e) => ins(e.target.result);
+          r.readAsDataURL(fi.files[0]);
+        } else if (url) ins(url);
+        else toast("Sélectionnez un fichier ou entrez une URL", "error");
+      };
+
+      function activateImageResizers(ed) {
+        if (!ed) return;
+        ed.view.dom.querySelectorAll("img:not([data-rw])").forEach((img) => {
+          if (!img.closest(".img-resize-wrap")) wrapImgResize(img, ed);
+        });
+      }
+      function wrapImgResize(img, ed) {
+        if (img.dataset.rw) return;
+        const wrap = document.createElement("span");
+        wrap.className = "img-resize-wrap";
+        wrap.contentEditable = "false";
+        if (img.style.width) wrap.style.width = img.style.width;
+        img.parentNode.insertBefore(wrap, img);
+        wrap.appendChild(img);
+        img.dataset.rw = "1";
+
+        const tb = document.createElement("div");
+        tb.className = "img-toolbar-float";
+        tb.style.cssText =
+          "position:fixed;z-index:3000;background:#1a1d2e;border-radius:7px;display:none;align-items:center;gap:1px;padding:3px 5px;box-shadow:0 4px 18px rgba(0,0,0,.28);white-space:nowrap;pointer-events:auto";
+        tb.innerHTML = `
+    <button onclick="setImgAlign(this,'left')"   title="Gauche"  style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">◧</button>
+    <button onclick="setImgAlign(this,'center')" title="Centré"  style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▣</button>
+    <button onclick="setImgAlign(this,'right')"  title="Droite"  style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▧</button>
+    <div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div>
+    <button onclick="setImgWidthFixed(this,'25%')"  style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">25%</button>
+    <button onclick="setImgWidthFixed(this,'50%')"  style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">50%</button>
+    <button onclick="setImgWidthFixed(this,'75%')"  style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">75%</button>
+    <button onclick="setImgWidthFixed(this,'100%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">100%</button>
+    <div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div>
+    <button onclick="removeImgFixed()" title="Supprimer" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:#f87171;font-size:14px;font-weight:700">✕</button>`;
+        document.body.appendChild(tb);
+        img._floatTb = tb;
+
+        const badge = document.createElement("div");
+        badge.className = "img-size-badge";
+        wrap.appendChild(badge);
+
+        ["nw", "n", "ne", "e", "se", "s", "sw", "w"].forEach((d) => {
+          const h = document.createElement("span");
+          h.className = "img-handle " + d;
+          h.dataset.dir = d;
+          wrap.appendChild(h);
+          h.addEventListener("mousedown", (e) =>
+            startImgResize(e, wrap, img, badge, d),
+          );
+        });
+
+        wrap.addEventListener("mousedown", (e) => {
+          e.stopPropagation();
+          selectImg(wrap, img);
+        });
+        img.addEventListener("click", (e) => {
+          e.stopPropagation();
+          selectImg(wrap, img);
+        });
+      }
+
+      function positionImgToolbar(wrap, img) {
+        const tb = img?._floatTb;
+        if (!tb) return;
+        const rect = wrap.getBoundingClientRect();
+        tb.style.left =
+          Math.max(8, rect.left + rect.width / 2 - tb.offsetWidth / 2) + "px";
+        tb.style.top = Math.max(4, rect.top - 42) + "px";
+        tb.style.display = "flex";
+      }
+      function selectImg(wrap, img) {
+        if (_activeResizeImg && _activeResizeImg !== wrap) {
+          _activeResizeImg.classList.remove("selected");
+          if (_activeResizeImgEl?._floatTb)
+            _activeResizeImgEl._floatTb.style.display = "none";
+        }
+        _activeResizeImg = wrap;
+        _activeResizeImgEl = img || wrap.querySelector("img");
+        wrap.classList.add("selected");
+        if (_activeResizeImgEl?._floatTb)
+          positionImgToolbar(wrap, _activeResizeImgEl);
+      }
+
+      window.setImgAlign = function (btn, align) {
+        if (!_activeResizeImg) return;
+        const wrap = _activeResizeImg;
+        wrap.style.float = "none";
+        wrap.style.marginLeft = "";
+        wrap.style.marginRight = "";
+        if (align === "left") {
+          wrap.style.float = "left";
+          wrap.style.marginRight = "12px";
+        } else if (align === "right") {
+          wrap.style.float = "right";
+          wrap.style.marginLeft = "12px";
+        } else {
+          wrap.style.display = "block";
+          wrap.style.marginLeft = "auto";
+          wrap.style.marginRight = "auto";
+        }
+        btn.parentElement
+          ?.querySelectorAll("button")
+          .forEach((b) => (b.style.background = ""));
+        btn.style.background = "rgba(37,99,235,.5)";
+        if (_activeResizeImgEl)
+          setTimeout(() => positionImgToolbar(wrap, _activeResizeImgEl), 30);
+      };
+      window.setImgWidthFixed = function (btn, pct) {
+        if (!_activeResizeImg) return;
+        const wrap = _activeResizeImg,
+          img = _activeResizeImgEl || wrap.querySelector("img");
+        wrap.style.width = pct;
+        if (img) {
+          img.style.width = "100%";
+          img.style.height = "auto";
+        }
+        btn.parentElement?.querySelectorAll("button").forEach((b) => {
+          b.style.color = "rgba(255,255,255,.75)";
+          b.style.fontWeight = "";
+        });
+        btn.style.color = "#fff";
+        btn.style.fontWeight = "700";
+        if (img) setTimeout(() => positionImgToolbar(wrap, img), 30);
+      };
+      window.removeImgFixed = function () {
+        if (!_activeResizeImg) return;
+        if (_activeResizeImgEl?._floatTb) _activeResizeImgEl._floatTb.remove();
+        _activeResizeImg.remove();
+        _activeResizeImg = null;
+        _activeResizeImgEl = null;
+      };
+
+      function startImgResize(e, wrap, img, badge, dir) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectImg(wrap, img);
+        wrap.classList.add("resizing");
+        const sx = e.clientX,
+          sy = e.clientY,
+          sw = img.offsetWidth,
+          sh = img.offsetHeight;
+        const aspect = sh > 0 ? sw / sh : 1;
+        function onMove(ev) {
+          let dx = ev.clientX - sx,
+            dy = ev.clientY - sy,
+            nw = sw,
+            nh = sh;
+          if (dir.includes("e")) nw = Math.max(40, sw + dx);
+          if (dir.includes("w")) nw = Math.max(40, sw - dx);
+          if (dir.includes("s")) nh = Math.max(30, sh + dy);
+          if (dir.includes("n")) nh = Math.max(30, sh - dy);
+          if (dir.length === 2) {
+            if (dir.includes("e") || dir.includes("w"))
+              nh = Math.round(nw / aspect);
+            else nw = Math.round(nh * aspect);
+          }
+          img.style.width = nw + "px";
+          img.style.height = nh + "px";
+          wrap.style.width = nw + "px";
+          badge.textContent = nw + "×" + nh + " px";
+        }
+        function onUp() {
+          wrap.classList.remove("resizing");
+          document.removeEventListener("mousemove", onMove);
+          document.removeEventListener("mouseup", onUp);
+          try {
+            (activeEditor || editorBody)?.commands.focus();
+          } catch (_) {}
+        }
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+      }
+
+      document.addEventListener("mousedown", (e) => {
+        if (
+          _activeResizeImg &&
+          !e.target.closest(".img-resize-wrap") &&
+          !e.target.closest(".img-toolbar-float")
+        ) {
+          _activeResizeImg.classList.remove("selected");
+          if (_activeResizeImgEl?._floatTb)
+            _activeResizeImgEl._floatTb.style.display = "none";
+          _activeResizeImg = null;
+          _activeResizeImgEl = null;
+        }
+      });
+
+      // ═══════════════════════════════════════════════════════════════
+      //  LINKS
+      // ═══════════════════════════════════════════════════════════════
+      window.doInsertLink = function () {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        const text = document.getElementById("link-text").value;
+        const url = document.getElementById("link-url").value;
+        if (!url) {
+          toast("L'URL est requise", "error");
+          return;
+        }
+        if (text)
+          ed.chain()
+            .focus()
+            .insertContent(`<a href="${url}">${text}</a>`)
+            .run();
+        else ed.chain().focus().setLink({ href: url }).run();
+        closeModal("modalLink");
+        document.getElementById("link-text").value = "";
+        document.getElementById("link-url").value = "";
+        toast("Lien inséré");
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      //  MISC INSERTS
+      // ═══════════════════════════════════════════════════════════════
+      window.insHR = () => {
+        const ed = activeEditor || editorBody;
+        if (ed) ed.chain().focus().setHorizontalRule().run();
+      };
+      window.insDate = () => {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        ed.chain()
+          .focus()
+          .insertContent(
+            new Date().toLocaleDateString("fr-FR", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }),
+          )
+          .run();
+      };
+      window.insPageBreak = () => {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        ed.chain()
+          .focus()
+          .insertContent(
+            '<div class="page-break" style="page-break-after:always;break-after:page;border-top:2px dashed #b0b8cc;margin:12px 0;text-align:center;font-size:9px;color:#aaa;font-family:sans-serif">— Saut de page —</div><p></p>',
+          )
+          .run();
+        toast("Saut de page inséré");
+        schedulePageUpdate();
+      };
+      window.insSignature = () => {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        ed.chain()
+          .focus()
+          .insertContent(
+            `<table style="width:100%;border-collapse:collapse;border:none"><tr><td style="border:none;width:50%;padding:8px 0;vertical-align:top"><p><strong>L'intéressé(e)</strong></p><p style="margin-top:40px;border-top:1px solid #c8cdd8;padding-top:4px;font-size:10px;color:#666">Signature</p></td><td style="border:none;width:50%;padding:8px 0;vertical-align:top;text-align:right"><p><strong>Le Directeur de l'Établissement</strong></p><p style="margin-top:4px;font-size:10px;color:#444">{{directeur}}</p><p style="margin-top:32px;border-top:1px solid #c8cdd8;padding-top:4px;font-size:10px;color:#666">Signature et cachet</p></td></tr></table>`,
+          )
+          .run();
+        toast("Bloc signature inséré");
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      //  WORD COUNT
+      // ═══════════════════════════════════════════════════════════════
+      function updateWordCount() {
+        if (!editorBody) return;
+        try {
+          const txt = editorBody.getText();
+          const w = txt.trim() ? txt.trim().split(/\s+/).length : 0;
+          document.getElementById("sbWords").textContent = w + " mots";
+          document.getElementById("sbChars").textContent = txt.length + " car.";
+        } catch (_) {}
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      //  PAGINATION (aperçu pages fantômes)
+      // ═══════════════════════════════════════════════════════════════
+      function renderPagedPreview() {
+        const previewHost = document.getElementById("ghostPages");
+        if (!previewHost || !editorBody) return;
+
+        const bodyHtml = getEditorHTML(editorBody);
+        const headerHtml =
+          headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "";
+        const footerHtml =
+          footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "";
+
+        const bodyEl = editorBody.view.dom;
+        const contentH = bodyEl
+          ? bodyEl.scrollHeight || bodyEl.offsetHeight || 0
+          : 0;
+        const page = document.getElementById("mainPage");
+        const pageH = page ? page.getBoundingClientRect().height : 1123;
+        const hdrH = headerEnabled
+          ? document.getElementById("sec-header")?.getBoundingClientRect()
+              .height || 0
+          : 0;
+        const ftrH = footerEnabled
+          ? document.getElementById("sec-footer")?.getBoundingClientRect()
+              .height || 0
+          : 0;
+        const avail = Math.max(200, pageH - hdrH - ftrH);
+        const total = Math.max(1, Math.ceil(contentH / avail));
+
+        const wmEl = document.getElementById("docWatermark");
+        const wmHTML =
+          wmEl && wmEl.style.display !== "none" ? wmEl.outerHTML : "";
+
+        // Construire toutes les pages (pour impression)
+        const pages = [];
+        for (let i = 0; i < total; i++) {
+          pages.push(`<div class="a4-page">${wmHTML}${headerEnabled ? `<div class="a4-header"><div class="a4-hf-label">EN-TÊTE</div>${headerHtml}</div>` : ""}
+    <div class="a4-body ${!headerEnabled ? "no-header" : ""} ${!footerEnabled ? "no-footer" : ""}" style="font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:1.6;color:#111">${bodyHtml}</div>
+    ${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE</div>${footerHtml}</div>` : ""}
+    <div class="a4-page-num">Page ${i + 1}</div></div>`);
+        }
+        pagedPreviewHTML = pages.join("");
+
+        // Pages fantômes (page 2+)
+        previewHost.innerHTML = total > 1 ? pagedPreviewHTML : "";
+        document.getElementById("overflowWarn").style.display =
+          total > 1 ? "block" : "none";
+        document.getElementById("pageCountBadge").textContent =
+          `📄 ${total} page${total > 1 ? "s" : ""}`;
+      }
+
+      function schedulePageUpdate() {
+        clearTimeout(pageCheckTimer);
+        pageCheckTimer = setTimeout(
+          () => requestAnimationFrame(renderPagedPreview),
+          350,
+        );
+      }
+
+      function printWithPerson(person) {
+        renderPagedPreview();
+        let printHtml =
+          pagedPreviewHTML ||
+          `<div class="a4-page"><div class="a4-body">${getEditorHTML(editorBody)}</div></div>`;
+        if (person) printHtml = resolveVarsRaw(printHtml, person);
+        const printArea = document.createElement("div");
+        printArea.id = "print-render-area";
+        printArea.innerHTML = printHtml;
+        const old = document.getElementById("print-render-area");
+        if (old) old.remove();
+        document.body.appendChild(printArea);
+        window.print();
+        setTimeout(
+          () => document.getElementById("print-render-area")?.remove(),
+          300,
+        );
+      }
+
+      window.printPagedDocument = function () {
+        const pId = document.getElementById("prevPerson")?.value;
+        printWithPerson(pId ? DB.getPerson(pId) : null);
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      //  SAVE STATE
+      // ═══════════════════════════════════════════════════════════════
+      function setSaveState(msg, modified) {
+        document.getElementById("saveSt").textContent = msg;
+        document.getElementById("saveSt").className =
+          "save-st" + (modified ? " mod" : "");
+        document.getElementById("sbDot").className =
+          "sb-dot " + (modified ? "mod" : "ok");
+        document.getElementById("sbText").textContent = msg;
+      }
+      function onEditorChange() {
+        setSaveState("Modifié •", true);
+        updateWordCount();
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      //  FAMILY & TEMPLATE LIST
+      // ═══════════════════════════════════════════════════════════════
+      function populateFamilySelect() {
+        const sel = document.getElementById("famSelAdmin");
+        DB.getFamilies().forEach((f) => {
+          const o = document.createElement("option");
+          o.value = f.id;
+          o.textContent = (f.icon || "") + " " + f.nom;
+          sel.appendChild(o);
+        });
+        const etab = DB.getEtablissement(ETAB_ID);
+        if (etab) document.getElementById("etabLabel").textContent = etab.nom;
+      }
+
+      window.onFamChange = function () {
+        curFamId = document.getElementById("famSelAdmin").value;
+        curTplId = null;
+        buildVarsPanel(curFamId);
+        renderTplList(curFamId);
+        clearEditor();
+      };
+
+      // ── Variables panel — gère scalaires ET listes ─────────────────
+      function buildVarsPanel(famId) {
+        const panel = document.getElementById("varsPanelEl");
+        panel.innerHTML = "";
+        if (!famId) return;
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+
+        fam.classes.forEach((cls) => {
+          const hdr = document.createElement("div");
+          hdr.className = "vc-hdr";
+          hdr.style.color = cls.couleur || "#555";
+          const hasLists = (cls.vars || []).some((v) => v.type === "list");
+          hdr.textContent = cls.nom + (hasLists ? " ⚡" : "");
+
+          const chips = document.createElement("div");
+          chips.className = "vchips";
+
+          (cls.vars || []).forEach((v) => {
+            const chip = document.createElement("span");
+            chip.className = "vchip" + (v.type === "list" ? " is-list" : "");
+            chip.style.cssText = [
+              `background:${cls.couleur || "#555"}12`,
+              `color:${cls.couleur || "#555"}`,
+              `border-color:${cls.couleur || "#555"}33`,
+            ].join(";");
+
+            if (v.type === "list") {
+              // Variable liste → badge LIST + appel insertListVar (shared.js)
+              chip.innerHTML = `<span class="vchip-badge">LIST</span>${v.label}`;
+              chip.title = `{{#${v.tech}:ul}} · :inline · :cell-expand — ${v.label}`;
+              chip.onclick = () => {
+                const ed = activeEditor || editorBody;
+                if (!ed) {
+                  toast("Ouvrez un template d'abord", "error");
+                  return;
+                }
+                insertListVar(ed, v); // from shared.js
+              };
+            } else {
+              // Variable scalaire → insérer {{tech}}
+              chip.textContent = v.label;
+              chip.title = `{{${v.tech}}} — ${v.label}`;
+              chip.onclick = () => window.insertVar(v.tech);
+            }
+
+            chips.appendChild(chip);
+          });
+
+          panel.appendChild(hdr);
+          panel.appendChild(chips);
+        });
+      }
+
+      function renderTplList(famId) {
+        const scroll = document.getElementById("tplScroll");
+        scroll.innerHTML = "";
+        if (!famId) {
+          scroll.innerHTML =
+            '<div style="padding:18px;font-size:11px;color:var(--text3);text-align:center;line-height:1.6">Sélectionnez une famille</div>';
+          return;
+        }
+        const tpls = DB.getTemplates(famId, ETAB_ID);
+        if (!tpls?.length) {
+          scroll.innerHTML =
+            '<div style="padding:16px;font-size:11px;color:var(--text3);text-align:center;line-height:1.6">Aucun template.<br>Créez le premier !</div>';
+          return;
+        }
+        tpls.forEach((tpl) => {
+          const item = document.createElement("div");
+          item.className = "tpl-item" + (curTplId === tpl.id ? " on" : "");
+          item.innerHTML = `<span style="font-size:16px;flex-shrink:0;margin-top:1px">📄</span>
+      <div class="tpl-body">
+        <div class="tpl-name">${escHtml(tpl.nom)}</div>
+        <div class="tpl-meta">${new Date(tpl.updatedAt).toLocaleDateString("fr-FR")}<span style="background:#dcfce7;color:#15803d;padding:1px 5px;border-radius:2px;font-size:8px;font-weight:700">Publié</span>${tpl.hasHeader ? "<span title='Avec en-tête'>📋</span>" : ""}${tpl.hasFooter ? "<span title='Avec pied'>📑</span>" : ""}</div>
+      </div>
+      <button class="tpl-del" title="Supprimer" onclick="event.stopPropagation();confirmDelTpl('${tpl.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+      </button>`;
+          item.onclick = () => openTemplate(tpl.id);
+          scroll.appendChild(item);
+        });
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      //  EDITOR LIFECYCLE
+      // ═══════════════════════════════════════════════════════════════
+      function clearEditor() {
+        document.getElementById("emptyState").style.display = "flex";
+        document.getElementById("editorInner").style.display = "none";
+        destroyEditors();
+      }
+      function destroyEditors() {
+        [editorHeader, editorBody, editorFooter].forEach((ed) => {
+          try {
+            ed?.destroy();
+          } catch (_) {}
+        });
+        editorHeader = editorBody = editorFooter = null;
+      }
+      function openTemplate(tplId) {
+        const tpl = DB.getTemplate(tplId);
+        if (!tpl) return;
+        curTplId = tplId;
+        renderTplList(curFamId);
+        buildEditorUI(tpl);
+      }
+
+      function buildEditorUI(tpl) {
+        document.getElementById("emptyState").style.display = "none";
+        document.getElementById("editorInner").style.display = "flex";
+        document.getElementById("tnameInput").value = tpl.nom;
+        setSaveState("Prêt", false);
+        destroyEditors();
+
+        function onUpd() {
+          onEditorChange();
+          schedulePageUpdate();
+        }
+
+        editorBody = createEditor(
+          "ck-body",
+          "Rédigez le corps du document ici…",
+          onUpd,
+          (ed) => {
+            activeEditor = ed;
+          },
+        );
+        editorHeader = createEditor(
+          "ck-header",
+          "En-tête du document…",
+          onUpd,
+          (ed) => {
+            activeEditor = ed;
+          },
+        );
+        editorFooter = createEditor(
+          "ck-footer",
+          "Pied de page…",
+          onUpd,
+          (ed) => {
+            activeEditor = ed;
+          },
+        );
+
+        if (editorBody && tpl.body) setEditorHTML(editorBody, tpl.body);
+        if (editorHeader && tpl.header) setEditorHTML(editorHeader, tpl.header);
+        if (editorFooter && tpl.footer) setEditorHTML(editorFooter, tpl.footer);
+
+        activeEditor = editorBody;
+        headerEnabled = !!tpl.hasHeader;
+        footerEnabled = !!tpl.hasFooter;
+        updateSectionVisibility();
+        switchSection("body");
+        updateWordCount();
+        setTimeout(renderPagedPreview, 600);
+        setTimeout(() => {
+          [editorBody, editorHeader, editorFooter].forEach((ed) => {
+            if (ed) activateImageResizers(ed);
+          });
+        }, 300);
+      }
+
+      window.newTemplate = function () {
+        if (!curFamId) {
+          toast("Sélectionnez d'abord une famille", "error");
+          return;
+        }
+        const fam = DB.getFamily(curFamId);
+        const id = genId("tpl");
+        DB.saveTemplate({
+          id,
+          familyId: curFamId,
+          etablissementId: ETAB_ID,
+          nom: "Nouveau template — " + fam.nom,
+          updatedAt: new Date().toISOString(),
+          hasHeader: false,
+          hasFooter: false,
+          header:
+            '<p style="text-align:center"><strong>{{nom_etab}}</strong></p><p style="text-align:center;font-size:10pt;color:#666">{{adresse_etab}} — Tél : {{tel_etab}}</p>',
+          body: "<p>Rédigez le contenu du document ici.</p>",
+          footer:
+            '<p style="text-align:center;font-size:9pt;color:#999">Document officiel — {{nom_etab}} — Année {{annee_univ}}</p>',
+        });
+        curTplId = id;
+        renderTplList(curFamId);
+        openTemplate(id);
+        toast("Nouveau template créé", "success");
+      };
+
+      window.saveTemplate = function () {
+        if (!curTplId || !editorBody) return;
+        const tpl = DB.getTemplate(curTplId);
+        tpl.nom = document.getElementById("tnameInput").value || tpl.nom;
+        tpl.header = editorHeader ? getEditorHTML(editorHeader) : "";
+        tpl.body = getEditorHTML(editorBody);
+        tpl.footer = editorFooter ? getEditorHTML(editorFooter) : "";
+        tpl.hasHeader = headerEnabled;
+        tpl.hasFooter = footerEnabled;
+        tpl.updatedAt = new Date().toISOString();
+        DB.saveTemplate(tpl);
+        renderTplList(curFamId);
+        setSaveState("Enregistré ✓", false);
+        toast("Template enregistré avec succès", "success");
+      };
+
+      window.switchSection = function (sec) {
+        if (sec === "header" && !headerEnabled) return;
+        if (sec === "footer" && !footerEnabled) return;
+        ["header", "body", "footer"].forEach((s) =>
+          document.getElementById("tab-" + s).classList.toggle("on", s === sec),
+        );
+        const edMap = {
+          header: editorHeader,
+          body: editorBody,
+          footer: editorFooter,
+        };
+        const ed = edMap[sec];
+        if (ed) {
+          try {
+            ed.commands.focus();
+          } catch (_) {}
+          activeEditor = ed;
+        }
+      };
+
+      window.toggleSection = function (sec) {
+        if (sec === "header") headerEnabled = !headerEnabled;
+        else footerEnabled = !footerEnabled;
+        updateSectionVisibility();
+        switchSection(
+          sec === "header"
+            ? headerEnabled
+              ? "header"
+              : "body"
+            : footerEnabled
+              ? "footer"
+              : "body",
+        );
+        toast(
+          sec === "header"
+            ? headerEnabled
+              ? "En-tête activé"
+              : "En-tête désactivé"
+            : footerEnabled
+              ? "Pied activé"
+              : "Pied désactivé",
+        );
+        onEditorChange();
+        schedulePageUpdate();
+      };
+
+      function updateSectionVisibility() {
+        document.getElementById("sec-header").style.display = headerEnabled
+          ? "block"
+          : "none";
+        document.getElementById("sec-footer").style.display = footerEnabled
+          ? "block"
+          : "none";
+        const tH = document.getElementById("toggleHeader");
+        tH.classList.toggle("on", headerEnabled);
+        tH.textContent = headerEnabled ? "✓ En-tête ON" : "📋 En-tête OFF";
+        const tF = document.getElementById("toggleFooter");
+        tF.classList.toggle("on", footerEnabled);
+        tF.textContent = footerEnabled ? "✓ Pied ON" : "📑 Pied OFF";
+        document
+          .getElementById("tab-header")
+          .classList.toggle("disabled", !headerEnabled);
+        document
+          .getElementById("tab-footer")
+          .classList.toggle("disabled", !footerEnabled);
+        const body = document.getElementById("sec-body");
+        body.classList.toggle("no-header", !headerEnabled);
+        body.classList.toggle("no-footer", !footerEnabled);
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      //  DELETE TEMPLATE
+      // ═══════════════════════════════════════════════════════════════
+      window.confirmDelTpl = function (id) {
+        pendingDelId = id;
+        document.getElementById("delTplBtn").onclick = () => {
+          DB.deleteTemplate(pendingDelId);
+          if (curTplId === pendingDelId) {
+            curTplId = null;
+            clearEditor();
+          }
+          renderTplList(curFamId);
+          closeModal("modalDelTpl");
+          toast("Template supprimé");
+        };
+        openModal("modalDelTpl");
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      //  WATERMARK
+      // ═══════════════════════════════════════════════════════════════
+      window.openWatermarkModal = function () {
+        if (!curTplId) {
+          toast("Ouvrez d'abord un template", "error");
+          return;
+        }
+        openModal("modalWatermark");
+      };
+      window.applyWatermark = function () {
+        const text = document.getElementById("wm-text").value || "CONFIDENTIEL";
+        const color = document.getElementById("wm-color").value || "#000000";
+        const opacity =
+          (parseInt(document.getElementById("wm-opacity").value) || 7) / 100;
+        const size = parseInt(document.getElementById("wm-size").value) || 80;
+        const wm = document.getElementById("docWatermark"),
+          sp = document.getElementById("wmText");
+        wm.style.display = "flex";
+        sp.textContent = text;
+        sp.style.fontSize = size + "px";
+        sp.style.color = color;
+        sp.style.opacity = opacity;
+        closeModal("modalWatermark");
+        toast("Filigrane appliqué");
+        schedulePageUpdate();
+      };
+      window.removeWatermark = function () {
+        document.getElementById("docWatermark").style.display = "none";
+        closeModal("modalWatermark");
+        toast("Filigrane supprimé");
+        schedulePageUpdate();
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      //  PAGE SETTINGS
+      // ═══════════════════════════════════════════════════════════════
+      window.openPageSettings = function () {
+        if (!curTplId) {
+          toast("Ouvrez d'abord un template", "error");
+          return;
+        }
+        openModal("modalPageSettings");
+      };
+      window.applyPageMargins = function () {
+        const mt = document.getElementById("pg-mt").value + "mm",
+          mb = document.getElementById("pg-mb").value + "mm",
+          ml = document.getElementById("pg-ml").value + "mm",
+          mr = document.getElementById("pg-mr").value + "mm";
+        document.documentElement.style.setProperty("--page-mt", mt);
+        document.documentElement.style.setProperty("--page-mb", mb);
+        document.documentElement.style.setProperty("--page-ml", ml);
+        document.documentElement.style.setProperty("--page-mr", mr);
+        closeModal("modalPageSettings");
+        toast(`Marges : haut ${mt} · bas ${mb} · gauche ${ml} · droite ${mr}`);
+        setTimeout(renderPagedPreview, 200);
+      };
+      window.resetPageMargins = function () {
+        document.getElementById("pg-mt").value = 20;
+        document.getElementById("pg-mb").value = 20;
+        document.getElementById("pg-ml").value = 25;
+        document.getElementById("pg-mr").value = 25;
+        window.applyPageMargins();
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      //  PREVIEW MODAL — uses resolveVars from shared.js
+      // ═══════════════════════════════════════════════════════════════
+      window.openPreviewModal = function () {
+        if (!curTplId || !editorBody) {
+          toast("Ouvrez d'abord un template", "error");
+          return;
+        }
+        const sel = document.getElementById("prevPerson");
+        sel.innerHTML = "";
+        DB.getPersonnel(ETAB_ID).forEach((p) => {
+          const o = document.createElement("option");
+          o.value = p.id;
+          o.textContent = p.nom_prenom + " — " + p.poste;
+          sel.appendChild(o);
+        });
+        window.refreshPrev();
+        openModal("modalPreview");
+      };
+
+      window.refreshPrev = function () {
+        const p = DB.getPerson(document.getElementById("prevPerson").value);
+        if (!p || !editorBody) return;
+        const hH =
+          headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "";
+        const bH = getEditorHTML(editorBody);
+        const fH =
+          footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "";
+
+        const prevPage = document.getElementById("prevContent");
+        prevPage.innerHTML = "";
+        prevPage.style.cssText =
+          "background:#fff;border-radius:2px;width:210mm;min-height:297mm;margin:0 auto;box-shadow:0 2px 12px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden";
+
+        if (headerEnabled && hH) {
+          const hdrDiv = document.createElement("div");
+          hdrDiv.className = "prev-header";
+          hdrDiv.innerHTML = resolveVars(hH, p);
+          prevPage.appendChild(hdrDiv);
+        }
+        const bodyDiv = document.createElement("div");
+        bodyDiv.className =
+          "prev-body" +
+          (!headerEnabled ? " no-header" : "") +
+          (!footerEnabled ? " no-footer" : "");
+        bodyDiv.innerHTML = resolveVars(bH, p);
+        prevPage.appendChild(bodyDiv);
+        if (footerEnabled && fH) {
+          const ftrDiv = document.createElement("div");
+          ftrDiv.className = "prev-footer";
+          ftrDiv.innerHTML = resolveVars(fH, p);
+          prevPage.appendChild(ftrDiv);
+        }
+
+        document.getElementById("prevPrintBtn").onclick = () =>
+          printWithPerson(p);
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      //  EXPORT — uses resolveVarsRaw from shared.js
+      // ═══════════════════════════════════════════════════════════════
+      window.openExportModal = function () {
+        if (!curTplId || !editorBody) {
+          toast("Ouvrez d'abord un template", "error");
+          return;
+        }
+        const sel = document.getElementById("exp-person");
+        sel.innerHTML = "";
+        DB.getPersonnel(ETAB_ID).forEach((p) => {
+          const o = document.createElement("option");
+          o.value = p.id;
+          o.textContent = p.nom_prenom + " — " + p.poste;
+          sel.appendChild(o);
+        });
+        const tpl = DB.getTemplate(curTplId);
+        document.getElementById("exp-filename").value = (
+          tpl?.nom || "document"
+        ).replace(/[^a-z0-9\-_]/gi, "_");
+        openModal("modalExport");
+      };
+      window.selectExport = function (mode) {
+        expMode = mode;
+        ["html", "print", "txt", "template"].forEach((m) =>
+          document
+            .getElementById("exp-" + m)
+            .classList.toggle("on", m === mode),
+        );
+      };
+      window.doExport = function () {
+        if (!editorBody) return;
+        const tpl = DB.getTemplate(curTplId);
+        const fname =
+          document.getElementById("exp-filename").value || "document";
+        const should = document.getElementById("exp-resolve").checked;
+        const pId = document.getElementById("exp-person").value;
+        const person = should ? DB.getPerson(pId) : null;
+
+        const hH =
+          headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "";
+        const fH =
+          footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "";
+        let body = getEditorHTML(editorBody);
+        let full =
+          (hH
+            ? `<div class="doc-header" style="border-bottom:1px solid #c8cdd8;padding-bottom:12px;margin-bottom:20px">${hH}</div>`
+            : "") +
+          body +
+          (fH
+            ? `<div class="doc-footer" style="border-top:1px solid #c8cdd8;padding-top:12px;margin-top:20px">${fH}</div>`
+            : "");
+        if (person) full = resolveVarsRaw(full, person);
+
+        if (expMode === "html") {
+          const pageHtml = `<!doctype html>\n<html lang="fr">\n<head>\n<meta charset="UTF-8"/>\n<title>${escHtml(tpl?.nom || "Document")}</title>\n<link href="https://fonts.googleapis.com/css2?family=Amiri&family=Cairo&family=Tajawal&display=swap" rel="stylesheet"/>\n<style>\n@page{size:A4;margin:20mm 25mm}\nbody{font-family:"Times New Roman",Times,serif;font-size:12pt;line-height:1.6;color:#111;background:#fff;padding:20mm 25mm;max-width:210mm;margin:0 auto}\ntable{border-collapse:collapse;width:100%}\ntd,th{border:1px solid #c8cdd8;padding:7px 10px}\nth{background:#eef2ff;color:#1d4ed8;font-weight:600}\nul,ol{padding-left:2em}\nul{list-style-type:disc}\nol{list-style-type:decimal}\nli{display:list-item}\n</style>\n</head>\n<body>\n${full}\n</body>\n</html>`;
+          downloadFile(fname + ".html", pageHtml, "text/html");
+          closeModal("modalExport");
+          toast("Export HTML téléchargé", "success");
+        } else if (expMode === "print") {
+          renderPagedPreview();
+          let printHtml =
+            pagedPreviewHTML ||
+            `<div class="a4-page"><div class="a4-body">${full}</div></div>`;
+          if (person) printHtml = resolveVarsRaw(printHtml, person);
+          const pw = window.open("", "_blank");
+          pw.document.write(
+            `<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><title>${escHtml(tpl?.nom || "Document")}</title><link href="https://fonts.googleapis.com/css2?family=Amiri&family=Cairo&family=Tajawal&display=swap" rel="stylesheet"/><style>@page{size:A4 portrait;margin:0}body{margin:0;background:#fff}.a4-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;page-break-after:always;break-after:page}.a4-page:last-child{page-break-after:auto;break-after:auto}.a4-header{padding:5mm 25mm 3mm 25mm}.a4-footer{padding:3mm 25mm 5mm 25mm;margin-top:auto}.a4-body{flex:1;padding:5mm 25mm;font-family:"Times New Roman",Times,serif;font-size:12pt;line-height:1.6;color:#111}.a4-body.no-header{padding-top:20mm}.a4-body.no-footer{padding-bottom:20mm}.a4-hf-label,.a4-page-num{display:none}table{border-collapse:collapse;width:100%}td,th{border:1px solid #c8cdd8;padding:7px 10px}th{background:#eef2ff;color:#1d4ed8;font-weight:600}ul,ol{padding-left:2em!important;list-style:revert!important}li{display:list-item!important}</style></head><body>${printHtml}</body></html>`,
+          );
+          pw.document.close();
+          setTimeout(() => pw.print(), 500);
+          closeModal("modalExport");
+        } else if (expMode === "txt") {
+          const tmp = document.createElement("div");
+          tmp.innerHTML = full;
+          downloadFile(
+            fname + ".txt",
+            tmp.textContent || tmp.innerText || "",
+            "text/plain",
+          );
+          closeModal("modalExport");
+          toast("Export texte téléchargé", "success");
+        } else if (expMode === "template") {
+          downloadFile(
+            fname + ".json",
+            JSON.stringify(tpl, null, 2),
+            "application/json",
+          );
+          closeModal("modalExport");
+          toast("Template JSON téléchargé", "success");
+        }
+      };
+
+      function downloadFile(name, content, type) {
+        const blob = new Blob([content], { type });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      //  ZOOM
+      // ═══════════════════════════════════════════════════════════════
+      window.setZoom = function (delta) {
+        if (delta === 0) zoomLv = 100;
+        else zoomLv = Math.max(40, Math.min(220, zoomLv + delta));
+        const sc = document.getElementById("zoomScaler");
+        sc.style.transform = `scale(${zoomLv / 100})`;
+        sc.style.marginBottom =
+          zoomLv < 100 ? ((100 - zoomLv) / 100) * -500 + "px" : "0";
+        document.getElementById("zoomLbl").textContent = zoomLv + "%";
+        document.getElementById("sbZoom").textContent = zoomLv + "%";
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      //  SEARCH & REPLACE
+      // ═══════════════════════════════════════════════════════════════
+      let srchMatches = [],
+        srchIdx = 0;
+      window.openSearchPanel = function () {
+        document.getElementById("searchPanel").classList.toggle("on");
+        if (document.getElementById("searchPanel").classList.contains("on"))
+          setTimeout(() => document.getElementById("srch-find").focus(), 60);
+      };
+      window.closeSearchPanel = function () {
+        document.getElementById("searchPanel").classList.remove("on");
+      };
+      function escRegex(s) {
+        return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }
+      window.doSearch = function () {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        const term = document.getElementById("srch-find").value;
+        if (!term) {
+          document.getElementById("srch-count").textContent = "0/0";
+          srchMatches = [];
+          return;
+        }
+        const cs = document.getElementById("srch-case").checked;
+        const txt = ed.getText();
+        srchMatches = [];
+        srchIdx = 0;
+        const re = new RegExp(escRegex(term), cs ? "g" : "gi");
+        let m;
+        while ((m = re.exec(txt)) !== null) srchMatches.push(m.index);
+        document.getElementById("srch-count").textContent = srchMatches.length
+          ? `1/${srchMatches.length}`
+          : "0/0";
+      };
+      window.srchNav = function (dir) {
+        if (!srchMatches.length) {
+          window.doSearch();
+          return;
+        }
+        srchIdx = (srchIdx + dir + srchMatches.length) % srchMatches.length;
+        document.getElementById("srch-count").textContent =
+          `${srchIdx + 1}/${srchMatches.length}`;
+      };
+      window.doReplaceOne = function () {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        const t = document.getElementById("srch-find").value,
+          r = document.getElementById("srch-replace").value;
+        if (!t) return;
+        const cs = document.getElementById("srch-case").checked;
+        setEditorHTML(
+          ed,
+          getEditorHTML(ed).replace(new RegExp(escRegex(t), cs ? "" : "i"), r),
+        );
+        window.doSearch();
+        toast("Remplacement effectué");
+      };
+      window.doReplaceAll = function () {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        const t = document.getElementById("srch-find").value,
+          r = document.getElementById("srch-replace").value;
+        if (!t) return;
+        const cs = document.getElementById("srch-case").checked;
+        const re = new RegExp(escRegex(t), cs ? "g" : "gi");
+        const h = getEditorHTML(ed);
+        const n = (h.match(re) || []).length;
+        setEditorHTML(ed, h.replace(re, r));
+        toast(`${n} occurrence(s) remplacée(s)`, "success");
+        window.doSearch();
+      };
+
+      // ═══════════════════════════════════════════════════════════════
+      //  UI HELPERS
+      // ═══════════════════════════════════════════════════════════════
+      window.toggleSidebar = function () {
+        document.getElementById("sidebarEl").classList.toggle("closed");
+      };
+      window.toggleCpop = function (id, e) {
+        e.stopPropagation();
+        const p = document.getElementById(id);
+        const was = p.classList.contains("on");
+        closeAllCpops();
+        if (!was) p.classList.add("on");
+      };
+      function closeAllCpops() {
+        document
+          .querySelectorAll(".cpop.on")
+          .forEach((p) => p.classList.remove("on"));
+      }
+      window.showCtxMenu = function (e) {
+        const m = document.getElementById("ctxMenu");
+        m.style.left = Math.min(e.clientX, window.innerWidth - 180) + "px";
+        m.style.top = Math.min(e.clientY, window.innerHeight - 210) + "px";
+        m.classList.add("on");
+      };
+      window.closeCtx = function () {
+        document.getElementById("ctxMenu").classList.remove("on");
+      };
+      window.openImgModal = function () {
+        openModal("modalImage");
+      };
+      window.openTableModal = function () {
+        openModal("modalTable");
+      };
+      window.openLinkModal = function () {
+        openModal("modalLink");
+      };
+
+      function escHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function buildSwatches(id, colors, cb) {
+        const g = document.getElementById(id);
+        if (!g) return;
+        g.innerHTML = "";
+        colors.forEach((c) => {
+          const sw = document.createElement("div");
+          sw.className = "cswatch";
+          sw.style.background =
+            c === "transparent"
+              ? "linear-gradient(135deg,#fff 45%,#f00 45%,#f00 55%,#fff 55%)"
+              : c;
+          sw.title = c;
+          sw.onclick = () => cb(c);
+          g.appendChild(sw);
+        });
+      }
+      function buildTblColorSwatches() {
+        [
+          ["tblClrSwatches", CELL_COLORS, window.applyTblCellBg],
+          ["tblTxtSwatches", CELL_TXT, window.applyTblCellTxt],
+        ].forEach(([id, cols, fn]) => {
+          const g = document.getElementById(id);
+          if (!g) return;
+          g.innerHTML = "";
+          cols.forEach((c) => {
+            const sw = document.createElement("div");
+            sw.className = "tbl-clr-sw";
+            sw.style.background = c;
+            sw.title = c;
+            sw.onclick = () => fn(c);
+            g.appendChild(sw);
+          });
+        });
+      }
+      function buildTableGrid() {
+        const g = document.getElementById("tgCells");
+        if (!g) return;
+        g.innerHTML = "";
+        for (let r = 1; r <= 8; r++)
+          for (let c = 1; c <= 10; c++) {
+            const cell = document.createElement("div");
+            cell.className = "tgcell";
+            cell.dataset.r = r;
+            cell.dataset.c = c;
+            cell.addEventListener("mouseenter", () => {
+              document
+                .querySelectorAll(".tgcell")
+                .forEach((el) =>
+                  el.classList.toggle(
+                    "hi",
+                    +el.dataset.r <= r && +el.dataset.c <= c,
+                  ),
+                );
+              document.getElementById("tgSize").textContent =
+                `Tableau ${r} × ${c}`;
+              document.getElementById("ti-rows").value = r;
+              document.getElementById("ti-cols").value = c;
+            });
+            cell.addEventListener("click", () => {
+              window.doInsertTable();
+              closeModal("modalTable");
+            });
+            g.appendChild(cell);
+          }
+        g.addEventListener("mouseleave", () =>
+          document
+            .querySelectorAll(".tgcell")
+            .forEach((el) => el.classList.remove("hi")),
+        );
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      //  KEYBOARD SHORTCUTS
+      // ═══════════════════════════════════════════════════════════════
+      document.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+          e.preventDefault();
+          window.saveTemplate();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+          e.preventDefault();
+          window.openSearchPanel();
+        }
+        if (e.key === "Escape") {
+          window.closeCtx();
+          closeAllCpops();
+          window.closeSearchPanel();
+          closeTblPops();
+          document
+            .querySelectorAll(".modal-overlay.open")
+            .forEach((m) => m.classList.remove("open"));
+        }
+      });
+      document.addEventListener("click", (e) => {
+        window.closeCtx();
+        if (!e.target.closest(".tb-clr")) closeAllCpops();
+        if (e.target.classList.contains("modal-overlay"))
+          e.target.classList.remove("open");
+        if (
+          !e.target.closest(".tiptap-wrapper") &&
+          !e.target.closest(".tbl-toolbar")
+        )
+          document.getElementById("tblToolbar").classList.remove("on");
+      });
+
+      // ═══════════════════════════════════════════════════════════════
+      //  BOOT
+      // ═══════════════════════════════════════════════════════════════
+      buildSwatches("sw-text", TEXT_COLORS, (c) => window.applyTextColor(c));
+      buildSwatches("sw-bg", BG_COLORS, (c) => window.applyHighlight(c));
+      buildTableGrid();
+      buildTblColorSwatches();
+      populateFamilySelect();
+      if (!localStorage.getItem(STORE_KEY)) DB.seed();
+
+      document.getElementById("loading").classList.add("done");
+      document.getElementById("app").style.opacity = "1";
+    </script>
+  </body>
+</html>

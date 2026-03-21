@@ -1,0 +1,1846 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>SIRH-Doc — Génération de Documents</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Cairo:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #f6f6f3;
+        --surface: #fff;
+        --surface2: #f8f8f5;
+        --surface3: #f0f0ec;
+        --border: #e2e2dc;
+        --border2: #d0d0ca;
+        --text: #1a1a18;
+        --text2: #5a5a55;
+        --text3: #9a9a93;
+        --accent: #2563eb;
+        --accent-bg: #eff6ff;
+        --accent-bdr: #bfdbfe;
+        --green: #16a34a;
+        --green-bg: #f0fdf4;
+        --green-bdr: #bbf7d0;
+        --amber: #d97706;
+        --amber-bg: #fffbeb;
+        --amber-bdr: #fde68a;
+        --red: #dc2626;
+        --red-bg: #fef2f2;
+        --r: 8px;
+        --rlg: 12px;
+        --rxl: 16px;
+        --sh: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 20px rgba(0, 0, 0, 0.06);
+        --shlg: 0 12px 40px rgba(0, 0, 0, 0.12);
+        --font: "Inter", sans-serif;
+        /* Page canvas */
+        --page-w: 210mm;
+        --page-h: 297mm;
+        --page-mt: 20mm;
+        --page-mb: 20mm;
+        --page-ml: 25mm;
+        --page-mr: 25mm;
+      }
+      html,
+      body {
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 13px;
+        min-height: 100%;
+        overflow-x: hidden;
+      }
+      ::-webkit-scrollbar {
+        width: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border2);
+        border-radius: 3px;
+      }
+
+      /* ── LOADING ─────────────────────────── */
+      #loading {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+      }
+      #loading.done {
+        display: none;
+      }
+      .ll {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.4px;
+      }
+      .ll span {
+        color: var(--amber);
+      }
+      .lb {
+        width: 180px;
+        height: 3px;
+        background: var(--border);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .lbf {
+        height: 100%;
+        background: var(--amber);
+        animation: lf 0.8s ease forwards;
+      }
+      @keyframes lf {
+        from {
+          width: 0;
+        }
+        to {
+          width: 100%;
+        }
+      }
+
+      /* ── TOP NAV ─────────────────────────── */
+      .topnav {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 0 24px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+      .nav-logo {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+      }
+      .nav-logo span {
+        color: var(--amber);
+      }
+      .nav-sep {
+        width: 1px;
+        height: 22px;
+        background: var(--border);
+      }
+      .nav-chip {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        background: var(--amber-bg);
+        color: var(--amber);
+        border: 1px solid var(--amber-bdr);
+      }
+      .nav-right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: var(--r);
+        font-size: 11px;
+        color: var(--text3);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        text-decoration: none;
+        transition: all 0.12s;
+      }
+      .nav-link:hover {
+        border-color: var(--border2);
+        color: var(--text);
+      }
+
+      /* ── HERO ────────────────────────────── */
+      .hero {
+        background: linear-gradient(
+          135deg,
+          #1d4ed8 0%,
+          #2563eb 60%,
+          #3b82f6 100%
+        );
+        padding: 20px 24px;
+        margin: 20px auto;
+        border-radius: var(--rxl);
+        max-width: 1200px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .hero-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+      .hero h1 {
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 2px;
+      }
+      .hero p {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.75);
+      }
+      .hero-badge {
+        margin-left: auto;
+        padding: 4px 12px;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 20px;
+        font-size: 11px;
+        color: #fff;
+        white-space: nowrap;
+      }
+
+      /* ── LAYOUT ──────────────────────────── */
+      .main-wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px 40px;
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 20px;
+        align-items: start;
+      }
+
+      /* ── STEPPER ─────────────────────────── */
+      .stepper {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rxl);
+        overflow: hidden;
+        position: sticky;
+        top: 68px;
+      }
+      .stepper-hdr {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .stepper-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .step-dots {
+        display: flex;
+        gap: 4px;
+      }
+      .step-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--border2);
+        transition: all 0.2s;
+      }
+      .step-dot.done {
+        background: var(--green);
+      }
+      .step-dot.cur {
+        background: var(--accent);
+        transform: scale(1.3);
+      }
+      .step-block {
+        border-bottom: 1px solid var(--border);
+      }
+      .step-block:last-child {
+        border-bottom: none;
+      }
+      .step-hdr {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 14px;
+        cursor: pointer;
+        transition: background 0.1s;
+        user-select: none;
+      }
+      .step-hdr:hover {
+        background: var(--surface2);
+      }
+      .step-num {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 2px solid var(--border2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text3);
+        flex-shrink: 0;
+        transition: all 0.2s;
+      }
+      .step-num.done {
+        border-color: var(--green);
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .step-num.cur {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+        color: var(--accent);
+      }
+      .step-lbl {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text2);
+        flex: 1;
+      }
+      .step-lbl.cur {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .step-val {
+        font-size: 10px;
+        color: var(--text3);
+        max-width: 110px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .step-val.ok {
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .step-chev {
+        color: var(--text3);
+        transition: transform 0.2s;
+        flex-shrink: 0;
+      }
+      .step-body {
+        display: none;
+        padding: 0 12px 12px;
+        border-top: 1px solid var(--border);
+        background: var(--surface2);
+      }
+      .step-body.open {
+        display: block;
+      }
+
+      /* ── CARDS FAMILLE ───────────────────── */
+      .fam-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+        padding-top: 10px;
+      }
+      .fam-card {
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 10px;
+        cursor: pointer;
+        transition: all 0.12s;
+        background: var(--surface);
+      }
+      .fam-card:hover {
+        border-color: var(--border2);
+        background: var(--surface2);
+      }
+      .fam-card.sel {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+      }
+      .fam-icon {
+        font-size: 20px;
+        margin-bottom: 4px;
+      }
+      .fam-name {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text);
+        line-height: 1.3;
+      }
+      .fam-meta {
+        font-size: 10px;
+        color: var(--text3);
+        margin-top: 2px;
+      }
+
+      /* ── CARDS TEMPLATE ──────────────────── */
+      .tpl-list {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        padding-top: 10px;
+      }
+      .tpl-card {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 9px 11px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        cursor: pointer;
+        background: var(--surface);
+        transition: all 0.12s;
+      }
+      .tpl-card:hover {
+        border-color: var(--border2);
+        background: var(--surface2);
+      }
+      .tpl-card.sel {
+        border-color: var(--green);
+        background: var(--green-bg);
+      }
+      .tpl-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text);
+        flex: 1;
+      }
+      .tpl-meta {
+        font-size: 10px;
+        color: var(--text3);
+      }
+      .tpl-chk {
+        width: 17px;
+        height: 17px;
+        border-radius: 50%;
+        border: 2px solid var(--border2);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        transition: all 0.12s;
+      }
+      .tpl-card.sel .tpl-chk {
+        border-color: var(--green);
+        background: var(--green);
+        color: #fff;
+      }
+
+      /* ── CARDS PERSONNE ──────────────────── */
+      .person-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-top: 10px;
+      }
+      .person-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        cursor: pointer;
+        background: var(--surface);
+        transition: all 0.12s;
+      }
+      .person-item:hover {
+        border-color: var(--border2);
+        background: var(--surface2);
+      }
+      .person-item.sel {
+        border-color: var(--amber);
+        background: var(--amber-bg);
+      }
+      .p-av {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--accent-bg);
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .p-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text);
+      }
+      .p-meta {
+        font-size: 10px;
+        color: var(--text3);
+        margin-top: 1px;
+      }
+
+      /* ── DOC PANEL (droite) ──────────────── */
+      .doc-panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rxl);
+        overflow: hidden;
+      }
+      .doc-ph {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .doc-pt {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .doc-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .doc-pb {
+        padding: 0;
+        min-height: 400px;
+      }
+
+      /* Progress bar */
+      .pbar {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 12px 16px 8px;
+        flex-wrap: wrap;
+      }
+      .pb-step {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 10px;
+        color: var(--text3);
+        padding: 3px 9px;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        background: var(--surface2);
+      }
+      .pb-step.done {
+        background: var(--green-bg);
+        border-color: var(--green-bdr);
+        color: var(--green);
+      }
+      .pb-step.cur {
+        background: var(--accent-bg);
+        border-color: var(--accent-bdr);
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .pb-arr {
+        color: var(--border2);
+        font-size: 10px;
+      }
+      .page-count {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text2);
+        padding: 2px 10px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        margin-left: auto;
+      }
+
+      /* ── A4 CANVAS (aperçu paginé) ───────── */
+      .a4-canvas {
+        background: #c8cdd8;
+        overflow-y: auto;
+        padding: 20px 16px 32px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        min-height: 500px;
+        max-height: 80vh;
+      }
+      .zoom-scaler {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        transform-origin: top center;
+        transition: transform 0.1s;
+      }
+      .a4-page {
+        width: var(--page-w);
+        height: var(--page-h);
+        background: #fff;
+        box-shadow:
+          0 2px 12px rgba(0, 0, 0, 0.18),
+          0 0 0 1px rgba(0, 0, 0, 0.08);
+        position: relative;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .a4-page-num {
+        position: absolute;
+        bottom: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 9px;
+        color: rgba(0, 0, 0, 0.3);
+        user-select: none;
+        white-space: nowrap;
+      }
+      .a4-header {
+        padding: 5mm var(--page-mr) 3mm var(--page-ml);
+        border-bottom: 1px dashed #c8cdd8;
+        flex-shrink: 0;
+        min-height: 20mm;
+        position: relative;
+      }
+      .a4-footer {
+        padding: 3mm var(--page-mr) 5mm var(--page-ml);
+        border-top: 1px dashed #c8cdd8;
+        flex-shrink: 0;
+        min-height: 14mm;
+        position: relative;
+        margin-top: auto;
+      }
+      .a4-hf-label {
+        position: absolute;
+        right: 4px;
+        top: 4px;
+        font-size: 8px;
+        color: #bbb;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        pointer-events: none;
+      }
+      .a4-body {
+        flex: 1;
+        padding: 5mm var(--page-mr) 5mm var(--page-ml);
+        overflow: hidden;
+        position: relative;
+        font-family: "Times New Roman", Times, serif;
+        font-size: 12pt;
+        line-height: 1.6;
+        color: #111;
+      }
+      .a4-body.no-header {
+        padding-top: var(--page-mt);
+      }
+      .a4-body.no-footer {
+        padding-bottom: var(--page-mb);
+      }
+      .doc-content {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 12pt;
+        line-height: 1.6;
+        color: #111;
+      }
+      .doc-content p {
+        margin: 0 0 0.4em;
+      }
+      .doc-content p:last-child {
+        margin-bottom: 0;
+      }
+      .doc-content h1 {
+        font-size: 22pt;
+        font-weight: 700;
+        margin: 0.8em 0 0.4em;
+      }
+      .doc-content h2 {
+        font-size: 18pt;
+        font-weight: 700;
+        margin: 0.7em 0 0.3em;
+      }
+      .doc-content h3 {
+        font-size: 14pt;
+        font-weight: 700;
+        margin: 0.6em 0 0.3em;
+      }
+      .doc-content table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      .doc-content td,
+      .doc-content th {
+        border: 1px solid #c8cdd8;
+        padding: 7px 10px;
+      }
+      .doc-content th {
+        background: #eef2ff;
+        color: #1d4ed8;
+        font-weight: 600;
+      }
+      .doc-content ul {
+        padding-left: 2em;
+        list-style-type: disc;
+        margin: 0.4em 0;
+      }
+      .doc-content ol {
+        padding-left: 2em;
+        list-style-type: decimal;
+        margin: 0.4em 0;
+      }
+      .doc-content li {
+        display: list-item;
+      }
+      .doc-content hr {
+        border: none;
+        border-top: 1.5px solid #c8cdd8;
+        margin: 10px 0;
+      }
+      .overflow-warn {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #f59e0b, #ef4444);
+        z-index: 10;
+        pointer-events: none;
+      }
+
+      /* Aperçu variables */
+      .var-resolved {
+        color: #2563eb;
+        font-weight: 500;
+        background: #eff6ff;
+        padding: 0 2px;
+        border-radius: 2px;
+      }
+      .var-missing {
+        color: #dc2626;
+        background: #fef2f2;
+        padding: 0 3px;
+        border-radius: 2px;
+        font-style: italic;
+        font-size: 0.9em;
+      }
+
+      /* Barre de zoom */
+      .zoom-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface2);
+      }
+      .zoom-lbl {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text2);
+        min-width: 38px;
+        text-align: center;
+      }
+
+      /* ── DOC WAIT ────────────────────────── */
+      .doc-wait {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 60px 20px;
+        text-align: center;
+        color: var(--text3);
+      }
+      .doc-wait svg {
+        width: 44px;
+        height: 44px;
+      }
+      .doc-wait h3 {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text2);
+      }
+      .doc-wait p {
+        font-size: 11px;
+        max-width: 220px;
+        line-height: 1.6;
+      }
+
+      /* ── BUTTONS ─────────────────────────── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        border-radius: var(--r);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text2);
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        transition: all 0.12s;
+        white-space: nowrap;
+      }
+      .btn:hover {
+        border-color: var(--border2);
+        background: var(--surface3);
+        color: var(--text);
+      }
+      .btn svg {
+        width: 13px;
+        height: 13px;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .btn.primary:hover {
+        background: #1d4ed8;
+      }
+      .btn.success {
+        background: var(--green);
+        color: #fff;
+        border-color: var(--green);
+      }
+      .btn.success:hover {
+        filter: brightness(1.08);
+      }
+      .btn.ghost {
+        border-color: transparent;
+        background: transparent;
+      }
+      .btn.ghost:hover {
+        background: var(--surface2);
+      }
+      .btn.sm {
+        padding: 4px 9px;
+        font-size: 11px;
+      }
+      .btn.xs {
+        padding: 2px 6px;
+        font-size: 10px;
+      }
+
+      /* ── MODAL ───────────────────────────── */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.3);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(3px);
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rxl);
+        padding: 22px;
+        width: 90%;
+        max-width: 480px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: var(--shlg);
+      }
+      .modal-hdr {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .modal-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .modal-close {
+        width: 28px;
+        height: 28px;
+        border-radius: var(--r);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text3);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      }
+      .modal-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 16px;
+        padding-top: 13px;
+        border-top: 1px solid var(--border);
+      }
+      .exp-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 9px;
+      }
+      .exp-card {
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 14px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text2);
+        transition: all 0.12s;
+        background: var(--surface2);
+      }
+      .exp-card:hover {
+        border-color: var(--border2);
+        background: var(--surface3);
+        color: var(--text);
+      }
+      .exp-card svg {
+        width: 24px;
+        height: 24px;
+      }
+
+      /* ── TOAST ───────────────────────────── */
+      .toast-stack {
+        position: fixed;
+        bottom: 24px;
+        right: 20px;
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 15px;
+        background: var(--text);
+        color: #fff;
+        border-radius: var(--rlg);
+        font-size: 12px;
+        box-shadow: var(--shlg);
+        animation: ti 0.18s ease;
+        min-width: 200px;
+      }
+      .toast.success {
+        background: #166534;
+      }
+      .toast.error {
+        background: #b91c1c;
+      }
+      @keyframes ti {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ── PRINT ───────────────────────────── */
+      #print-area {
+        display: none;
+      }
+      @media print {
+        .topnav,
+        .hero,
+        .stepper,
+        .doc-ph,
+        .pbar,
+        .zoom-bar,
+        .modal-overlay,
+        .toast-stack,
+        .doc-wait,
+        .a4-canvas,
+        .zoom-scaler,
+        .a4-page-num,
+        .a4-hf-label,
+        .overflow-warn {
+          display: none !important;
+        }
+        #print-area {
+          display: block !important;
+        }
+        html,
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #fff !important;
+          overflow: visible !important;
+          height: auto !important;
+        }
+        .main-wrap,
+        .doc-panel,
+        .doc-pb {
+          all: unset;
+          display: block !important;
+        }
+        @page {
+          size: A4 portrait;
+          margin: 0;
+        }
+        .a4-page {
+          width: 210mm !important;
+          min-height: 297mm !important;
+          margin: 0 auto !important;
+          background: #fff !important;
+          display: flex !important;
+          flex-direction: column !important;
+          page-break-after: always !important;
+          break-after: page !important;
+          box-shadow: none !important;
+        }
+        .a4-page:last-child {
+          page-break-after: auto !important;
+          break-after: auto !important;
+        }
+        .a4-header {
+          flex-shrink: 0 !important;
+          padding: 5mm 25mm 3mm 25mm !important;
+          border-bottom: 1px solid #e2e8f0 !important;
+        }
+        .a4-footer {
+          flex-shrink: 0 !important;
+          padding: 3mm 25mm 5mm 25mm !important;
+          border-top: 1px solid #e2e8f0 !important;
+          margin-top: auto !important;
+        }
+        .a4-body {
+          flex: 1 !important;
+          padding: 5mm 25mm !important;
+          font-family: "Times New Roman", Times, serif !important;
+          font-size: 12pt !important;
+          line-height: 1.6 !important;
+          color: #111 !important;
+          overflow: visible !important;
+        }
+        .a4-body.no-header {
+          padding-top: 20mm !important;
+        }
+        .a4-body.no-footer {
+          padding-bottom: 20mm !important;
+        }
+        .a4-body table {
+          border-collapse: collapse !important;
+          width: 100% !important;
+        }
+        .a4-body td,
+        .a4-body th {
+          border: 1px solid #c8cdd8 !important;
+          padding: 7px 10px !important;
+        }
+        .a4-body th {
+          background: #eef2ff !important;
+          color: #1d4ed8 !important;
+          font-weight: 600 !important;
+        }
+        .a4-body ul,
+        .a4-body ol {
+          padding-left: 2em !important;
+          list-style: revert !important;
+        }
+        .a4-body li {
+          display: list-item !important;
+        }
+        .var-resolved {
+          color: #111 !important;
+          font-weight: inherit !important;
+          background: none !important;
+          padding: 0 !important;
+        }
+        .var-missing {
+          color: #dc2626 !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">
+      <div class="ll">SIRH-<span>Doc</span></div>
+      <div style="font-size: 11px; color: #888">Chargement...</div>
+      <div class="lb"><div class="lbf"></div></div>
+    </div>
+
+    <div
+      id="mainApp"
+      style="opacity: 0; transition: opacity 0.3s; min-height: 100vh"
+    >
+      <nav class="topnav">
+        <div class="nav-logo">SIRH-<span>Doc</span></div>
+        <div class="nav-sep"></div>
+        <span class="nav-chip">UTILISATEUR FINAL</span>
+        <span id="navEtab" style="font-size: 12px; color: var(--text2)"></span>
+        <div class="nav-right">
+          <a class="nav-link" href="superAdmin.html">Super Admin</a>
+          <a class="nav-link" href="admin.html">Admin Étab.</a>
+        </div>
+      </nav>
+
+      <div style="padding: 0 24px">
+        <div class="hero">
+          <div class="hero-icon">📄</div>
+          <div>
+            <h1>Génération de documents</h1>
+            <p>Sélectionnez une famille, un modèle et une personne</p>
+          </div>
+          <div class="hero-badge" id="heroBadge">—</div>
+        </div>
+      </div>
+
+      <div class="main-wrap">
+        <!-- ── STEPPER gauche ── -->
+        <div class="stepper">
+          <div class="stepper-hdr">
+            <span class="stepper-title">Étapes de génération</span>
+            <div class="step-dots">
+              <div class="step-dot cur" id="dot1"></div>
+              <div class="step-dot" id="dot2"></div>
+              <div class="step-dot" id="dot3"></div>
+            </div>
+          </div>
+
+          <!-- Étape 1 -->
+          <div class="step-block">
+            <div class="step-hdr" onclick="toggleStep(1)">
+              <div class="step-num cur" id="sn1">1</div>
+              <span class="step-lbl cur" id="sl1">Famille de documents</span>
+              <span class="step-val" id="sv1">Non sélectionné</span>
+              <svg
+                class="step-chev"
+                id="sc1"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+            <div class="step-body open" id="sb1">
+              <div class="fam-grid" id="famGrid"></div>
+            </div>
+          </div>
+
+          <!-- Étape 2 -->
+          <div class="step-block">
+            <div class="step-hdr" onclick="toggleStep(2)">
+              <div class="step-num" id="sn2">2</div>
+              <span class="step-lbl" id="sl2">Modèle de document</span>
+              <span class="step-val" id="sv2">En attente</span>
+              <svg
+                class="step-chev"
+                id="sc2"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+            <div class="step-body" id="sb2">
+              <div class="tpl-list" id="tplList"></div>
+            </div>
+          </div>
+
+          <!-- Étape 3 -->
+          <div class="step-block">
+            <div class="step-hdr" onclick="toggleStep(3)">
+              <div class="step-num" id="sn3">3</div>
+              <span class="step-lbl" id="sl3">Personne concernée</span>
+              <span class="step-val" id="sv3">En attente</span>
+              <svg
+                class="step-chev"
+                id="sc3"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+            <div class="step-body" id="sb3">
+              <div class="person-list" id="personList"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── DOC PANEL droit ── -->
+        <div class="doc-panel">
+          <div class="doc-ph">
+            <span class="doc-pt">Aperçu A4</span>
+            <div class="doc-actions" id="docActions"></div>
+          </div>
+
+          <!-- Barre zoom -->
+          <div class="zoom-bar" id="zoomBar" style="display: none">
+            <span style="font-size: 11px; color: var(--text3); font-weight: 600"
+              >ZOOM</span
+            >
+            <button
+              class="btn xs ghost"
+              onclick="setZoom(-10)"
+              style="font-size: 14px; width: 22px; padding: 0"
+            >
+              −
+            </button>
+            <span class="zoom-lbl" id="zoomLbl">100%</span>
+            <button
+              class="btn xs ghost"
+              onclick="setZoom(10)"
+              style="font-size: 14px; width: 22px; padding: 0"
+            >
+              +
+            </button>
+            <button class="btn xs ghost" onclick="setZoom(0)">↺</button>
+            <span class="page-count" id="pageCount">📄 1 page</span>
+          </div>
+
+          <!-- Barre de progression -->
+          <div class="pbar" id="pbar">
+            <div class="pb-step cur" id="ps1">Famille</div>
+            <div class="pb-arr">›</div>
+            <div class="pb-step" id="ps2">Template</div>
+            <div class="pb-arr">›</div>
+            <div class="pb-step" id="ps3">Personne</div>
+          </div>
+
+          <div class="doc-pb" id="docPb">
+            <!-- État vide -->
+            <div class="doc-wait" id="docWait">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path
+                  d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <h3>Document en attente</h3>
+              <p>Complétez les 3 étapes pour générer votre document</p>
+            </div>
+
+            <!-- Canvas A4 (masqué jusqu'à génération) -->
+            <div class="a4-canvas" id="a4Canvas" style="display: none">
+              <div class="zoom-scaler" id="zoomScaler"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zone impression (invisible à l'écran, visible lors du print) -->
+    <div id="print-area"></div>
+
+    <!-- Modal export -->
+    <div class="modal-overlay" id="modalExport">
+      <div class="modal">
+        <div class="modal-hdr">
+          <span class="modal-title">Exporter le document</span>
+          <button class="modal-close" onclick="closeModal('modalExport')">
+            ✕
+          </button>
+        </div>
+        <div class="exp-grid">
+          <div class="exp-card" onclick="doExport('print')">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#dc2626"
+              stroke-width="1.5"
+            >
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path
+                d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"
+              />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+            Imprimer / PDF
+          </div>
+          <div class="exp-card" onclick="doExport('html')">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#2563eb"
+              stroke-width="1.5"
+            >
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+            Télécharger HTML
+          </div>
+          <div class="exp-card" onclick="doExport('copy')">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#16a34a"
+              stroke-width="1.5"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" />
+              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+            </svg>
+            Copier le texte
+          </div>
+          <div class="exp-card" onclick="doExport('email')">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#d97706"
+              stroke-width="1.5"
+            >
+              <path
+                d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+              />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+            E-mail
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeModal('modalExport')">
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-stack" id="toastStack"></div>
+
+    <!-- shared.js : DB, resolveVars, resolveVarsRaw, insertListVar, toast, openModal, closeModal, genId -->
+    <script src="shared.js"></script>
+
+    <script>
+      // ═══════════════════════════════════════════
+      //  STATE
+      // ═══════════════════════════════════════════
+      const ETAB_ID = "etab_1";
+      let selFamId = null,
+        selTplId = null,
+        selPersonId = null;
+      let openSteps = { 1: true, 2: false, 3: false };
+      let zoomLv = 100;
+
+      // ═══════════════════════════════════════════
+      //  INIT
+      // ═══════════════════════════════════════════
+      window.addEventListener("DOMContentLoaded", () => {
+        if (!localStorage.getItem(STORE_KEY)) DB.seed();
+        const etab = DB.getEtablissement(ETAB_ID);
+        if (etab) {
+          document.getElementById("navEtab").textContent = etab.nom;
+          document.getElementById("heroBadge").textContent = etab.nom;
+        }
+        buildFamGrid();
+        setTimeout(() => {
+          document.getElementById("loading").classList.add("done");
+          document.getElementById("mainApp").style.opacity = "1";
+        }, 500);
+      });
+
+      // ═══════════════════════════════════════════
+      //  STEPPER
+      // ═══════════════════════════════════════════
+      function toggleStep(n) {
+        openSteps[n] = !openSteps[n];
+        syncStepBodies();
+      }
+      function openStep(n) {
+        openSteps[n] = true;
+        syncStepBodies();
+      }
+      function closeStep(n) {
+        openSteps[n] = false;
+        syncStepBodies();
+      }
+      function syncStepBodies() {
+        for (let i = 1; i <= 3; i++) {
+          document
+            .getElementById("sb" + i)
+            ?.classList.toggle("open", !!openSteps[i]);
+          const sc = document.getElementById("sc" + i);
+          if (sc) sc.style.transform = openSteps[i] ? "rotate(180deg)" : "";
+        }
+      }
+      function setStepState(n, state) {
+        const num = document.getElementById("sn" + n);
+        const lbl = document.getElementById("sl" + n);
+        const dot = document.getElementById("dot" + n);
+        if (!num) return;
+        num.className =
+          "step-num" +
+          (state === "done" ? " done" : state === "cur" ? " cur" : "");
+        num.textContent = state === "done" ? "✓" : String(n);
+        if (lbl) lbl.className = "step-lbl" + (state === "cur" ? " cur" : "");
+        if (dot)
+          dot.className =
+            "step-dot" +
+            (state === "done" ? " done" : state === "cur" ? " cur" : "");
+      }
+      function updatePbar() {
+        const fam = selFamId ? DB.getFamily(selFamId) : null;
+        const tpl = selTplId ? DB.getTemplate(selTplId) : null;
+        const pers = selPersonId ? DB.getPerson(selPersonId) : null;
+        const ps1 = document.getElementById("ps1"),
+          ps2 = document.getElementById("ps2"),
+          ps3 = document.getElementById("ps3");
+        ps1.className = "pb-step" + (selFamId ? " done" : " cur");
+        ps1.textContent = fam
+          ? fam.icon + " " + fam.nom.substring(0, 16)
+          : "Famille";
+        ps2.className =
+          "pb-step" + (selTplId ? " done" : selFamId ? " cur" : "");
+        ps2.textContent = tpl ? tpl.nom.substring(0, 16) : "Template";
+        ps3.className =
+          "pb-step" + (selPersonId ? " done" : selTplId ? " cur" : "");
+        ps3.textContent = pers ? pers.nom_prenom.substring(0, 14) : "Personne";
+      }
+
+      // ═══════════════════════════════════════════
+      //  ÉTAPE 1 — FAMILLE
+      // ═══════════════════════════════════════════
+      function buildFamGrid() {
+        const grid = document.getElementById("famGrid");
+        grid.innerHTML = "";
+        DB.getFamilies().forEach((fam) => {
+          const tplCount = DB.getTemplates(fam.id, ETAB_ID).length;
+          const card = document.createElement("div");
+          card.className = "fam-card" + (selFamId === fam.id ? " sel" : "");
+          if (!tplCount) {
+            card.style.opacity = ".4";
+            card.style.pointerEvents = "none";
+          }
+          card.innerHTML = `<div class="fam-icon">${fam.icon || "📋"}</div><div class="fam-name">${fam.nom}</div><div class="fam-meta">${tplCount} modèle(s)</div>`;
+          card.onclick = () => selectFamily(fam.id);
+          grid.appendChild(card);
+        });
+      }
+
+      function selectFamily(famId) {
+        selFamId = famId;
+        selTplId = null;
+        selPersonId = null;
+        buildFamGrid();
+        const fam = DB.getFamily(famId);
+        const sv1 = document.getElementById("sv1");
+        sv1.textContent = fam.icon + " " + fam.nom;
+        sv1.className = "step-val ok";
+        setStepState(1, "done");
+        setStepState(2, "cur");
+        setStepState(3, "idle");
+        buildTplList(famId);
+        openStep(2);
+        closeStep(1);
+        updatePbar();
+        showWait("Sélectionnez un modèle de document");
+      }
+
+      // ═══════════════════════════════════════════
+      //  ÉTAPE 2 — TEMPLATE
+      // ═══════════════════════════════════════════
+      function buildTplList(famId) {
+        const c = document.getElementById("tplList");
+        c.innerHTML = "";
+        const tpls = DB.getTemplates(famId, ETAB_ID);
+        if (!tpls.length) {
+          c.innerHTML =
+            '<div style="font-size:11px;color:#aaa;text-align:center;padding:14px">Aucun modèle pour cette famille</div>';
+          return;
+        }
+        tpls.forEach((tpl) => {
+          const card = document.createElement("div");
+          card.className = "tpl-card" + (selTplId === tpl.id ? " sel" : "");
+          card.innerHTML = `<span style="font-size:16px">📄</span><div style="flex:1"><div class="tpl-name">${tpl.nom}</div><div class="tpl-meta">${new Date(tpl.updatedAt).toLocaleDateString("fr-FR")}${tpl.hasHeader ? " · 📋" : ""}${tpl.hasFooter ? " · 📑" : ""}</div></div><div class="tpl-chk">${selTplId === tpl.id ? "✓" : ""}</div>`;
+          card.onclick = () => selectTemplate(tpl.id);
+          c.appendChild(card);
+        });
+      }
+
+      function selectTemplate(tplId) {
+        selTplId = tplId;
+        selPersonId = null;
+        buildTplList(selFamId);
+        const tpl = DB.getTemplate(tplId);
+        const sv2 = document.getElementById("sv2");
+        sv2.textContent = tpl.nom;
+        sv2.className = "step-val ok";
+        setStepState(2, "done");
+        setStepState(3, "cur");
+        buildPersonList();
+        openStep(3);
+        closeStep(2);
+        updatePbar();
+        showWait("Sélectionnez la personne concernée");
+      }
+
+      // ═══════════════════════════════════════════
+      //  ÉTAPE 3 — PERSONNE
+      // ═══════════════════════════════════════════
+      function buildPersonList() {
+        const c = document.getElementById("personList");
+        c.innerHTML = "";
+        const persons = DB.getPersonnel(ETAB_ID);
+        if (!persons.length) {
+          c.innerHTML =
+            '<div style="font-size:11px;color:#aaa;text-align:center;padding:14px">Aucune personne enregistrée</div>';
+          return;
+        }
+        persons.forEach((p) => {
+          const initials = p.nom_prenom
+            .split(" ")
+            .map((n) => n[0] || "")
+            .join("")
+            .substring(0, 2)
+            .toUpperCase();
+          const item = document.createElement("div");
+          item.className = "person-item" + (selPersonId === p.id ? " sel" : "");
+          item.innerHTML = `<div class="p-av">${initials}</div><div><div class="p-name">${p.nom_prenom}</div><div class="p-meta">${p.poste} · ${p.departement}</div></div>`;
+          item.onclick = () => selectPerson(p.id);
+          c.appendChild(item);
+        });
+      }
+
+      function selectPerson(personId) {
+        selPersonId = personId;
+        buildPersonList();
+        const pers = DB.getPerson(personId);
+        const sv3 = document.getElementById("sv3");
+        sv3.textContent = pers.nom_prenom;
+        sv3.className = "step-val ok";
+        setStepState(3, "done");
+        closeStep(3);
+        updatePbar();
+        generateDocument();
+      }
+
+      // ═══════════════════════════════════════════
+      //  GÉNÉRATION — APERÇU A4 PAGINÉ
+      // ═══════════════════════════════════════════
+      function generateDocument() {
+        const tpl = DB.getTemplate(selTplId);
+        const person = DB.getPerson(selPersonId);
+        if (!tpl || !person) return;
+
+        // Résolution des variables (aperçu : couleurs)
+        const hdrHtml = tpl.hasHeader
+          ? resolveVars(tpl.header || "", person)
+          : "";
+        const bHtml = resolveVars(tpl.body || "", person);
+        const ftrHtml = tpl.hasFooter
+          ? resolveVars(tpl.footer || "", person)
+          : "";
+
+        // Construire les pages A4 dans le canvas
+        buildA4Canvas(hdrHtml, bHtml, ftrHtml, tpl, person);
+
+        // Construire la zone d'impression (raw, sans couleurs)
+        buildPrintArea(tpl, person);
+
+        // Afficher les actions
+        document.getElementById("zoomBar").style.display = "flex";
+        const actions = document.getElementById("docActions");
+        actions.innerHTML = "";
+        const mkBtn = (label, cls, fn) => {
+          const b = document.createElement("button");
+          b.className = "btn " + cls;
+          b.textContent = label;
+          b.onclick = fn;
+          actions.appendChild(b);
+        };
+        mkBtn("🖨 Imprimer", "primary", () => window.print());
+        mkBtn("Exporter", "success", () => openModal("modalExport"));
+        mkBtn("Nouveau", "ghost", resetAll);
+
+        toast("Document généré !", "success");
+      }
+
+      // ── Canvas A4 (aperçu) ────────────────────
+      function buildA4Canvas(hdrHtml, bHtml, ftrHtml, tpl, person) {
+        const wait = document.getElementById("docWait");
+        const canvas = document.getElementById("a4Canvas");
+        const scaler = document.getElementById("zoomScaler");
+        wait.style.display = "none";
+        canvas.style.display = "flex";
+        scaler.innerHTML = "";
+
+        // Page principale
+        const page = makePage(hdrHtml, bHtml, ftrHtml, tpl, 1);
+        scaler.appendChild(page);
+
+        // Détecter overflow et ajouter des pages supplémentaires
+        setTimeout(() => {
+          const bodyEl = page.querySelector(".a4-body");
+          if (!bodyEl) return;
+          const pageH = page.getBoundingClientRect().height || 1123;
+          const hdrH =
+            page.querySelector(".a4-header")?.getBoundingClientRect().height ||
+            0;
+          const ftrH =
+            page.querySelector(".a4-footer")?.getBoundingClientRect().height ||
+            0;
+          const avail = pageH - hdrH - ftrH;
+          const total = Math.max(
+            1,
+            Math.ceil(
+              (bodyEl.scrollHeight || bodyEl.offsetHeight || 0) / avail,
+            ),
+          );
+
+          if (total > 1) {
+            // Ajouter des pages fantômes (même contenu, indicateur visuel)
+            const ow = page.querySelector(".overflow-warn");
+            if (ow) ow.style.display = "block";
+            for (let i = 2; i <= total; i++) {
+              const gp = makePage(hdrHtml, bHtml, ftrHtml, tpl, i);
+              gp.style.opacity = ".55"; // indique continuation
+              scaler.appendChild(gp);
+            }
+          }
+          document.getElementById("pageCount").textContent =
+            `📄 ${total} page${total > 1 ? "s" : ""}`;
+        }, 150);
+      }
+
+      function makePage(hdrHtml, bHtml, ftrHtml, tpl, num) {
+        const page = document.createElement("div");
+        page.className = "a4-page";
+        page.style.position = "relative";
+
+        if (tpl.hasHeader && hdrHtml) {
+          const hdr = document.createElement("div");
+          hdr.className = "a4-header";
+          hdr.innerHTML = `<div class="a4-hf-label">EN-TÊTE</div><div class="doc-content">${hdrHtml}</div>`;
+          page.appendChild(hdr);
+        }
+
+        const body = document.createElement("div");
+        body.className =
+          "a4-body doc-content" +
+          (!tpl.hasHeader ? " no-header" : "") +
+          (!tpl.hasFooter ? " no-footer" : "");
+        body.innerHTML = bHtml;
+        page.appendChild(body);
+
+        if (tpl.hasFooter && ftrHtml) {
+          const ftr = document.createElement("div");
+          ftr.className = "a4-footer";
+          ftr.innerHTML = `<div class="a4-hf-label">PIED DE PAGE</div><div class="doc-content">${ftrHtml}</div>`;
+          page.appendChild(ftr);
+        }
+
+        // Indicateur overflow
+        const ow = document.createElement("div");
+        ow.className = "overflow-warn";
+        ow.style.display = "none";
+        page.appendChild(ow);
+
+        const pnum = document.createElement("div");
+        pnum.className = "a4-page-num";
+        pnum.textContent = `Page ${num}`;
+        page.appendChild(pnum);
+
+        return page;
+      }
+
+      // ── Zone d'impression (raw) ───────────────
+      function buildPrintArea(tpl, person) {
+        const area = document.getElementById("print-area");
+        area.innerHTML = "";
+
+        const hdrRaw = tpl.hasHeader
+          ? resolveVarsRaw(tpl.header || "", person)
+          : "";
+        const bRaw = resolveVarsRaw(tpl.body || "", person);
+        const ftrRaw = tpl.hasFooter
+          ? resolveVarsRaw(tpl.footer || "", person)
+          : "";
+
+        const page = document.createElement("div");
+        page.className = "a4-page";
+
+        if (tpl.hasHeader && hdrRaw) {
+          const hdr = document.createElement("div");
+          hdr.className = "a4-header";
+          hdr.innerHTML = hdrRaw;
+          page.appendChild(hdr);
+        }
+
+        const body = document.createElement("div");
+        body.className =
+          "a4-body" +
+          (!tpl.hasHeader ? " no-header" : "") +
+          (!tpl.hasFooter ? " no-footer" : "");
+        body.innerHTML = bRaw;
+        page.appendChild(body);
+
+        if (tpl.hasFooter && ftrRaw) {
+          const ftr = document.createElement("div");
+          ftr.className = "a4-footer";
+          ftr.innerHTML = ftrRaw;
+          page.appendChild(ftr);
+        }
+
+        area.appendChild(page);
+      }
+
+      // ═══════════════════════════════════════════
+      //  ZOOM
+      // ═══════════════════════════════════════════
+      function setZoom(delta) {
+        if (delta === 0) zoomLv = 100;
+        else zoomLv = Math.max(40, Math.min(200, zoomLv + delta));
+        const sc = document.getElementById("zoomScaler");
+        sc.style.transform = `scale(${zoomLv / 100})`;
+        sc.style.marginBottom =
+          zoomLv < 100 ? ((100 - zoomLv) / 100) * -500 + "px" : "0";
+        document.getElementById("zoomLbl").textContent = zoomLv + "%";
+      }
+
+      // ═══════════════════════════════════════════
+      //  UI HELPERS
+      // ═══════════════════════════════════════════
+      function showWait(msg) {
+        document.getElementById("docWait").innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <h3>${msg}</h3>`;
+        document.getElementById("docWait").style.display = "flex";
+        document.getElementById("a4Canvas").style.display = "none";
+        document.getElementById("zoomBar").style.display = "none";
+        document.getElementById("docActions").innerHTML = "";
+        document.getElementById("print-area").innerHTML = "";
+      }
+
+      function resetAll() {
+        selFamId = null;
+        selTplId = null;
+        selPersonId = null;
+        openSteps = { 1: true, 2: false, 3: false };
+        buildFamGrid();
+        document.getElementById("tplList").innerHTML = "";
+        document.getElementById("personList").innerHTML = "";
+        ["sv1", "sv2", "sv3"].forEach((id, i) => {
+          const el = document.getElementById(id);
+          el.textContent = ["Non sélectionné", "En attente", "En attente"][i];
+          el.className = "step-val";
+        });
+        setStepState(1, "cur");
+        setStepState(2, "idle");
+        setStepState(3, "idle");
+        showWait("Complétez les 3 étapes pour générer votre document");
+        updatePbar();
+        syncStepBodies();
+        document.getElementById("pageCount").textContent = "📄 1 page";
+      }
+
+      // ═══════════════════════════════════════════
+      //  EXPORT
+      // ═══════════════════════════════════════════
+      function doExport(type) {
+        closeModal("modalExport");
+        const tpl = selTplId ? DB.getTemplate(selTplId) : null;
+        const person = selPersonId ? DB.getPerson(selPersonId) : null;
+        if (!tpl || !person) return;
+
+        if (type === "print") {
+          buildPrintArea(tpl, person);
+          window.print();
+          return;
+        }
+
+        const hdrRaw = tpl.hasHeader
+          ? resolveVarsRaw(tpl.header || "", person)
+          : "";
+        const bRaw = resolveVarsRaw(tpl.body || "", person);
+        const ftrRaw = tpl.hasFooter
+          ? resolveVarsRaw(tpl.footer || "", person)
+          : "";
+        const full =
+          (hdrRaw
+            ? `<div style="border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:14px">${hdrRaw}</div>`
+            : "") +
+          bRaw +
+          (ftrRaw
+            ? `<div style="border-top:1px solid #e2e8f0;padding-top:10px;margin-top:14px">${ftrRaw}</div>`
+            : "");
+
+        if (type === "html") {
+          const blob = new Blob(
+            [
+              `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${tpl.nom}</title><link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600&display=swap" rel="stylesheet"><style>body{font-family:"Times New Roman",Times,serif;max-width:800px;margin:40px auto;padding:32px;font-size:14pt;line-height:1.8}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px}th{background:#f5f7ff;color:#2563eb}ul{padding-left:2em;list-style-type:disc}ol{padding-left:2em;list-style-type:decimal}li{display:list-item}</style></head><body>${full}</body></html>`,
+            ],
+            { type: "text/html" },
+          );
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = person.nom_prenom.replace(/\s+/g, "-") + ".html";
+          a.click();
+          toast("Fichier téléchargé", "success");
+          return;
+        }
+        if (type === "copy") {
+          const tmp = document.createElement("div");
+          tmp.innerHTML = full;
+          navigator.clipboard
+            .writeText(tmp.textContent || "")
+            .then(() => toast("Texte copié", "success"));
+          return;
+        }
+        if (type === "email")
+          toast("Envoi e-mail à connecter au backend", "success");
+      }
+
+      // Events globaux
+      document.addEventListener("click", (e) => {
+        if (e.target.classList.contains("modal-overlay"))
+          e.target.classList.remove("open");
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape")
+          document
+            .querySelectorAll(".modal-overlay.open")
+            .forEach((m) => m.classList.remove("open"));
+      });
+    </script>
+  </body>
+</html>
