@@ -1,0 +1,1 @@
+The document editor allows the creation, modification and generation of administrative documents within the framework of the SIRH-Doc system intended for the management of personnel in an educational establishment.
