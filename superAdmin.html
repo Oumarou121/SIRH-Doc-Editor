@@ -43,6 +43,8 @@
         --blue-bg: #63b3ed14;
         --teal: #4fd1c5;
         --teal-bg: #4fd1c514;
+        --orange: #f97316;
+        --orange-bg: #f9731614;
         --radius: 6px;
         --radius-lg: 10px;
         --radius-xl: 16px;
@@ -384,16 +386,6 @@
         flex-direction: column;
         overflow: hidden;
       }
-      .tab-bar {
-        height: 44px;
-        background: var(--surface);
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        align-items: center;
-        padding: 0 20px;
-        gap: 2px;
-        flex-shrink: 0;
-      }
       .content {
         flex: 1;
         overflow-y: auto;
@@ -576,7 +568,6 @@
         padding: 3px 8px;
         border-radius: 4px;
         border: 1px solid;
-        font-size: 11px;
       }
       .var-pill-tech {
         font-family: var(--mono);
@@ -593,6 +584,10 @@
         background: rgba(124, 58, 237, 0.15);
         color: #9f7aea;
         margin-left: 2px;
+      }
+      .var-pill-type.obj {
+        background: rgba(249, 115, 22, 0.18);
+        color: #f97316;
       }
       .var-pill-del {
         background: none;
@@ -643,6 +638,64 @@
         background: var(--surface);
         color: var(--text);
         outline: none;
+      }
+
+      /* COLONNES pour list-object */
+      .cols-area {
+        padding: 6px 14px 8px;
+        border-top: 1px dashed var(--border);
+        background: var(--surface);
+        display: none;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .cols-area.visible {
+        display: flex;
+      }
+      .cols-area-label {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--orange);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        width: 100%;
+        margin-bottom: 2px;
+      }
+      .col-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: var(--orange-bg);
+        border: 1px solid var(--orange);
+        color: var(--orange);
+        font-size: 10px;
+        font-family: var(--mono);
+      }
+      .col-pill-del {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 12px;
+        color: var(--orange);
+        padding: 0;
+        margin-left: 1px;
+        opacity: 0.7;
+      }
+      .col-pill-del:hover {
+        opacity: 1;
+        color: var(--red);
+      }
+      .col-add-row {
+        display: none;
+        gap: 5px;
+        align-items: center;
+        padding: 4px 14px 8px;
+        flex-wrap: wrap;
+      }
+      .col-add-row.visible {
+        display: flex;
       }
 
       /* SQL EDITOR */
@@ -816,8 +869,12 @@
         background: var(--teal-bg);
         color: var(--teal);
       }
+      .chip-orange {
+        background: var(--orange-bg);
+        color: var(--orange);
+      }
 
-      /* EMPTY STATE */
+      /* EMPTY */
       .empty {
         display: flex;
         flex-direction: column;
@@ -1267,19 +1324,16 @@
               </div>
             </div>
           </div>
-
           <!-- Établissements -->
           <div class="content-panel" id="panel-etablissements">
             <div class="section-heading">Établissements gérés</div>
             <div id="etabContent"></div>
           </div>
-
           <!-- Admins -->
           <div class="content-panel" id="panel-admins">
             <div class="section-heading">Administrateurs d'établissements</div>
             <div id="adminContent"></div>
           </div>
-
           <!-- Dashboard -->
           <div class="content-panel" id="panel-dashboard">
             <div class="section-heading">Vue d'ensemble</div>
@@ -1404,8 +1458,6 @@
     </div>
 
     <div class="toast-stack" id="toastStack"></div>
-
-    <!-- shared.js fournit : DB, genId, toast, openModal, closeModal, resolveVars, resolveVarsRaw -->
     <script src="shared.js"></script>
 
     <script>
@@ -1416,7 +1468,6 @@
       let selectedFamId = null;
       let editingEtabId = null;
       let editingAdminId = null;
-      let confirmCallback = null;
 
       const SECTION_META = {
         families: {
@@ -1478,7 +1529,6 @@
           .value.toLowerCase();
         const list = document.getElementById("panelList");
         list.innerHTML = "";
-
         if (currentSection === "families") {
           DB.getFamilies()
             .filter((f) => f.nom.toLowerCase().includes(search))
@@ -1560,6 +1610,10 @@
         if (!fam) return;
         const templates = DB.getTemplates(famId);
         const wrap = document.getElementById("familyEditorWrap");
+
+        // Comptage de toutes les variables incluant list-object
+        const allVars = (fam.classes || []).flatMap((c) => c.vars || []);
+
         wrap.innerHTML = `
 <div class="flex gap-8" style="margin-bottom:20px">
   <div>
@@ -1604,9 +1658,9 @@
   <div class="card-header">
     <div class="card-title">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
-      Classes & Variables
+      Classes &amp; Variables
     </div>
-    <div class="text-muted">${fam.classes.reduce((a, c) => a + c.vars.length, 0)} variables définies</div>
+    <div class="text-muted">${allVars.length} variables (${allVars.filter((v) => v.type === "list-object").length} tableaux-objet)</div>
   </div>
   <div class="card-body">
     <div id="classesContainer"></div>
@@ -1658,11 +1712,13 @@
         renderClassesContainer(famId);
       }
 
+      // ── Render classes container ──────────────────────────────────
       function renderClassesContainer(famId) {
         const fam = DB.getFamily(famId);
         const container = document.getElementById("classesContainer");
         if (!container || !fam) return;
         container.innerHTML = "";
+
         fam.classes.forEach((cls, ci) => {
           const block = document.createElement("div");
           block.className = "class-block";
@@ -1671,41 +1727,156 @@
   <div class="class-color-dot" style="background:${cls.couleur}"></div>
   <input class="class-name-input" value="${cls.nom}" placeholder="Nom de la classe" onchange="updateClassProp('${famId}',${ci},'nom',this.value)">
   <select class="color-select" onchange="updateClassProp('${famId}',${ci},'couleur',this.value)">
-    ${["#6c63ff", "#48bb78", "#9f7aea", "#f6ad55", "#fc5c5c", "#63b3ed", "#4fd1c5", "#ed8936"].map((c) => `<option value="${c}" ${cls.couleur === c ? "selected" : ""}>${c}</option>`).join("")}
+    ${["#6c63ff", "#48bb78", "#9f7aea", "#f6ad55", "#fc5c5c", "#63b3ed", "#4fd1c5", "#ed8936", "#f97316"].map((c) => `<option value="${c}" ${cls.couleur === c ? "selected" : ""}>${c}</option>`).join("")}
   </select>
   <button class="del-cls-btn" onclick="deleteClassBlock('${famId}',${ci})">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
   </button>
 </div>
+
 <div class="vars-area" id="vars_${ci}">
-  ${cls.vars
-    .map(
-      (v, vi) => `
-    <div class="var-pill" style="background:${cls.couleur}15;border-color:${cls.couleur}40;color:${cls.couleur}">
-      <span class="var-pill-tech">{{${v.tech}}}</span>
-      <span class="var-pill-label">→ ${v.label}</span>
-      ${v.type === "list" ? `<span class="var-pill-type">LIST</span>` : ""}
-      <button class="var-pill-del" onclick="deleteVar('${famId}',${ci},${vi})">×</button>
-    </div>`,
-    )
-    .join("")}
+  ${cls.vars.map((v, vi) => _renderVarPill(v, vi, ci, famId, cls.couleur)).join("")}
 </div>
+
 <div class="var-add-row">
   <input class="var-input-sm" id="vt_${ci}" placeholder="nom_technique">
   <input class="var-input-sm label" id="vl_${ci}" placeholder="Nom lisible">
-  <select class="type-select" id="vtype_${ci}">
+  <select class="type-select" id="vtype_${ci}" onchange="onVarTypeChange(${ci})">
     <option value="scalar">Scalaire</option>
-    <option value="list">Liste</option>
+    <option value="list">Liste (textes)</option>
+    <option value="list-object">Tableau d'objets</option>
   </select>
   <button class="btn sm primary" onclick="addVar('${famId}',${ci})">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     Ajouter
+  </button>
+</div>
+
+<!-- Zone colonnes (visible uniquement si type=list-object) -->
+<div class="cols-area" id="cols_area_${ci}">
+  <span class="cols-area-label">Colonnes du tableau (clé → libellé)</span>
+  <div id="cols_pills_${ci}" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+</div>
+<div class="col-add-row" id="col_add_${ci}">
+  <input class="var-input-sm" id="ck_${ci}" placeholder="clé (ex: note)" style="width:120px">
+  <input class="var-input-sm label" id="cl_${ci}" placeholder="libellé (ex: Note /20)" style="width:160px">
+  <button class="btn sm" onclick="addTempCol(${ci})" style="border-color:var(--orange);color:var(--orange)">
+    + Colonne
   </button>
 </div>`;
           container.appendChild(block);
         });
       }
 
+      // ── Pill HTML pour une variable ───────────────────────────────
+      function _renderVarPill(v, vi, ci, famId, couleur) {
+        const isObj = v.type === "list-object";
+        const isList = v.type === "list";
+        const typeTag = isObj
+          ? `<span class="var-pill-type obj">TABLE</span>`
+          : isList
+            ? `<span class="var-pill-type">LIST</span>`
+            : "";
+        const cols =
+          isObj && v.columns && v.columns.length
+            ? `<span style="font-size:9px;color:${couleur};opacity:.7;margin-left:3px">[${v.columns.map((c) => c.key).join(",")}]</span>`
+            : "";
+        return `<div class="var-pill" style="background:${couleur}15;border-color:${couleur}40;color:${couleur}">
+          <span class="var-pill-tech">{{${isObj ? "#" : isList ? "#" : ""}${v.tech}${isObj ? ":table" : ""}}}</span>
+          <span class="var-pill-label">→ ${v.label}</span>
+          ${typeTag}${cols}
+          <button class="var-pill-del" onclick="deleteVar('${famId}',${ci},${vi})">×</button>
+        </div>`;
+      }
+
+      // ── Gestion du changement de type (show/hide colonnes) ────────
+      // On stocke les colonnes en attente dans un objet temporaire
+      const _tempCols = {};
+
+      function onVarTypeChange(ci) {
+        const type = document.getElementById(`vtype_${ci}`)?.value;
+        const isObj = type === "list-object";
+        document
+          .getElementById(`cols_area_${ci}`)
+          ?.classList.toggle("visible", isObj);
+        document
+          .getElementById(`col_add_${ci}`)
+          ?.classList.toggle("visible", isObj);
+        if (isObj && !_tempCols[ci]) _tempCols[ci] = [];
+        _refreshTempColPills(ci);
+      }
+
+      function addTempCol(ci) {
+        const key = document
+          .getElementById(`ck_${ci}`)
+          ?.value.trim()
+          .replace(/\s/g, "_");
+        const label = document.getElementById(`cl_${ci}`)?.value.trim();
+        if (!key || !label) {
+          toast("Remplissez clé et libellé", "error");
+          return;
+        }
+        if (!_tempCols[ci]) _tempCols[ci] = [];
+        _tempCols[ci].push({ key, label });
+        document.getElementById(`ck_${ci}`).value = "";
+        document.getElementById(`cl_${ci}`).value = "";
+        _refreshTempColPills(ci);
+      }
+
+      function _refreshTempColPills(ci) {
+        const area = document.getElementById(`cols_pills_${ci}`);
+        if (!area) return;
+        const cols = _tempCols[ci] || [];
+        area.innerHTML = cols
+          .map(
+            (c, i) => `
+          <span class="col-pill">
+            ${c.key} → ${c.label}
+            <button class="col-pill-del" onclick="_removeTempCol(${ci},${i})">×</button>
+          </span>`,
+          )
+          .join("");
+      }
+
+      window._removeTempCol = function (ci, i) {
+        if (_tempCols[ci]) _tempCols[ci].splice(i, 1);
+        _refreshTempColPills(ci);
+      };
+
+      // ── Ajouter une variable ───────────────────────────────────────
+      function addVar(famId, ci) {
+        const tech = document
+          .getElementById(`vt_${ci}`)
+          ?.value.trim()
+          .replace(/\s/g, "_");
+        const label = document.getElementById(`vl_${ci}`)?.value.trim();
+        const type = document.getElementById(`vtype_${ci}`)?.value || "scalar";
+        if (!tech || !label) {
+          toast("Remplissez les deux champs", "error");
+          return;
+        }
+
+        const newVar = { tech, label, type };
+        if (type === "list-object") {
+          const cols = _tempCols[ci] || [];
+          if (!cols.length) {
+            toast("Ajoutez au moins une colonne pour le tableau", "error");
+            return;
+          }
+          newVar.columns = [...cols];
+          _tempCols[ci] = [];
+        }
+
+        const fam = DB.getFamily(famId);
+        fam.classes[ci].vars.push(newVar);
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        document.getElementById(`vt_${ci}`).value = "";
+        document.getElementById(`vl_${ci}`).value = "";
+        toast("Variable ajoutée", "success");
+      }
+
+      // ── Autres mutations ──────────────────────────────────────────
       function saveFamily(famId) {
         const fam = DB.getFamily(famId);
         fam.nom = document.getElementById("fNom")?.value || fam.nom;
@@ -1756,24 +1927,6 @@
         fam.classes.splice(ci, 1);
         DB.saveFamily(fam);
         renderClassesContainer(famId);
-      }
-      function addVar(famId, ci) {
-        const tech = document
-          .getElementById(`vt_${ci}`)
-          ?.value.trim()
-          .replace(/\s/g, "_");
-        const label = document.getElementById(`vl_${ci}`)?.value.trim();
-        const type = document.getElementById(`vtype_${ci}`)?.value || "scalar";
-        if (!tech || !label) {
-          toast("Remplissez les deux champs", "error");
-          return;
-        }
-        const fam = DB.getFamily(famId);
-        fam.classes[ci].vars.push({ tech, label, type });
-        DB.saveFamily(fam);
-        renderClassesContainer(famId);
-        document.getElementById(`vt_${ci}`).value = "";
-        document.getElementById(`vl_${ci}`).value = "";
       }
       function deleteVar(famId, ci, vi) {
         const fam = DB.getFamily(famId);
@@ -1976,17 +2129,21 @@
   <div class="card-header"><div class="card-title">Familles et leurs templates</div></div>
   <div class="card-body" style="padding:0">
     <table class="data-table">
-      <thead><tr><th>Famille</th><th>Classes</th><th>Variables scalaires</th><th>Variables listes</th><th>Templates</th><th>Créée le</th></tr></thead>
+      <thead><tr><th>Famille</th><th>Classes</th><th>Scalaires</th><th>Listes texte</th><th>Tableaux objet</th><th>Templates</th><th>Créée le</th></tr></thead>
       <tbody>${fams
         .map((f) => {
           const allVars = (f.classes || []).flatMap((c) => c.vars || []);
-          const scalars = allVars.filter((v) => v.type !== "list").length;
+          const scalars = allVars.filter(
+            (v) => v.type !== "list" && v.type !== "list-object",
+          ).length;
           const lists = allVars.filter((v) => v.type === "list").length;
+          const objs = allVars.filter((v) => v.type === "list-object").length;
           return `<tr>
           <td><span style="font-size:16px">${f.icon}</span> <strong>${f.nom}</strong></td>
           <td>${f.classes?.length || 0}</td>
           <td>${scalars}</td>
           <td>${lists > 0 ? `<span class="chip chip-purple">${lists}</span>` : "0"}</td>
+          <td>${objs > 0 ? `<span class="chip chip-orange">${objs}</span>` : "0"}</td>
           <td>${DB.getTemplates(f.id).length}</td>
           <td>${new Date(f.createdAt).toLocaleDateString("fr-FR")}</td>
         </tr>`;

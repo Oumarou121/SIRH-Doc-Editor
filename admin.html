@@ -4700,7 +4700,115 @@
         clearEditor();
       };
 
-      // ── Variables panel — gère scalaires ET listes ─────────────────
+      (function applyTablePatch() {
+        // ── 1. Ajouter le style CSS pour les chips TABLE ──────────
+        const style = document.createElement("style");
+        style.textContent = `
+    .vchip.is-table {
+      border-style: dotted;
+      font-weight: 500;
+    }
+    .vchip-badge.tbl {
+      background: rgba(52,211,153,.18);
+      color: #16a34a;
+    }
+  `;
+        document.head.appendChild(style);
+
+        // ── 2. Remplacer buildVarsPanel ────────────────────────────
+        window.buildVarsPanel = function (famId) {
+          const panel = document.getElementById("varsPanelEl");
+          panel.innerHTML = "";
+          if (!famId) return;
+          const fam = DB.getFamily(famId);
+          if (!fam) return;
+
+          fam.classes.forEach((cls) => {
+            const hdr = document.createElement("div");
+            hdr.className = "vc-hdr";
+            hdr.style.color = cls.couleur || "#555";
+            const hasLists = (cls.vars || []).some((v) => v.type === "list");
+            const hasTables = (cls.vars || []).some((v) => v.type === "table");
+            hdr.textContent =
+              cls.nom + (hasLists ? " ⚡" : "") + (hasTables ? " ▦" : "");
+
+            const chips = document.createElement("div");
+            chips.className = "vchips";
+
+            (cls.vars || []).forEach((v) => {
+              const chip = document.createElement("span");
+              chip.className =
+                "vchip" +
+                (v.type === "list" ? " is-list" : "") +
+                (v.type === "table" ? " is-table" : "");
+              chip.style.cssText = [
+                `background:${cls.couleur || "#555"}12`,
+                `color:${cls.couleur || "#555"}`,
+                `border-color:${cls.couleur || "#555"}33`,
+              ].join(";");
+
+              if (v.type === "table") {
+                // Tableau d'objets → insertion directe {{#tech:table}}
+                chip.innerHTML = `<span class="vchip-badge tbl">TABLE</span>${v.label}`;
+                chip.title =
+                  `{{#${v.tech}:table}} — ${v.label}` +
+                  (v.cols?.length ? " (" + v.cols.join(", ") + ")" : "");
+                chip.onclick = () => {
+                  const ed =
+                    (typeof activeEditor !== "undefined"
+                      ? activeEditor
+                      : null) ||
+                    (typeof editorBody !== "undefined" ? editorBody : null);
+                  if (!ed) {
+                    toast("Ouvrez un template d'abord", "error");
+                    return;
+                  }
+                  ed.chain()
+                    .focus()
+                    .insertContent({
+                      type: "text",
+                      text: `{{#${v.tech}:table}}`,
+                      marks: [
+                        { type: "textStyle", attrs: { color: "#16a34a" } },
+                      ],
+                    })
+                    .run();
+                  toast(`Tableau «${v.label}» inséré`, "success");
+                };
+              } else if (v.type === "list") {
+                // Liste de chaînes → dialog ul / inline / cell-expand
+                chip.innerHTML = `<span class="vchip-badge">LIST</span>${v.label}`;
+                chip.title = `{{#${v.tech}:ul}} · :inline · :cell-expand — ${v.label}`;
+                chip.onclick = () => {
+                  const ed =
+                    (typeof activeEditor !== "undefined"
+                      ? activeEditor
+                      : null) ||
+                    (typeof editorBody !== "undefined" ? editorBody : null);
+                  if (!ed) {
+                    toast("Ouvrez un template d'abord", "error");
+                    return;
+                  }
+                  insertListVar(ed, v);
+                };
+              } else {
+                // Scalaire
+                chip.textContent = v.label;
+                chip.title = `{{${v.tech}}} — ${v.label}`;
+                chip.onclick = () => window.insertVar(v.tech);
+              }
+
+              chips.appendChild(chip);
+            });
+
+            panel.appendChild(hdr);
+            panel.appendChild(chips);
+          });
+        };
+
+        console.log("[SIRH-Doc patch] Support TABLE chargé ✓");
+      })();
+
       function buildVarsPanel(famId) {
         const panel = document.getElementById("varsPanelEl");
         panel.innerHTML = "";
@@ -4713,22 +4821,44 @@
           hdr.className = "vc-hdr";
           hdr.style.color = cls.couleur || "#555";
           const hasLists = (cls.vars || []).some((v) => v.type === "list");
-          hdr.textContent = cls.nom + (hasLists ? " ⚡" : "");
+          const hasObjs = (cls.vars || []).some(
+            (v) => v.type === "list-object",
+          );
+          hdr.textContent = cls.nom + (hasLists || hasObjs ? " ⚡" : "");
 
           const chips = document.createElement("div");
           chips.className = "vchips";
 
           (cls.vars || []).forEach((v) => {
             const chip = document.createElement("span");
-            chip.className = "vchip" + (v.type === "list" ? " is-list" : "");
+            const isObj = v.type === "list-object";
+            const isList = v.type === "list";
+
+            chip.className =
+              "vchip" + (isObj ? " is-table" : "") + (isList ? " is-list" : "");
+
             chip.style.cssText = [
               `background:${cls.couleur || "#555"}12`,
               `color:${cls.couleur || "#555"}`,
               `border-color:${cls.couleur || "#555"}33`,
             ].join(";");
 
-            if (v.type === "list") {
-              // Variable liste → badge LIST + appel insertListVar (shared.js)
+            if (isObj) {
+              const colsPreview =
+                v.columns && v.columns.length
+                  ? v.columns.map((c) => c.label).join(" · ")
+                  : "colonnes auto";
+              chip.innerHTML = `<span class="vchip-badge tbl">TABLE</span>${v.label}`;
+              chip.title = `{{#${v.tech}:table}} — Colonnes : ${colsPreview}`;
+              chip.onclick = () => {
+                const ed = activeEditor || editorBody;
+                if (!ed) {
+                  toast("Ouvrez un template d'abord", "error");
+                  return;
+                }
+                insertListVar(ed, v); // shared.js gère :table ou :cell-expand
+              };
+            } else if (isList) {
               chip.innerHTML = `<span class="vchip-badge">LIST</span>${v.label}`;
               chip.title = `{{#${v.tech}:ul}} · :inline · :cell-expand — ${v.label}`;
               chip.onclick = () => {
@@ -4737,10 +4867,9 @@
                   toast("Ouvrez un template d'abord", "error");
                   return;
                 }
-                insertListVar(ed, v); // from shared.js
+                insertListVar(ed, v);
               };
             } else {
-              // Variable scalaire → insérer {{tech}}
               chip.textContent = v.label;
               chip.title = `{{${v.tech}}} — ${v.label}`;
               chip.onclick = () => window.insertVar(v.tech);

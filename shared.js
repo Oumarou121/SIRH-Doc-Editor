@@ -1,20 +1,25 @@
 // ═══════════════════════════════════════════════════════════════
-//  SIRH-Doc  shared.js  v6
-//  Source unique pour : DB, résolution de variables (scalaires +
-//  listes), helpers UI, CSS impression A4.
-//  Chargé en <script> classique dans les 3 pages.
+//  SIRH-Doc  shared.js  v7
+//  Nouveauté : type "list-object" + syntaxe {{#tech:table}}
+//  → génère un <table> automatique dont les colonnes sont les
+//    clés du premier objet et les lignes les valeurs.
+//  Toutes les syntaxes antérieures restent inchangées.
 // ═══════════════════════════════════════════════════════════════
 
-const STORE_KEY = "sirhdoc_v6";
+const STORE_KEY = "sirhdoc_v7";
 
 // ── Migration automatique des anciennes clés ──────────────────
 (function migrate() {
   try {
     if (!localStorage.getItem(STORE_KEY)) {
       const old =
+        localStorage.getItem("sirhdoc_v6") ||
         localStorage.getItem("sirhdoc_v5") ||
         localStorage.getItem("sirhdoc_v4");
-      if (old) localStorage.setItem(STORE_KEY, old);
+      if (old) {
+        // Migrer les données et ajouter le nouveau type
+        localStorage.setItem(STORE_KEY, old);
+      }
     }
   } catch (_) {}
 })();
@@ -35,7 +40,6 @@ const DB = {
     return d;
   },
 
-  // ── Données initiales ───────────────────────────────────────
   seed() {
     const now = new Date().toISOString();
     const today = new Date().toLocaleDateString("fr-FR");
@@ -110,6 +114,18 @@ const DB = {
                   tech: "liste_matieres",
                   label: "Liste des matières",
                   type: "list",
+                },
+                // ── NOUVEAU : list-object ───────────────────────────
+                {
+                  tech: "liste_notes",
+                  label: "Relevé de notes",
+                  type: "list-object",
+                  // Les colonnes à afficher (ordre + libellé affiché)
+                  columns: [
+                    { key: "matiere", label: "Matière" },
+                    { key: "note", label: "Note /20" },
+                    { key: "coef", label: "Coeff." },
+                  ],
                 },
               ],
             },
@@ -215,7 +231,7 @@ const DB = {
           hasFooter: true,
           pageMargins: { mt: 20, mb: 20, ml: 25, mr: 25 },
           header: `<p style="text-align:center"><strong>{{nom_etab}}</strong></p><p style="text-align:center;font-size:10pt;color:#888">{{adresse_etab}} — Tél : {{tel_etab}}</p><p style="text-align:center;font-size:10pt;color:#aaa">Réf : {{num_doc}} — {{annee_univ}}</p>`,
-          body: `<p>Nous soussignés, <strong>{{directeur}}</strong>, Directeur de <strong>{{nom_etab}}</strong>, certifions que :</p><p><br></p><p style="text-align:center"><strong>M./Mme {{nom_prenom}}</strong></p><p style="text-align:center">Né(e) le {{date_naissance}} — CIN : {{num_cin}} — Matricule : {{matricule}}</p><p><br></p><p>est employé(e) en qualité de <strong>{{poste}}</strong>, au département <strong>{{departement}}</strong>, depuis le <strong>{{date_embauche}}</strong>.</p><p><br></p><p>Matières enseignées :</p>{{#liste_matieres:ul}}<p><br></p><p>Délivrée pour servir et valoir ce que de droit.</p><p>Fait à {{ville}}, le {{date_jour}}</p><p style="text-align:right"><strong>Le Directeur</strong><br>{{directeur}}</p>`,
+          body: `<p>Nous soussignés, <strong>{{directeur}}</strong>, Directeur de <strong>{{nom_etab}}</strong>, certifions que :</p><p><br></p><p style="text-align:center"><strong>M./Mme {{nom_prenom}}</strong></p><p style="text-align:center">Né(e) le {{date_naissance}} — CIN : {{num_cin}} — Matricule : {{matricule}}</p><p><br></p><p>est employé(e) en qualité de <strong>{{poste}}</strong>, au département <strong>{{departement}}</strong>, depuis le <strong>{{date_embauche}}</strong>.</p><p><br></p><p>Matières enseignées :</p>{{#liste_matieres:ul}}<p><br></p><p>Relevé de notes :</p>{{#liste_notes:table}}<p><br></p><p>Délivrée pour servir et valoir ce que de droit.</p><p>Fait à {{ville}}, le {{date_jour}}</p><p style="text-align:right"><strong>Le Directeur</strong><br>{{directeur}}</p>`,
           footer: `<p style="text-align:center;font-size:10pt;color:#aaa">Document officiel — {{nom_etab}} — {{annee_univ}}</p>`,
         },
       ],
@@ -246,7 +262,6 @@ const DB = {
           date_jour: today,
           annee_univ: "2025/2026",
           num_doc: "ATT-2025-0047",
-          // Listes : simples tableaux de chaînes
           liste_matieres: [
             "Programmation Web",
             "Base de données",
@@ -256,6 +271,13 @@ const DB = {
             "Article 1 : Durée du contrat fixée à 1 an",
             "Article 2 : Rémunération horaire selon grille",
             "Article 3 : Respect du règlement intérieur",
+          ],
+          // ── NOUVEAU : list-object ──────────────────────────────
+          liste_notes: [
+            { matiere: "Programmation Web", note: 16, coef: 2 },
+            { matiere: "Base de données", note: 14, coef: 2 },
+            { matiere: "Réseaux", note: 15, coef: 1.5 },
+            { matiere: "Algorithmique", note: 12, coef: 2 },
           ],
         },
         {
@@ -291,6 +313,10 @@ const DB = {
           liste_clauses: [
             "Article 1 : Poste permanent",
             "Article 2 : Régime de retraite CNRPS",
+          ],
+          liste_notes: [
+            { matiere: "Gestion RH", note: 17, coef: 2 },
+            { matiere: "Comptabilité", note: 15, coef: 1.5 },
           ],
         },
         {
@@ -328,6 +354,12 @@ const DB = {
             "Article 1 : Enseignement 192h/an",
             "Article 2 : Recherche et publications",
             "Article 3 : Encadrement des PFE",
+          ],
+          liste_notes: [
+            { matiere: "Microcontrôleurs", note: 15, coef: 3 },
+            { matiere: "Électronique de puissance", note: 13, coef: 2 },
+            { matiere: "Automatique", note: 14, coef: 2 },
+            { matiere: "Traitement du signal", note: 12, coef: 1.5 },
           ],
         },
       ],
@@ -419,6 +451,22 @@ const DB = {
     s.personnel = s.personnel.filter((p) => p.id !== id);
     DB.save(s);
   },
+
+  // ── Résolution des colonnes d'une variable list-object ───────
+  // Cherche dans toutes les familles les colonnes définies pour tech
+  getListObjectColumns(tech) {
+    const fams = DB.getFamilies();
+    for (const fam of fams) {
+      for (const cls of fam.classes || []) {
+        for (const v of cls.vars || []) {
+          if (v.tech === tech && v.type === "list-object" && v.columns) {
+            return v.columns;
+          }
+        }
+      }
+    }
+    return null;
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -426,35 +474,93 @@ const DB = {
 //
 //  Syntaxes supportées :
 //    {{tech}}              → scalaire
-//    {{#tech:ul}}          → liste → <ul><li>…</li></ul>
-//    {{#tech:inline}}      → liste → "el1, el2, el3"
-//    {{#tech:cell-expand}} → dans une cellule de tableau :
-//                            une ligne <tr> par élément de la liste
-//
-//  Les listes sont de simples tableaux de CHAÎNES : string[]
-//  Ordre de résolution : cell-expand → ul/inline → scalaires
+//    {{#tech:ul}}          → list (string[]) → <ul><li>…</li></ul>
+//    {{#tech:inline}}      → list (string[]) → "el1, el2, el3"
+//    {{#tech:table}}       → list-object     → <table> automatique
+//    {{#tech:cell-expand}} → list (string[]) dans tableau :
+//                            une <tr> par élément
 // ═══════════════════════════════════════════════════════════════
 
+// ── Helper : construire un <table> HTML depuis un list-object ──
+// columns = [{key, label}] (peut être null → auto-détection)
+// preview = true → on colore les cellules
+function _buildObjectTable(items, columns, tech, preview) {
+  if (!items || !items.length) {
+    return preview
+      ? `<span style="color:#aaa;font-style:italic">(liste vide)</span>`
+      : "";
+  }
+
+  // Si les colonnes ne sont pas définies dans le schéma, on les
+  // déduit automatiquement depuis les clés du premier objet.
+  const cols =
+    columns && columns.length
+      ? columns
+      : Object.keys(items[0]).map((k) => ({ key: k, label: k }));
+
+  const thStyle = preview
+    ? `background:#eef2ff;color:#1d4ed8;font-weight:600;border:1px solid #c8cdd8;padding:6px 10px;text-align:left`
+    : `background:#eef2ff;color:#1d4ed8;font-weight:600;border:1px solid #c8cdd8;padding:6px 10px;text-align:left`;
+  const tdStyle = `border:1px solid #c8cdd8;padding:6px 10px`;
+  const trEvenStyle = preview ? `background:#f8faff` : `background:#f8faff`;
+
+  const thead = `<thead><tr>${cols.map((c) => `<th style="${thStyle}">${_esc(c.label)}</th>`).join("")}</tr></thead>`;
+
+  const rows = items.map((obj, ri) => {
+    const rowStyle = ri % 2 === 1 ? ` style="${trEvenStyle}"` : "";
+    const cells = cols.map((c) => {
+      const raw = obj[c.key] !== undefined ? String(obj[c.key]) : "";
+      const cell = preview
+        ? `<span class="var-resolved">${_esc(raw)}</span>`
+        : _esc(raw);
+      return `<td style="${tdStyle}">${cell}</td>`;
+    });
+    return `<tr${rowStyle}>${cells.join("")}</tr>`;
+  });
+
+  const tableStyle = `border-collapse:collapse;width:100%;margin:6px 0`;
+  return `<table style="${tableStyle}">${thead}<tbody>${rows.join("")}</tbody></table>`;
+}
+
+// ── 0. list-object :table ─────────────────────────────────────
+function _resolveObjectTables(html, person, preview) {
+  if (!html) return html;
+  return html.replace(/\{\{#([\w]+):table\}\}/g, (match, tech) => {
+    // Aperçu sans personne
+    if (!person) {
+      if (!preview) return match;
+      // Placeholder visuel pour l'éditeur
+      return `<table style="border-collapse:collapse;width:100%;margin:6px 0;opacity:.5">
+        <thead><tr>
+          <th style="background:#eef2ff;color:#7c3aed;border:1px solid #c8cdd8;padding:6px 10px;font-style:italic">Colonne 1</th>
+          <th style="background:#eef2ff;color:#7c3aed;border:1px solid #c8cdd8;padding:6px 10px;font-style:italic">Colonne 2</th>
+          <th style="background:#eef2ff;color:#7c3aed;border:1px solid #c8cdd8;padding:6px 10px;font-style:italic">…</th>
+        </tr></thead>
+        <tbody><tr>
+          <td style="border:1px solid #c8cdd8;padding:6px 10px;color:#7c3aed;font-style:italic">{{#${tech}:table}}</td>
+          <td style="border:1px solid #c8cdd8;padding:6px 10px"></td>
+          <td style="border:1px solid #c8cdd8;padding:6px 10px"></td>
+        </tr></tbody></table>`;
+    }
+
+    const items = Array.isArray(person[tech]) ? person[tech] : [];
+    // Récupérer la définition des colonnes depuis le schéma DB
+    const columns = DB.getListObjectColumns(tech);
+    return _buildObjectTable(items, columns, tech, preview);
+  });
+}
+
 // ── 1. cell-expand ────────────────────────────────────────────
-// Cherche les <tr> contenant une cellule avec {{#tech:cell-expand}}.
-// Pour chaque élément du tableau person[tech], duplique la <tr>
-// en remplaçant le marqueur par la valeur de l'élément.
-// Les autres cellules de la ligne sont résolues (scalaires).
 function _resolveCellExpand(html, person, preview) {
   if (!html) return html;
   let guard = 0;
-
   while (guard++ < 20) {
-    // Trouver la première <tr> contenant un marqueur cell-expand
     const m =
       /<tr([^>]*)>((?:(?!<\/tr>)[\s\S])*?\{\{#([\w]+):cell-expand\}\}(?:(?!<\/tr>)[\s\S])*?)<\/tr>/i.exec(
         html,
       );
     if (!m) break;
-
     const [fullTr, trAttrs, trInner, tech] = m;
-
-    // ── Aperçu sans personne ──────────────────────────────────
     if (!person) {
       if (preview) {
         const ph = `<span style="color:#7c3aed;font-style:italic;background:#f3e8ff;padding:1px 5px;border-radius:3px;font-size:11px">▣ ${tech}</span>`;
@@ -465,20 +571,15 @@ function _resolveCellExpand(html, person, preview) {
       }
       break;
     }
-
-    // ── Décomposer les cellules de la ligne modèle ────────────
     const cellRe = /<(td|th)((?:\s[^>]*)?|)>([\s\S]*?)<\/\1>/gi;
     const cells = [];
     let cm;
     while ((cm = cellRe.exec(trInner)) !== null)
       cells.push({ tag: cm[1], attrs: cm[2], content: cm[3] });
-
     if (!cells.length) {
       html = html.replace(fullTr, "");
       break;
     }
-
-    // Index de la cellule marquée
     const markerIdx = cells.findIndex((c) =>
       /\{\{#[\w]+:cell-expand\}\}/.test(c.content),
     );
@@ -486,17 +587,15 @@ function _resolveCellExpand(html, person, preview) {
       html = html.replace(fullTr, "");
       break;
     }
-
-    // ── Items : toujours des chaînes simples ──────────────────
-    const items = Array.isArray(person[tech])
-      ? person[tech].map((item) => {
-          if (typeof item === "object" && item !== null) {
-            return item.nom || item.label || "";
-          }
+    const raw = person[tech];
+    // Gère string[] et object[] (prend la première valeur de l'objet)
+    const items = Array.isArray(raw)
+      ? raw.map((item) => {
+          if (typeof item === "object" && item !== null)
+            return Object.values(item).join(" | ");
           return String(item);
         })
       : [];
-    // Liste vide → une ligne avec "—" dans la cellule marquée
     if (!items.length) {
       let row = `<tr${trAttrs}>`;
       cells.forEach((c, i) => {
@@ -510,50 +609,41 @@ function _resolveCellExpand(html, person, preview) {
       html = html.replace(fullTr, row);
       continue;
     }
-
-    // Une ligne par élément
     let rows = "";
     items.forEach((item) => {
       rows += `<tr${trAttrs}>`;
       cells.forEach((c, i) => {
         if (i === markerIdx) {
-          // Cellule marquée → valeur de l'élément
           const val = preview
             ? `<span class="var-resolved">${_esc(item)}</span>`
             : _esc(item);
           rows += `<${c.tag}${c.attrs}>${val}</${c.tag}>`;
         } else {
-          // Autres cellules → scalaires résolus normalement
           rows += `<${c.tag}${c.attrs}>${_resolveScalars(c.content, person, preview)}</${c.tag}>`;
         }
       });
       rows += "</tr>";
     });
-
     html = html.replace(fullTr, rows);
   }
-
   return html;
 }
 
-// ── 2. ul / inline ────────────────────────────────────────────
+// ── 2. ul / inline (string[]) ────────────────────────────────
 function _resolveListTags(html, person, preview) {
   if (!html) return html;
   return html.replace(/\{\{#([\w]+):(ul|inline)\}\}/g, (match, tech, mode) => {
-    // Aperçu sans personne
     if (!person) {
       if (!preview) return match;
       if (mode === "inline")
         return `<span style="color:#7c3aed;font-style:italic;background:#f3e8ff;padding:0 3px;border-radius:3px">[${tech}]</span>`;
       return `<ul style="opacity:.5;color:#7c3aed;margin:4px 0;padding-left:1.4em"><li style="font-style:italic">${tech} — élément 1</li><li style="font-style:italic">${tech} — élément 2</li></ul>`;
     }
-
-    const items = Array.isArray(person[tech])
-      ? person[tech].map((item) => {
-          console.log(tech);
-          if (typeof item === "object" && item !== null) {
-            return item.nom || item.label || "";
-          }
+    const raw = person[tech];
+    const items = Array.isArray(raw)
+      ? raw.map((item) => {
+          if (typeof item === "object" && item !== null)
+            return Object.values(item).join(" | ");
           return String(item);
         })
       : [];
@@ -561,13 +651,10 @@ function _resolveListTags(html, person, preview) {
       return preview
         ? `<span style="color:#aaa;font-style:italic">(liste vide)</span>`
         : "";
-
     if (mode === "inline") {
       const joined = items.map(_esc).join(", ");
       return preview ? `<span class="var-resolved">${joined}</span>` : joined;
     }
-
-    // ul
     const lis = items
       .map((item) => {
         const val = _esc(item);
@@ -595,16 +682,17 @@ function _resolveScalars(html, person, preview) {
   });
 }
 
-// ── Résolution principale ─────────────────────────────────────
+// ── Résolution principale (ordre : table → cell-expand → ul/inline → scalaires) ──
 function _resolveAll(html, person, preview) {
   if (!html) return "";
+  html = _resolveObjectTables(html, person, preview); // 0 - NOUVEAU
   html = _resolveCellExpand(html, person, preview); // 1
   html = _resolveListTags(html, person, preview); // 2
   html = _resolveScalars(html, person, preview); // 3
   return html;
 }
 
-/** Aperçu (variables colorées, utilisé dans admin et user UI) */
+/** Aperçu (variables colorées) */
 function resolveVars(html, person) {
   return _resolveAll(html, person, true);
 }
@@ -615,16 +703,46 @@ function resolveVarsRaw(html, person) {
 
 // ═══════════════════════════════════════════════════════════════
 //  INSERTION INTELLIGENTE dans Tiptap (admin.html)
-//
-//  Appelée par les chips de variables du panneau latéral.
-//  Si curseur dans une cellule → {{#tech:cell-expand}}
-//  Sinon → dialog choix ul / inline
+//  Gère scalar, list, list-object
 // ═══════════════════════════════════════════════════════════════
 async function insertListVar(editor, varDef) {
   if (!editor || !varDef) return;
 
-  const inCell = editor.isActive("tableCell") || editor.isActive("tableHeader");
+  // ── list-object → toujours :table (ou :cell-expand si dans tableau) ──
+  if (varDef.type === "list-object") {
+    const inCell =
+      editor.isActive("tableCell") || editor.isActive("tableHeader");
+    if (inCell) {
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "text",
+          text: `{{#${varDef.tech}:cell-expand}}`,
+          marks: [{ type: "textStyle", attrs: { color: "#7c3aed" } }],
+        })
+        .run();
+      toast("Tableau objet inséré — cell-expand dans le tableau", "success");
+    } else {
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "text",
+          text: `{{#${varDef.tech}:table}}`,
+          marks: [{ type: "textStyle", attrs: { color: "#7c3aed" } }],
+        })
+        .run();
+      toast(
+        `Tableau généré automatiquement pour « ${varDef.label} »`,
+        "success",
+      );
+    }
+    return;
+  }
 
+  // ── list (string[]) → comportement d'origine ──────────────────
+  const inCell = editor.isActive("tableCell") || editor.isActive("tableHeader");
   if (inCell) {
     editor
       .chain()
@@ -656,7 +774,6 @@ function _promptListMode(tech, label) {
   return new Promise((resolve) => {
     const old = document.getElementById("_sirh_listModal");
     if (old) old.remove();
-
     const ov = document.createElement("div");
     ov.id = "_sirh_listModal";
     ov.style.cssText =
@@ -669,9 +786,9 @@ function _promptListMode(tech, label) {
           Comment afficher les éléments de <em>${label}</em> ?
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-          <button data-mode="ul"     style="border:2px solid #bbf7d0;border-radius:10px;padding:16px 12px;cursor:pointer;background:#f0fdf4;display:flex;flex-direction:column;align-items:center;gap:8px;color:#15803d;font-family:inherit;font-size:12px;transition:all .14s">
+          <button data-mode="ul" style="border:2px solid #bbf7d0;border-radius:10px;padding:16px 12px;cursor:pointer;background:#f0fdf4;display:flex;flex-direction:column;align-items:center;gap:8px;color:#15803d;font-family:inherit;font-size:12px;transition:all .14s">
             <span style="font-size:22px">≡</span><strong>Liste à puces</strong>
-            <span style="font-size:10px;color:#64748b;text-align:center;line-height:1.4">• élément 1<br>• élément 2<br>• élément 3</span>
+            <span style="font-size:10px;color:#64748b;text-align:center;line-height:1.4">• élément 1<br>• élément 2</span>
           </button>
           <button data-mode="inline" style="border:2px solid #fde68a;border-radius:10px;padding:16px 12px;cursor:pointer;background:#fffbeb;display:flex;flex-direction:column;align-items:center;gap:8px;color:#92400e;font-family:inherit;font-size:12px;transition:all .14s">
             <span style="font-size:22px">…</span><strong>Inline (virgules)</strong>
@@ -683,7 +800,6 @@ function _promptListMode(tech, label) {
         </div>
         <button id="_sirh_cancel" style="width:100%;padding:9px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:12px;color:#64748b;font-family:inherit">Annuler</button>
       </div>`;
-
     ov.querySelectorAll("button[data-mode]").forEach((btn) => {
       btn.addEventListener("mouseenter", () => {
         btn.style.transform = "translateY(-2px)";
@@ -707,7 +823,7 @@ function _promptListMode(tech, label) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  CSS IMPRESSION A4  (injecté par les pages qui en ont besoin)
+//  CSS IMPRESSION A4
 // ═══════════════════════════════════════════════════════════════
 const PRINT_PAGE_CSS = `
 @page { size: A4 portrait; margin: 0; }
@@ -738,8 +854,8 @@ body  { margin: 0; background: #fff; }
 .a4-body.no-header { padding-top: var(--page-mt, 20mm); }
 .a4-body.no-footer  { padding-bottom: var(--page-mb, 20mm); }
 table { border-collapse: collapse; width: 100%; }
-td, th { border: 1px solid #c8cdd8; padding: 7px 10px; }
-th { background: #eef2ff; color: #1d4ed8; font-weight: 600; }
+td, th { border: 1px solid #c8cdd8; padding: 6px 10px; }
+th { background: #eef2ff; color: #1d4ed8; font-weight: 600; text-align: left; }
 ul, ol { padding-left: 2em !important; list-style: revert !important; }
 li { display: list-item !important; }
 .var-resolved { color: #111 !important; font-weight: inherit !important; background: none !important; padding: 0 !important; }
