@@ -482,40 +482,58 @@ const DB = {
 // ═══════════════════════════════════════════════════════════════
 
 // ── Helper : construire un <table> HTML depuis un list-object ──
-// columns = [{key, label}] (peut être null → auto-détection)
-// preview = true → on colore les cellules
-function _buildObjectTable(items, columns, tech, preview) {
+// columns  = [{key, label, align?, width?, bold?}] ou null → auto
+// thStyle  = styles inline appliqués aux <th> (peut venir du template Tiptap)
+// preview  = true → on colore les valeurs résolues
+function _buildObjectTable(
+  items,
+  columns,
+  tech,
+  preview,
+  customThStyle,
+  customTdStyle,
+) {
   if (!items || !items.length) {
     return preview
       ? `<span style="color:#aaa;font-style:italic">(liste vide)</span>`
       : "";
   }
 
-  // Si les colonnes ne sont pas définies dans le schéma, on les
-  // déduit automatiquement depuis les clés du premier objet.
+  // Colonnes : schéma DB > auto-détection depuis le premier objet
   const cols =
     columns && columns.length
       ? columns
       : Object.keys(items[0]).map((k) => ({ key: k, label: k }));
 
-  const thStyle = preview
-    ? `background:#eef2ff;color:#1d4ed8;font-weight:600;border:1px solid #c8cdd8;padding:6px 10px;text-align:left`
-    : `background:#eef2ff;color:#1d4ed8;font-weight:600;border:1px solid #c8cdd8;padding:6px 10px;text-align:left`;
-  const tdStyle = `border:1px solid #c8cdd8;padding:6px 10px`;
-  const trEvenStyle = preview ? `background:#f8faff` : `background:#f8faff`;
+  // ── Styles par défaut : texte NOIR GRAS pour les en-têtes ────
+  const defaultThStyle = `font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px;text-align:left`;
+  const defaultTdStyle = `color:#111;border:1px solid #c8cdd8;padding:6px 10px`;
 
-  const thead = `<thead><tr>${cols.map((c) => `<th style="${thStyle}">${_esc(c.label)}</th>`).join("")}</tr></thead>`;
+  const thBase = customThStyle || defaultThStyle;
+  const tdBase = customTdStyle || defaultTdStyle;
+
+  const thead = `<thead><tr>${cols
+    .map((c) => {
+      // Alignement optionnel par colonne
+      const alignExtra = c.align ? `;text-align:${c.align}` : "";
+      const widthExtra = c.width ? `;width:${c.width}` : "";
+      const boldExtra = c.bold === false ? `;font-weight:400` : "";
+      return `<th style="${thBase}${alignExtra}${widthExtra}${boldExtra}">${_esc(c.label)}</th>`;
+    })
+    .join("")}</tr></thead>`;
 
   const rows = items.map((obj, ri) => {
-    const rowStyle = ri % 2 === 1 ? ` style="${trEvenStyle}"` : "";
+    // Légère alternance de fond pour la lisibilité
+    const rowBg = ri % 2 === 1 ? `background:#f9f9f9` : `background:#fff`;
     const cells = cols.map((c) => {
       const raw = obj[c.key] !== undefined ? String(obj[c.key]) : "";
+      const alignExtra = c.align ? `;text-align:${c.align}` : "";
       const cell = preview
         ? `<span class="var-resolved">${_esc(raw)}</span>`
         : _esc(raw);
-      return `<td style="${tdStyle}">${cell}</td>`;
+      return `<td style="${tdBase}${alignExtra}">${cell}</td>`;
     });
-    return `<tr${rowStyle}>${cells.join("")}</tr>`;
+    return `<tr style="${rowBg}">${cells.join("")}</tr>`;
   });
 
   const tableStyle = `border-collapse:collapse;width:100%;margin:6px 0`;
@@ -523,31 +541,165 @@ function _buildObjectTable(items, columns, tech, preview) {
 }
 
 // ── 0. list-object :table ─────────────────────────────────────
+//
+//  Deux cas :
+//  A) Marqueur texte brut  {{#tech:table}}
+//     → on génère le tableau complet avec les styles par défaut
+//
+//  B) Marqueur dans un vrai tableau Tiptap  <table>…<td>{{#tech:table}}</td>…</table>
+//     → on REMPLACE la ligne modèle par autant de <tr> que d'objets,
+//       en héritant des styles de la ligne modèle (couleur, gras, alignement…)
+//       Les autres cellules de la ligne deviennent les libellés de colonnes
+//       (en-têtes) ou restent vides.
+//
+//  Marqueur spécial :  {{#tech:table:header}}  dans une cellule <th>/<td>
+//  signale que cette ligne EST la ligne d'en-tête Tiptap à conserver telle quelle.
+//  Le marqueur  {{#tech:table:data}}  dans une <td> signale la cellule à répéter.
+//
+//  Syntaxe simplifiée maintenue :
+//    {{#tech:table}}  hors tableau → tableau autonome (comportement précédent)
+//    {{#tech:table}}  dans une cellule Tiptap → cell-expand objet (1 ligne / objet)
+// ─────────────────────────────────────────────────────────────
+
 function _resolveObjectTables(html, person, preview) {
   if (!html) return html;
-  return html.replace(/\{\{#([\w]+):table\}\}/g, (match, tech) => {
-    // Aperçu sans personne
+
+  // ── Cas B : marqueur dans un <td> d'un vrai tableau Tiptap ───
+  // Cherche les <tr> qui contiennent {{#tech:table}} dans une cellule.
+  // On les remplace par une ligne par objet, en distribuant les valeurs
+  // de l'objet dans chaque cellule selon l'ordre des colonnes définies.
+  let guard = 0;
+  while (guard++ < 20) {
+    const m =
+      /<tr([^>]*)>((?:(?!<\/tr>)[\s\S])*?\{\{#([\w]+):table\}\}(?:(?!<\/tr>)[\s\S])*?)<\/tr>/i.exec(
+        html,
+      );
+    if (!m) break;
+
+    const [fullTr, trAttrs, trInner, tech] = m;
+
+    // Aperçu sans personne → placeholder coloré dans la cellule
     if (!person) {
-      if (!preview) return match;
-      // Placeholder visuel pour l'éditeur
-      return `<table style="border-collapse:collapse;width:100%;margin:6px 0;opacity:.5">
-        <thead><tr>
-          <th style="background:#eef2ff;color:#7c3aed;border:1px solid #c8cdd8;padding:6px 10px;font-style:italic">Colonne 1</th>
-          <th style="background:#eef2ff;color:#7c3aed;border:1px solid #c8cdd8;padding:6px 10px;font-style:italic">Colonne 2</th>
-          <th style="background:#eef2ff;color:#7c3aed;border:1px solid #c8cdd8;padding:6px 10px;font-style:italic">…</th>
-        </tr></thead>
-        <tbody><tr>
-          <td style="border:1px solid #c8cdd8;padding:6px 10px;color:#7c3aed;font-style:italic">{{#${tech}:table}}</td>
-          <td style="border:1px solid #c8cdd8;padding:6px 10px"></td>
-          <td style="border:1px solid #c8cdd8;padding:6px 10px"></td>
-        </tr></tbody></table>`;
+      if (preview) {
+        const ph = `<span style="color:#7c3aed;font-style:italic;background:#f3e8ff;padding:1px 5px;border-radius:3px;font-size:11px">▣ TABLE ${tech}</span>`;
+        html = html.replace(fullTr, fullTr.replace(`{{#${tech}:table}}`, ph));
+      }
+      break;
+    }
+
+    // Extraire les cellules de la ligne modèle
+    const cellRe = /<(td|th)((?:\s[^>]*)?|)>([\s\S]*?)<\/\1>/gi;
+    const cells = [];
+    let cm;
+    while ((cm = cellRe.exec(trInner)) !== null)
+      cells.push({ tag: cm[1], attrs: cm[2], content: cm[3] });
+
+    if (!cells.length) {
+      html = html.replace(fullTr, "");
+      break;
+    }
+
+    const markerIdx = cells.findIndex((c) =>
+      /\{\{#[\w]+:table\}\}/.test(c.content),
+    );
+    if (markerIdx === -1) {
+      html = html.replace(fullTr, "");
+      break;
     }
 
     const items = Array.isArray(person[tech]) ? person[tech] : [];
-    // Récupérer la définition des colonnes depuis le schéma DB
+    const columns =
+      DB.getListObjectColumns(tech) ||
+      (items[0]
+        ? Object.keys(items[0]).map((k) => ({ key: k, label: k }))
+        : []);
+
+    if (!items.length) {
+      // Ligne vide
+      let row = `<tr${trAttrs}>`;
+      cells.forEach((c, i) => {
+        const content =
+          i === markerIdx
+            ? `<em style="color:#aaa">—</em>`
+            : _resolveScalars(c.content, person, preview);
+        row += `<${c.tag}${c.attrs}>${content}</${c.tag}>`;
+      });
+      row += "</tr>";
+      html = html.replace(fullTr, row);
+      continue;
+    }
+
+    // Une ligne par objet — les valeurs sont réparties selon
+    // l'ordre des colonnes dans la définition du schéma.
+    // Si le nombre de cellules ≠ nombre de colonnes, on utilise
+    // markerIdx comme cellule principale et on ignore le reste.
+    let rows = "";
+    items.forEach((obj) => {
+      rows += `<tr${trAttrs}>`;
+      cells.forEach((c, i) => {
+        let content;
+        if (columns.length === cells.length) {
+          // Correspondance 1-1 cellule ↔ colonne
+          const col = columns[i];
+          const raw =
+            col && obj[col.key] !== undefined ? String(obj[col.key]) : "";
+          content = preview
+            ? `<span class="var-resolved">${_esc(raw)}</span>`
+            : _esc(raw);
+        } else if (i === markerIdx) {
+          // Fallback : on met toutes les valeurs dans la cellule marquée
+          const raw = Object.values(obj).join(" | ");
+          content = preview
+            ? `<span class="var-resolved">${_esc(raw)}</span>`
+            : _esc(raw);
+        } else {
+          content = _resolveScalars(c.content, person, preview);
+        }
+        rows += `<${c.tag}${c.attrs}>${content}</${c.tag}>`;
+      });
+      rows += "</tr>";
+    });
+
+    html = html.replace(fullTr, rows);
+  }
+
+  // ── Cas A : marqueur texte brut (hors tableau Tiptap) ────────
+  html = html.replace(/\{\{#([\w]+):table\}\}/g, (match, tech) => {
+    if (!person) {
+      if (!preview) return match;
+      // Placeholder éditeur : tableau avec th NOIR GRAS
+      const cols = DB.getListObjectColumns(tech) || [];
+      const headers = cols.length
+        ? cols
+            .map(
+              (c) =>
+                `<th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">${_esc(c.label)}</th>`,
+            )
+            .join("")
+        : `<th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">Colonne 1</th>
+           <th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">Colonne 2</th>
+           <th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">…</th>`;
+      const dataCells = cols.length
+        ? cols
+            .map(
+              (c, i) =>
+                `<td style="border:1px solid #c8cdd8;padding:6px 10px;color:#7c3aed;font-style:italic">${i === 0 ? `{{#${tech}:table}}` : ""}</td>`,
+            )
+            .join("")
+        : `<td style="border:1px solid #c8cdd8;padding:6px 10px;color:#7c3aed;font-style:italic">{{#${tech}:table}}</td>
+           <td style="border:1px solid #c8cdd8;padding:6px 10px"></td>
+           <td style="border:1px solid #c8cdd8;padding:6px 10px"></td>`;
+      return `<table style="border-collapse:collapse;width:100%;margin:6px 0;opacity:.6">
+        <thead><tr>${headers}</tr></thead>
+        <tbody><tr>${dataCells}</tr></tbody></table>`;
+    }
+
+    const items = Array.isArray(person[tech]) ? person[tech] : [];
     const columns = DB.getListObjectColumns(tech);
     return _buildObjectTable(items, columns, tech, preview);
   });
+
+  return html;
 }
 
 // ── 1. cell-expand ────────────────────────────────────────────
@@ -854,8 +1006,13 @@ body  { margin: 0; background: #fff; }
 .a4-body.no-header { padding-top: var(--page-mt, 20mm); }
 .a4-body.no-footer  { padding-bottom: var(--page-mb, 20mm); }
 table { border-collapse: collapse; width: 100%; }
-td, th { border: 1px solid #c8cdd8; padding: 6px 10px; }
-th { background: #eef2ff; color: #1d4ed8; font-weight: 600; text-align: left; }
+td, th {
+  border: 1px solid #c8cdd8; padding: 6px 10px;
+  print-color-adjust: exact; -webkit-print-color-adjust: exact;
+}
+td p, th p { color: inherit; }
+th:not([style]) { background: #f2f2f2; color: #111; font-weight: 700; text-align: left; }
+th { font-weight: 700; }
 ul, ol { padding-left: 2em !important; list-style: revert !important; }
 li { display: list-item !important; }
 .var-resolved { color: #111 !important; font-weight: inherit !important; background: none !important; padding: 0 !important; }
@@ -904,4 +1061,137 @@ function openModal(id) {
 }
 function closeModal(id) {
   document.getElementById(id)?.classList.remove("open");
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  printDoc(tpl, person)
+//  Fonction d'impression commune à admin.html ET user.html.
+//  Construit un <div id="sirh-print-area"> avec le HTML résolu,
+//  l'injecte dans le body, appelle window.print(), puis nettoie.
+//
+//  Le CSS d'impression est injecté en même temps dans une <style>
+//  pour être 100% autonome — aucune dépendance aux feuilles de style
+//  de la page hôte.
+// ═══════════════════════════════════════════════════════════════
+function printDoc(tpl, person) {
+  if (!tpl || !person) {
+    toast("Template ou personne manquant", "error");
+    return;
+  }
+
+  const hdrRaw = tpl.hasHeader ? resolveVarsRaw(tpl.header || "", person) : "";
+  const bRaw = resolveVarsRaw(tpl.body || "", person);
+  const ftrRaw = tpl.hasFooter ? resolveVarsRaw(tpl.footer || "", person) : "";
+
+  // ── Construire le HTML d'une page A4 ──
+  const noHdr = !tpl.hasHeader ? " no-header" : "";
+  const noFtr = !tpl.hasFooter ? " no-footer" : "";
+
+  const pageHtml = `
+    <div class="sirh-page">
+      ${tpl.hasHeader && hdrRaw ? `<div class="sirh-header">${hdrRaw}</div>` : ""}
+      <div class="sirh-body${noHdr}${noFtr}">${bRaw}</div>
+      ${tpl.hasFooter && ftrRaw ? `<div class="sirh-footer">${ftrRaw}</div>` : ""}
+    </div>`;
+
+  // ── CSS d'impression autonome ──
+  // Identique aux règles @media print de admin.html :
+  //   • print-color-adjust:exact  → fonds de cellules imprimés
+  //   • td p / th p color:inherit → couleur texte custom préservée
+  //   • th:not([style])           → défaut gris/noir seulement sans style inline
+  const printCSS = `
+    @page { size:A4 portrait; margin:0; }
+    body  { margin:0; padding:0; background:#fff; }
+    #sirh-print-area { display:block; }
+
+    .sirh-page {
+      width:210mm; min-height:297mm;
+      background:#fff;
+      display:flex; flex-direction:column;
+      page-break-after:always; break-after:page;
+    }
+    .sirh-page:last-child { page-break-after:auto; break-after:auto; }
+
+    .sirh-header {
+      flex-shrink:0;
+      padding:5mm 25mm 3mm 25mm;
+      font-family:"Times New Roman",Times,serif; font-size:12pt; line-height:1.6; color:#111;
+    }
+    .sirh-footer {
+      flex-shrink:0; margin-top:auto;
+      padding:3mm 25mm 5mm 25mm;
+      font-family:"Times New Roman",Times,serif; font-size:12pt; line-height:1.6; color:#111;
+    }
+    .sirh-body {
+      flex:1;
+      padding:5mm 25mm;
+      font-family:"Times New Roman",Times,serif; font-size:12pt; line-height:1.6; color:#111;
+      overflow:visible;
+    }
+    .sirh-body.no-header { padding-top:20mm; }
+    .sirh-body.no-footer  { padding-bottom:20mm; }
+
+    /* Paragraphes */
+    .sirh-header p, .sirh-body p, .sirh-footer p { margin:0 0 .4em; }
+
+    /* Listes */
+    .sirh-header ul, .sirh-body ul, .sirh-footer ul,
+    .sirh-header ol, .sirh-body ol, .sirh-footer ol { padding-left:2em; list-style:revert; }
+    li { display:list-item; }
+
+    /* ── TABLEAUX ── */
+    table { border-collapse:collapse; width:100%; }
+    td, th {
+      border:1px solid #c8cdd8; padding:7px 10px;
+      /* Forcer l'impression des couleurs de fond */
+      print-color-adjust:exact;
+      -webkit-print-color-adjust:exact;
+    }
+    /* Propager la couleur texte du td/th vers ses <p> enfants */
+    td p, th p { color:inherit; }
+    /* Défaut th : gris/noir SEULEMENT si pas de style inline custom */
+    th:not([style]) { background:#f2f2f2; color:#111; font-weight:700; text-align:left; }
+    th { font-weight:700; }
+
+    /* Variables résolues → texte pur */
+    .var-resolved { color:#111 !important; font-weight:inherit !important; background:none !important; padding:0 !important; }
+    .var-missing  { color:#dc2626 !important; }
+  `;
+
+  // ── Nettoyer une éventuelle zone précédente ──
+  document.getElementById("sirh-print-area")?.remove();
+
+  // ── Injecter dans le DOM ──
+  const wrap = document.createElement("div");
+  wrap.id = "sirh-print-area";
+  wrap.style.display = "none"; // caché à l'écran
+
+  const style = document.createElement("style");
+  style.id = "sirh-print-css";
+  style.media = "print";
+  style.textContent = printCSS;
+
+  wrap.innerHTML = pageHtml;
+  document.body.appendChild(style);
+  document.body.appendChild(wrap);
+
+  // ── Masquer le reste de la page à l'impression ──
+  const hideStyle = document.createElement("style");
+  hideStyle.id = "sirh-hide-css";
+  hideStyle.media = "print";
+  hideStyle.textContent = `
+    body > *:not(#sirh-print-area):not(#sirh-print-css):not(#sirh-hide-css) { display:none !important; }
+    #sirh-print-area { display:block !important; }
+  `;
+  document.body.appendChild(hideStyle);
+
+  // ── Imprimer puis nettoyer ──
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      document.getElementById("sirh-print-area")?.remove();
+      document.getElementById("sirh-print-css")?.remove();
+      document.getElementById("sirh-hide-css")?.remove();
+    }, 500);
+  }, 80);
 }

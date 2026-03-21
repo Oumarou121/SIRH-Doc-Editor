@@ -10,9 +10,6 @@
       rel="stylesheet"
     />
     <style>
-      /* ═══════════════════════════════════════════════════════════════
-   RESET & VARIABLES
-═══════════════════════════════════════════════════════════════ */
       *,
       *::before,
       *::after {
@@ -46,12 +43,14 @@
         --purple: #7c3aed;
         --purple-bg: rgba(124, 58, 237, 0.08);
         --purple-bdr: rgba(124, 58, 237, 0.25);
+        --orange: #f97316;
+        --orange-bg: rgba(249, 115, 22, 0.1);
+        --orange-bdr: rgba(249, 115, 22, 0.3);
         --r: 4px;
         --rlg: 8px;
         --rxl: 12px;
         --sh: 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.06);
         --shlg: 0 8px 32px rgba(0, 0, 0, 0.12);
-        /* Page A4 */
         --page-w: 210mm;
         --page-h: 297mm;
         --page-mt: 20mm;
@@ -88,9 +87,7 @@
         border-radius: 3px;
       }
 
-      /* ═══════════════════════════════════════════════════════════════
-   LOADING
-═══════════════════════════════════════════════════════════════ */
+      /* ── LOADING ── */
       #loading {
         position: fixed;
         inset: 0;
@@ -150,9 +147,7 @@
         letter-spacing: 0.05em;
       }
 
-      /* ═══════════════════════════════════════════════════════════════
-   APP SHELL
-═══════════════════════════════════════════════════════════════ */
+      /* ── APP SHELL ── */
       #app {
         height: 100vh;
         display: flex;
@@ -161,7 +156,7 @@
         transition: opacity 0.25s;
       }
 
-      /* ── TOP NAV ─────────────────────────── */
+      /* ── TOP NAV ── */
       .tnav {
         height: 44px;
         background: var(--surface);
@@ -252,14 +247,14 @@
         height: 11px;
       }
 
-      /* ── MAIN LAYOUT ─────────────────────── */
+      /* ── MAIN LAYOUT ── */
       .main-area {
         display: flex;
         flex: 1;
         overflow: hidden;
       }
 
-      /* ── SIDEBAR ─────────────────────────── */
+      /* ── SIDEBAR ── */
       .sidebar {
         width: 260px;
         flex-shrink: 0;
@@ -396,7 +391,7 @@
         height: 11px;
       }
 
-      /* ── VARS PANEL ─────────────────────── */
+      /* ── VARS PANEL ── */
       .vars-area {
         border-top: 1px solid var(--border);
         flex-shrink: 0;
@@ -444,6 +439,11 @@
       .vchip.is-list {
         border-style: dashed;
       }
+      /* ── NOUVEAU : chip table-objet (orange, pointillé) ── */
+      .vchip.is-table {
+        border-style: dotted;
+        font-weight: 600;
+      }
       .vchip-badge {
         font-size: 7px;
         font-weight: 700;
@@ -454,10 +454,13 @@
         margin-right: 3px;
         letter-spacing: 0.04em;
       }
+      /* Badge TABLE orange */
+      .vchip-badge.tbl {
+        background: var(--orange-bg);
+        color: var(--orange);
+      }
 
-      /* ═══════════════════════════════════════════════════════════════
-   EDITOR ZONE
-═══════════════════════════════════════════════════════════════ */
+      /* ── EDITOR ZONE ── */
       .ed-zone {
         flex: 1;
         display: flex;
@@ -466,8 +469,6 @@
         position: relative;
         background: var(--bg);
       }
-
-      /* ── NAME BAR ───────────────────────── */
       .tname-bar {
         background: var(--surface);
         border-bottom: 1px solid var(--border);
@@ -518,8 +519,6 @@
         color: var(--text2);
         border: 1px solid var(--border);
       }
-
-      /* ── SECTION TABS ───────────────────── */
       .sec-tabs {
         display: flex;
         background: var(--surface);
@@ -581,7 +580,7 @@
         border-color: var(--accent-bdr);
       }
 
-      /* ── TOOLBAR ────────────────────────── */
+      /* ── TOOLBAR ── */
       .ed-toolbar {
         background: var(--surface);
         border-bottom: 2px solid var(--border);
@@ -737,7 +736,7 @@
         padding: 2px;
       }
 
-      /* ── PAGE CANVAS ─────────────────────── */
+      /* ── PAGE CANVAS ── */
       .pcanvas {
         flex: 1;
         overflow: auto;
@@ -754,8 +753,6 @@
         flex-direction: column;
         align-items: center;
       }
-
-      /* ── A4 PAGE ─────────────────────────── */
       .a4-page {
         width: var(--page-w);
         height: var(--page-h);
@@ -830,7 +827,7 @@
         border-radius: 0 0 2px 2px;
       }
 
-      /* ── DOC CONTENT (Tiptap) ───────────── */
+      /* ── DOC CONTENT (Tiptap) ── */
       .tiptap-wrapper {
         width: 100%;
         height: 100%;
@@ -920,10 +917,20 @@
         overflow: hidden;
         word-break: break-word;
       }
+      .tiptap-wrapper .ProseMirror th:not([style]) {
+        background: #f2f2f2;
+        color: #111;
+      }
       .tiptap-wrapper .ProseMirror th {
-        background: #eef2ff;
-        color: #1d4ed8;
-        font-weight: 600;
+        font-weight: 700;
+      }
+      /* ── FIX COULEUR TEXTE : le <p> hérite la couleur du td/th parent ──────────── */
+      /* Sans ça, "color:#111" sur .ProseMirror écrase tout style de couleur sur td/th */
+      .tiptap-wrapper .ProseMirror td p {
+        color: inherit !important;
+      }
+      .tiptap-wrapper .ProseMirror th p {
+        color: inherit !important;
       }
       .tiptap-wrapper .ProseMirror .selectedCell::after {
         z-index: 2;
@@ -958,9 +965,40 @@
         outline-offset: -2px;
       }
 
-      /* ═══════════════════════════════════════════════════════════════
-   BUTTONS
-═══════════════════════════════════════════════════════════════ */
+      /* ── APERÇU ── */
+      .preview-page table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      .preview-page td,
+      .preview-page th {
+        border: 1px solid #c8cdd8;
+        padding: 7px 10px;
+      }
+      .preview-page th:not([style]) {
+        background: #f2f2f2;
+        color: #111;
+        font-weight: 700;
+        text-align: left;
+      }
+      .preview-page th {
+        font-weight: 700;
+      }
+      /* Propager couleur cellule vers paragraphes enfants */
+      .preview-page td p,
+      .preview-page th p {
+        color: inherit !important;
+      }
+      .preview-page ul {
+        padding-left: 2em;
+        list-style-type: disc;
+        margin: 0.4em 0;
+      }
+      .preview-page li {
+        display: list-item;
+      }
+
+      /* ── BUTTONS ── */
       .btn {
         display: inline-flex;
         align-items: center;
@@ -1027,9 +1065,7 @@
         height: 13px;
       }
 
-      /* ═══════════════════════════════════════════════════════════════
-   MODALS
-═══════════════════════════════════════════════════════════════ */
+      /* ── MODALS ── */
       .modal-overlay {
         position: fixed;
         inset: 0;
@@ -1132,8 +1168,6 @@
         grid-template-columns: 1fr 1fr 1fr;
         gap: 10px;
       }
-
-      /* ── Table grid picker ──────────────── */
       .tgcells {
         display: grid;
         grid-template-columns: repeat(10, 22px);
@@ -1152,8 +1186,6 @@
         background: var(--accent-bg);
         border-color: var(--accent);
       }
-
-      /* ── Image modal ────────────────────── */
       .img-pre-wrap {
         border: 1px solid var(--border);
         border-radius: var(--r);
@@ -1170,8 +1202,6 @@
         max-height: 150px;
         display: block;
       }
-
-      /* ── Export modal ───────────────────── */
       .export-opts {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1205,8 +1235,6 @@
         color: var(--text3);
         margin-top: 2px;
       }
-
-      /* ── Preview modal ──────────────────── */
       .preview-a4-wrap {
         overflow: auto;
         max-height: 72vh;
@@ -1230,6 +1258,10 @@
         padding: 5mm 25mm 3mm 25mm;
         border-bottom: 1px solid #e2e8f0;
         flex-shrink: 0;
+        font-family: "Times New Roman", Times, serif;
+        font-size: 12pt;
+        line-height: 1.6;
+        color: #111;
       }
       .preview-page .prev-body {
         flex: 1;
@@ -1271,30 +1303,6 @@
         font-size: 0.9em;
         font-style: italic;
       }
-      .preview-page table {
-        border-collapse: collapse;
-        width: 100%;
-      }
-      .preview-page td,
-      .preview-page th {
-        border: 1px solid #c8cdd8;
-        padding: 7px 10px;
-      }
-      .preview-page th {
-        background: #eef2ff;
-        color: #1d4ed8;
-        font-weight: 600;
-      }
-      .preview-page ul {
-        padding-left: 2em;
-        list-style-type: disc;
-        margin: 0.4em 0;
-      }
-      .preview-page li {
-        display: list-item;
-      }
-
-      /* ── Page settings modal ────────────── */
       .page-margin-viz {
         display: grid;
         grid-template-columns: 40px 1fr 40px;
@@ -1321,8 +1329,6 @@
         border: 1px solid var(--border);
         border-radius: 3px;
       }
-
-      /* ── Watermark ──────────────────────── */
       .a4-watermark {
         position: absolute;
         inset: 0;
@@ -1340,18 +1346,16 @@
         white-space: nowrap;
         display: block;
       }
-
-      /* ── Table toolbar ──────────────────── */
       .tbl-toolbar {
         position: fixed;
         z-index: 4000;
-        background: var(--text);
         border-radius: 8px;
         display: none;
         align-items: center;
         flex-wrap: wrap;
         gap: 1px;
         padding: 4px 6px;
+        background: var(--text);
         box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
         pointer-events: auto;
       }
@@ -1403,12 +1407,12 @@
         top: calc(100% + 6px);
         left: 50%;
         transform: translateX(-50%);
-        background: var(--surface);
         border: 1px solid var(--border);
         border-radius: var(--rlg);
         padding: 10px;
         z-index: 4100;
-        box-shadow: var(--shlg);
+        background: var(--text);
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
         display: none;
         width: 180px;
       }
@@ -1441,8 +1445,57 @@
         cursor: pointer;
         padding: 2px;
       }
-
-      /* ── Search panel ───────────────────── */
+      /* ── Boutons scope alignement ── */
+      .tbl-scope-btn {
+        flex: 1;
+        padding: 3px 0;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.65);
+        font-size: 9px;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.1s;
+      }
+      .tbl-scope-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.4);
+      }
+      .tbl-scope-btn.on {
+        background: rgba(37, 99, 235, 0.7);
+        color: #fff;
+        border-color: rgba(37, 99, 235, 0.9);
+      }
+      /* ── Boutons direction alignement ── */
+      .tbl-align-dir-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 0;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.65);
+        cursor: pointer;
+        transition: all 0.1s;
+      }
+      .tbl-align-dir-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+      .tbl-align-dir-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.4);
+      }
+      .tbl-align-dir-btn.on {
+        background: rgba(37, 99, 235, 0.7);
+        border-color: rgba(37, 99, 235, 0.9);
+      }
       .search-panel {
         position: fixed;
         top: 110px;
@@ -1476,8 +1529,6 @@
         border-color: var(--accent);
         box-shadow: 0 0 0 2px var(--accent-bg);
       }
-
-      /* ── Context menu ───────────────────── */
       .ctxmenu {
         position: fixed;
         z-index: 5000;
@@ -1522,8 +1573,6 @@
         color: var(--text3);
         font-family: var(--mono);
       }
-
-      /* ── Image resize ───────────────────── */
       .img-resize-wrap {
         display: inline-block;
         position: relative;
@@ -1610,8 +1659,6 @@
       .img-resize-wrap.resizing .img-size-badge {
         display: block;
       }
-
-      /* ── Empty state ────────────────────── */
       .empty-state {
         flex: 1;
         display: flex;
@@ -1638,8 +1685,6 @@
         max-width: 280px;
         line-height: 1.7;
       }
-
-      /* ── Status bar ─────────────────────── */
       .statusbar {
         height: 24px;
         background: var(--surface);
@@ -1663,8 +1708,6 @@
       .sb-dot.mod {
         background: var(--amber);
       }
-
-      /* ── Toast ──────────────────────────── */
       .toast-stack {
         position: fixed;
         bottom: 24px;
@@ -1706,11 +1749,11 @@
           transform: translateY(0);
         }
       }
-
-      /* ── Print ──────────────────────────── */
       #print-render-area {
         display: none;
       }
+
+      /* ── PRINT ── */
       @media print {
         .tnav,
         .ed-toolbar,
@@ -1815,15 +1858,27 @@
           border-collapse: collapse !important;
           width: 100% !important;
         }
+        /* ── FIX FOND : forcer l'impression des couleurs de fond ── */
         #print-render-area td,
         #print-render-area th {
           border: 1px solid #c8cdd8 !important;
           padding: 7px 10px !important;
+          print-color-adjust: exact !important;
+          -webkit-print-color-adjust: exact !important;
+        }
+        /* ── FIX COULEUR TEXTE : propager la couleur du td/th vers ses <p> ── */
+        #print-render-area td p,
+        #print-render-area th p {
+          color: inherit !important;
+        }
+        #print-render-area th:not([style]) {
+          background: #f2f2f2 !important;
+          color: #111 !important;
+          font-weight: 700 !important;
+          text-align: left !important;
         }
         #print-render-area th {
-          background: #eef2ff !important;
-          color: #1d4ed8 !important;
-          font-weight: 600 !important;
+          font-weight: 700 !important;
         }
         #print-render-area ul,
         #print-render-area ol {
@@ -1846,9 +1901,6 @@
     </style>
   </head>
   <body>
-    <!-- ═══════════════════════════════════════════════════════════
-     LOADING
-══════════════════════════════════════════════════════════════ -->
     <div id="loading">
       <div class="ll">SIRH-<span>Doc</span></div>
       <div class="lb"><div class="lbf"></div></div>
@@ -1856,11 +1908,7 @@
       <div class="lbadge">MIT LICENSE · 100% GRATUIT</div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════════════
-     APP
-══════════════════════════════════════════════════════════════ -->
     <div id="app">
-      <!-- TOP NAV -->
       <div class="tnav">
         <div class="tlogo">
           <div class="tlogo-icon">SD</div>
@@ -1924,9 +1972,7 @@
         </div>
       </div>
 
-      <!-- MAIN -->
       <div class="main-area">
-        <!-- SIDEBAR -->
         <div class="sidebar" id="sidebarEl">
           <div class="sbsec">
             <div class="sblabel">Famille de documents</div>
@@ -1964,15 +2010,15 @@
             </div>
           </div>
 
-          <!-- Variables panel -->
           <div class="vars-area">
             <div class="sbsec" style="padding-bottom: 4px; border-bottom: none">
               <div class="sblabel">Variables disponibles</div>
               <div
                 style="font-size: 9px; color: var(--text3); margin-bottom: 4px"
               >
-                Cliquez pour insérer ·
-                <span style="color: var(--purple)">LIST</span> = variable liste
+                Clic → insérer ·
+                <span style="color: var(--purple)">LIST</span> = liste texte ·
+                <span style="color: var(--orange)">TABLE</span> = tableau objet
               </div>
             </div>
             <div class="vars-scroll" id="varsPanelEl">
@@ -1990,9 +2036,7 @@
           </div>
         </div>
 
-        <!-- EDITOR ZONE -->
         <div class="ed-zone" id="edZone">
-          <!-- Empty state -->
           <div class="empty-state" id="emptyState">
             <svg
               viewBox="0 0 24 24"
@@ -2012,7 +2056,6 @@
             </p>
           </div>
 
-          <!-- Editor inner -->
           <div
             id="editorInner"
             style="
@@ -2022,7 +2065,6 @@
               overflow: hidden;
             "
           >
-            <!-- Name bar -->
             <div class="tname-bar">
               <input
                 class="tname-input"
@@ -2079,7 +2121,6 @@
               </button>
             </div>
 
-            <!-- Section tabs -->
             <div class="sec-tabs">
               <div
                 class="sec-tab disabled"
@@ -2120,9 +2161,7 @@
               </div>
             </div>
 
-            <!-- TOOLBAR -->
             <div class="ed-toolbar" id="edToolbar">
-              <!-- Undo/Redo -->
               <div class="tb-grp">
                 <button
                   class="tb-btn"
@@ -2155,7 +2194,6 @@
                   </svg>
                 </button>
               </div>
-              <!-- Heading -->
               <div class="tb-grp">
                 <select
                   class="tb-sel"
@@ -2170,7 +2208,6 @@
                   <option value="h4">Titre 4</option>
                 </select>
               </div>
-              <!-- Font family -->
               <div class="tb-grp">
                 <select
                   class="tb-sel"
@@ -2194,7 +2231,6 @@
                   <option value="Tajawal,sans-serif">Tajawal (عربي)</option>
                 </select>
               </div>
-              <!-- Font size -->
               <div class="tb-grp">
                 <select
                   class="tb-sel"
@@ -2218,7 +2254,6 @@
                   <option value="48pt">48</option>
                 </select>
               </div>
-              <!-- Text styles -->
               <div class="tb-grp">
                 <button
                   class="tb-btn"
@@ -2325,7 +2360,6 @@
                   </svg>
                 </button>
               </div>
-              <!-- Colors -->
               <div class="tb-grp">
                 <div
                   class="tb-clr"
@@ -2410,7 +2444,6 @@
                   </div>
                 </div>
               </div>
-              <!-- Alignment -->
               <div class="tb-grp">
                 <button
                   class="tb-btn"
@@ -2481,7 +2514,6 @@
                   </svg>
                 </button>
               </div>
-              <!-- Lists & dir -->
               <div class="tb-grp">
                 <button
                   class="tb-btn"
@@ -2592,7 +2624,6 @@
                   </svg>
                 </button>
               </div>
-              <!-- Insert -->
               <div class="tb-grp">
                 <button
                   class="tb-btn"
@@ -2700,7 +2731,6 @@
                   </svg>
                 </button>
               </div>
-              <!-- Search -->
               <div class="tb-grp">
                 <button
                   class="tb-btn"
@@ -2718,7 +2748,6 @@
                   </svg>
                 </button>
               </div>
-              <!-- Zoom -->
               <div class="tb-grp" style="align-items: center; gap: 4px">
                 <span
                   style="font-size: 9px; color: var(--text3); font-weight: 600"
@@ -2753,7 +2782,6 @@
               </div>
             </div>
 
-            <!-- PAGE CANVAS -->
             <div class="pcanvas" id="pCanvas">
               <div class="zoom-scaler" id="zoomScaler">
                 <div class="a4-page" id="mainPage">
@@ -2790,13 +2818,9 @@
               </div>
             </div>
           </div>
-          <!-- /editorInner -->
         </div>
-        <!-- /ed-zone -->
       </div>
-      <!-- /main-area -->
 
-      <!-- STATUS BAR -->
       <div class="statusbar">
         <div class="sb-dot ok" id="sbDot"></div>
         <span id="sbText">Prêt</span>
@@ -2808,13 +2832,8 @@
         <span>A4 · Tiptap v2.4 · SIRH-Doc</span>
       </div>
     </div>
-    <!-- /app -->
 
-    <!-- ═══════════════════════════════════════════════════════════
-     MODALS
-══════════════════════════════════════════════════════════════ -->
-
-    <!-- Delete template -->
+    <!-- MODALS -->
     <div class="modal-overlay" id="modalDelTpl">
       <div class="modal modal-sm">
         <div class="mhdr">
@@ -2832,7 +2851,6 @@
       </div>
     </div>
 
-    <!-- Table picker -->
     <div class="modal-overlay" id="modalTable">
       <div class="modal modal-sm">
         <div class="mhdr">
@@ -2888,7 +2906,6 @@
       </div>
     </div>
 
-    <!-- Image -->
     <div class="modal-overlay" id="modalImage">
       <div class="modal">
         <div class="mhdr">
@@ -2949,7 +2966,6 @@
       </div>
     </div>
 
-    <!-- Link -->
     <div class="modal-overlay" id="modalLink">
       <div class="modal modal-sm">
         <div class="mhdr">
@@ -2976,7 +2992,6 @@
       </div>
     </div>
 
-    <!-- Watermark -->
     <div class="modal-overlay" id="modalWatermark">
       <div class="modal modal-sm">
         <div class="mhdr">
@@ -3025,19 +3040,16 @@
         </div>
         <div class="mactions">
           <button class="btn danger" onclick="removeWatermark()">
-            Supprimer
-          </button>
-          <button class="btn" onclick="closeModal('modalWatermark')">
-            Annuler
-          </button>
-          <button class="btn primary" onclick="applyWatermark()">
+            Supprimer</button
+          ><button class="btn" onclick="closeModal('modalWatermark')">
+            Annuler</button
+          ><button class="btn primary" onclick="applyWatermark()">
             Appliquer
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Page settings -->
     <div class="modal-overlay" id="modalPageSettings">
       <div class="modal modal-sm">
         <div class="mhdr">
@@ -3096,25 +3108,23 @@
           </div>
         </div>
         <div class="mactions">
-          <button class="btn" onclick="resetPageMargins()">
-            Réinitialiser
-          </button>
-          <button class="btn" onclick="closeModal('modalPageSettings')">
-            Annuler
-          </button>
-          <button class="btn primary" onclick="applyPageMargins()">
+          <button class="btn" onclick="resetPageMargins()">Réinitialiser</button
+          ><button class="btn" onclick="closeModal('modalPageSettings')">
+            Annuler</button
+          ><button class="btn primary" onclick="applyPageMargins()">
             Appliquer
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Preview -->
     <div class="modal-overlay" id="modalPreview">
       <div class="modal" style="max-width: 880px">
         <div class="mhdr">
-          <span class="mtitle">Aperçu du document</span>
-          <button class="mclose" onclick="closeModal('modalPreview')">✕</button>
+          <span class="mtitle">Aperçu du document</span
+          ><button class="mclose" onclick="closeModal('modalPreview')">
+            ✕
+          </button>
         </div>
         <div
           style="
@@ -3166,7 +3176,6 @@
       </div>
     </div>
 
-    <!-- Export -->
     <div class="modal-overlay" id="modalExport">
       <div class="modal modal-sm">
         <div class="mhdr">
@@ -3221,10 +3230,9 @@
               cursor: pointer;
               color: var(--text2);
             "
+            ><input type="checkbox" id="exp-resolve" checked />Résoudre les
+            variables avec un bénéficiaire</label
           >
-            <input type="checkbox" id="exp-resolve" checked />Résoudre les
-            variables avec un bénéficiaire
-          </label>
           <select
             id="exp-person"
             style="
@@ -3248,7 +3256,6 @@
       </div>
     </div>
 
-    <!-- Search panel -->
     <div class="search-panel" id="searchPanel">
       <div
         style="
@@ -3302,12 +3309,10 @@
           cursor: pointer;
           color: var(--text2);
         "
+        ><input type="checkbox" id="srch-case" />Respecter la casse</label
       >
-        <input type="checkbox" id="srch-case" />Respecter la casse
-      </label>
     </div>
 
-    <!-- Table toolbar -->
     <div class="tbl-toolbar" id="tblToolbar">
       <button
         class="tbl-tb-btn"
@@ -3407,6 +3412,223 @@
         >−C
       </button>
       <div class="tbl-tb-sep"></div>
+      <!-- ── ALIGNEMENT : scope + direction ── -->
+      <div class="tbl-cell-clr-wrap">
+        <button
+          class="tbl-tb-btn"
+          onclick="toggleTblAlignPop(event)"
+          title="Alignement du texte"
+          id="tblAlignBtn"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="15" y2="12" />
+            <line x1="3" y1="18" x2="18" y2="18" />
+          </svg>
+          <span id="tblAlignIndicator" style="font-size: 8px; opacity: 0.7"
+            >⬡</span
+          >
+        </button>
+        <div class="tbl-clr-pop" id="tblAlignPop" style="width: 210px">
+          <!-- Scope -->
+          <div
+            style="
+              font-size: 9px;
+              color: var(--text3);
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              margin-bottom: 5px;
+            "
+          >
+            Portée
+          </div>
+          <div style="display: flex; gap: 3px; margin-bottom: 9px">
+            <button
+              class="tbl-scope-btn on"
+              id="scope-cell"
+              onclick="setTblAlignScope('cell')"
+              title="Cellule active"
+            >
+              Cellule
+            </button>
+            <button
+              class="tbl-scope-btn"
+              id="scope-row"
+              onclick="setTblAlignScope('row')"
+              title="Toute la ligne"
+            >
+              Ligne
+            </button>
+            <button
+              class="tbl-scope-btn"
+              id="scope-col"
+              onclick="setTblAlignScope('col')"
+              title="Toute la colonne"
+            >
+              Colonne
+            </button>
+            <button
+              class="tbl-scope-btn"
+              id="scope-all"
+              onclick="setTblAlignScope('all')"
+              title="Tout le tableau"
+            >
+              Tout
+            </button>
+          </div>
+          <!-- Alignement horizontal -->
+          <div
+            style="
+              font-size: 9px;
+              color: var(--text3);
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              margin-bottom: 5px;
+            "
+          >
+            Alignement horizontal
+          </div>
+          <div style="display: flex; gap: 3px; margin-bottom: 9px">
+            <button
+              class="tbl-align-dir-btn"
+              onclick="applyTblAlign('left')"
+              title="Gauche"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              >
+                <line x1="1" y1="4" x2="15" y2="4" />
+                <line x1="1" y1="8" x2="10" y2="8" />
+                <line x1="1" y1="12" x2="12" y2="12" />
+              </svg>
+            </button>
+            <button
+              class="tbl-align-dir-btn"
+              onclick="applyTblAlign('center')"
+              title="Centré"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              >
+                <line x1="1" y1="4" x2="15" y2="4" />
+                <line x1="4" y1="8" x2="12" y2="8" />
+                <line x1="2" y1="12" x2="14" y2="12" />
+              </svg>
+            </button>
+            <button
+              class="tbl-align-dir-btn"
+              onclick="applyTblAlign('right')"
+              title="Droite"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              >
+                <line x1="1" y1="4" x2="15" y2="4" />
+                <line x1="6" y1="8" x2="15" y2="8" />
+                <line x1="4" y1="12" x2="15" y2="12" />
+              </svg>
+            </button>
+            <button
+              class="tbl-align-dir-btn"
+              onclick="applyTblAlign('justify')"
+              title="Justifié"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              >
+                <line x1="1" y1="4" x2="15" y2="4" />
+                <line x1="1" y1="8" x2="15" y2="8" />
+                <line x1="1" y1="12" x2="15" y2="12" />
+              </svg>
+            </button>
+          </div>
+          <!-- Alignement vertical -->
+          <div
+            style="
+              font-size: 9px;
+              color: var(--text3);
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              margin-bottom: 5px;
+            "
+          >
+            Alignement vertical
+          </div>
+          <div style="display: flex; gap: 3px">
+            <button
+              class="tbl-align-dir-btn"
+              onclick="applyTblValign('top')"
+              title="Haut"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              >
+                <line x1="1" y1="2" x2="15" y2="2" />
+                <line x1="8" y1="4" x2="8" y2="14" />
+                <polyline points="5,7 8,4 11,7" />
+              </svg>
+            </button>
+            <button
+              class="tbl-align-dir-btn"
+              onclick="applyTblValign('middle')"
+              title="Milieu"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              >
+                <line x1="1" y1="8" x2="15" y2="8" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="8" y1="10" x2="8" y2="14" />
+                <polyline points="5,5 8,2 11,5" />
+                <polyline points="5,11 8,14 11,11" />
+              </svg>
+            </button>
+            <button
+              class="tbl-align-dir-btn"
+              onclick="applyTblValign('bottom')"
+              title="Bas"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              >
+                <line x1="1" y1="14" x2="15" y2="14" />
+                <line x1="8" y1="2" x2="8" y2="12" />
+                <polyline points="5,9 8,12 11,9" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="tbl-tb-sep"></div>
       <button
         class="tbl-tb-btn"
         onclick="tblCmd('mergeCells')"
@@ -3481,7 +3703,6 @@
         >H
       </button>
       <div class="tbl-tb-sep"></div>
-      <!-- Cell background color -->
       <div class="tbl-cell-clr-wrap">
         <button
           class="tbl-tb-btn"
@@ -3533,7 +3754,6 @@
           />
         </div>
       </div>
-      <!-- Cell text color -->
       <div class="tbl-cell-clr-wrap">
         <button
           class="tbl-tb-btn"
@@ -3601,7 +3821,6 @@
       </button>
     </div>
 
-    <!-- Context menu -->
     <div class="ctxmenu" id="ctxMenu">
       <div
         class="ctx-item"
@@ -3661,20 +3880,11 @@
       </div>
     </div>
 
-    <!-- Print render area -->
     <div id="print-render-area"></div>
-
     <div class="toast-stack" id="toastStack"></div>
 
-    <!-- ═══════════════════════════════════════════════════════════
-     SHARED.JS — DB, resolveVars, resolveVarsRaw, insertListVar
-     toast, openModal, closeModal, genId, PRINT_PAGE_CSS
-══════════════════════════════════════════════════════════════ -->
     <script src="shared.js"></script>
 
-    <!-- ═══════════════════════════════════════════════════════════
-     TIPTAP MODULE
-══════════════════════════════════════════════════════════════ -->
     <script type="module">
       const ESM = "https://esm.sh";
       const V = "2.4.0";
@@ -3682,7 +3892,6 @@
         "Téléchargement des modules Tiptap…";
 
       const { Extension, Mark } = await import(`${ESM}/@tiptap/core@${V}`);
-
       const [
         { Editor },
         { default: StarterKit },
@@ -3724,7 +3933,7 @@
       document.getElementById("loadSub").textContent =
         "Initialisation des éditeurs…";
 
-      // ── FontSize extension ──────────────────────────────────────────
+      // ── FontSize extension ──────────────────────────────────────
       const FontSize = TextStyle.extend({
         addAttributes() {
           return {
@@ -3755,7 +3964,19 @@
         },
       });
 
-      // ── TableCell/Header with background & text color ───────────────
+      // ── TableCell/Header with background & text color ───────────
+      // ── Helper unique pour le style inline des cellules ──────────
+      // Appelé par backgroundColor.renderHTML (qui reçoit TOUS les attrs)
+      function _cellStyle(attrs) {
+        let s = "";
+        if (attrs.backgroundColor && attrs.backgroundColor !== "transparent")
+          s += `background-color:${attrs.backgroundColor};`;
+        if (attrs.textColor) s += `color:${attrs.textColor};`;
+        if (attrs.textAlign) s += `text-align:${attrs.textAlign};`;
+        if (attrs.verticalAlign) s += `vertical-align:${attrs.verticalAlign};`;
+        return s ? { style: s } : {};
+      }
+
       const TableCellExt = TableCell.extend({
         addAttributes() {
           return {
@@ -3763,17 +3984,21 @@
             backgroundColor: {
               default: null,
               parseHTML: (el) => el.style.backgroundColor || null,
-              renderHTML: (attrs) => {
-                let s = "";
-                if (attrs.backgroundColor)
-                  s += `background-color:${attrs.backgroundColor};`;
-                if (attrs.textColor) s += `color:${attrs.textColor};`;
-                return s ? { style: s } : {};
-              },
+              renderHTML: (attrs) => _cellStyle(attrs),
             },
             textColor: {
               default: null,
               parseHTML: (el) => el.style.color || null,
+              renderHTML: () => ({}),
+            },
+            textAlign: {
+              default: null,
+              parseHTML: (el) => el.style.textAlign || null,
+              renderHTML: () => ({}),
+            },
+            verticalAlign: {
+              default: null,
+              parseHTML: (el) => el.style.verticalAlign || null,
               renderHTML: () => ({}),
             },
           };
@@ -3786,26 +4011,30 @@
             backgroundColor: {
               default: null,
               parseHTML: (el) => el.style.backgroundColor || null,
-              renderHTML: (attrs) => {
-                let s = "";
-                if (attrs.backgroundColor)
-                  s += `background-color:${attrs.backgroundColor};`;
-                if (attrs.textColor) s += `color:${attrs.textColor};`;
-                return s ? { style: s } : {};
-              },
+              renderHTML: (attrs) => _cellStyle(attrs),
             },
             textColor: {
               default: null,
               parseHTML: (el) => el.style.color || null,
               renderHTML: () => ({}),
             },
+            textAlign: {
+              default: null,
+              parseHTML: (el) => el.style.textAlign || null,
+              renderHTML: () => ({}),
+            },
+            verticalAlign: {
+              default: null,
+              parseHTML: (el) => el.style.verticalAlign || null,
+              renderHTML: () => ({}),
+            },
           };
         },
       });
 
-      // ═══════════════════════════════════════════════════════════════
+      // ═════════════════════════════════════════════════════════════
       //  STATE
-      // ═══════════════════════════════════════════════════════════════
+      // ═════════════════════════════════════════════════════════════
       const ETAB_ID = "etab_1";
       let curFamId = null,
         curTplId = null,
@@ -3820,12 +4049,10 @@
       let expMode = "html";
       let pageCheckTimer = null,
         pagedPreviewHTML = "";
-
-      // Image resize state (module-level)
       let _activeResizeImg = null,
         _activeResizeImgEl = null;
 
-      // ── Expose insertVar for chips & insertListVar from shared.js ───
+      // ── Expose insertVar for scalar chips ───────────────────────
       window.insertVar = function (tech) {
         const ed = activeEditor || editorBody;
         if (!ed) return;
@@ -3839,11 +4066,198 @@
           .run();
       };
 
-      // insertListVar is already defined in shared.js (async, uses _promptListMode)
-      // We expose the active editor for it:
       window.__getActiveEditor = () => activeEditor || editorBody;
 
-      // ── Color palettes ──────────────────────────────────────────────
+      // ═════════════════════════════════════════════════════════════
+      //  insertListVar — VERSION COMPLÈTE v7
+      //  • list-object → insère un VRAI tableau Tiptap éditable
+      //    dont les th sont noirs gras, et dont la ligne de données
+      //    contient les marqueurs {{#tech:table}} répartis par colonne.
+      //    shared.js remplace cette ligne par N lignes à la résolution.
+      //  • list (string[]) → comportement original (ul/inline/cell-expand)
+      // ═════════════════════════════════════════════════════════════
+      async function insertListVar(editor, varDef) {
+        if (!editor || !varDef) return;
+
+        const inCell =
+          editor.isActive("tableCell") || editor.isActive("tableHeader");
+
+        // ── list-object ──────────────────────────────────────────
+        if (varDef.type === "list-object") {
+          if (inCell) {
+            // Dans une cellule existante → marqueur simple
+            editor
+              .chain()
+              .focus()
+              .insertContent({
+                type: "text",
+                text: `{{#${varDef.tech}:table}}`,
+                marks: [{ type: "textStyle", attrs: { color: "#f97316" } }],
+              })
+              .run();
+            toast(
+              "Marqueur :table inséré — la ligne sera répétée par objet",
+              "success",
+            );
+            return;
+          }
+
+          // Hors tableau → insérer un vrai tableau Tiptap éditable
+          const cols =
+            varDef.columns && varDef.columns.length
+              ? varDef.columns
+              : [
+                  { key: "col1", label: "Colonne 1" },
+                  { key: "col2", label: "Colonne 2" },
+                ];
+
+          // Ligne d'en-tête : th NOIRS GRAS avec les libellés
+          const thCells = cols
+            .map(
+              (c) =>
+                `<th style="font-weight:700;color:#111;background:#f2f2f2"><p><strong>${escHtml(c.label)}</strong></p></th>`,
+            )
+            .join("");
+
+          // Ligne de données : première cellule porte le marqueur principal
+          // Les autres portent un marqueur de colonne visible mais discret.
+          // shared.js détecte {{#tech:table}} dans la <tr> et répartit
+          // les valeurs colonne par colonne (1-1 selon l'ordre des cols).
+          const tdCells = cols
+            .map((c, i) => {
+              const marker =
+                i === 0
+                  ? `<span style="color:#f97316;background:#fff7ed;padding:1px 4px;border-radius:3px;font-family:monospace;font-size:10px">{{#${varDef.tech}:table}}</span>`
+                  : `<span style="color:#f97316;opacity:.55;font-family:monospace;font-size:9px">{{${c.key}}}</span>`;
+              return `<td><p>${marker}</p></td>`;
+            })
+            .join("");
+
+          const tableHTML = `<table style="border-collapse:collapse;width:100%"><thead><tr>${thCells}</tr></thead><tbody><tr>${tdCells}</tr></tbody></table><p></p>`;
+
+          editor.chain().focus().insertContent(tableHTML).run();
+          toast(
+            `Tableau éditable inséré pour « ${varDef.label} » — personnalisez le style !`,
+            "success",
+          );
+          return;
+        }
+
+        // ── list (string[]) ──────────────────────────────────────
+        if (inCell) {
+          editor
+            .chain()
+            .focus()
+            .insertContent({
+              type: "text",
+              text: `{{#${varDef.tech}:cell-expand}}`,
+              marks: [{ type: "textStyle", attrs: { color: "#7c3aed" } }],
+            })
+            .run();
+          toast(
+            "Liste insérée — 1 ligne par élément dans le tableau",
+            "success",
+          );
+        } else {
+          const mode = await _promptListMode(varDef.tech, varDef.label);
+          if (!mode) return;
+          editor
+            .chain()
+            .focus()
+            .insertContent({
+              type: "text",
+              text: `{{#${varDef.tech}:${mode}}}`,
+              marks: [{ type: "textStyle", attrs: { color: "#7c3aed" } }],
+            })
+            .run();
+          toast(`Liste insérée en mode « ${mode} »`, "success");
+        }
+      }
+
+      // ═════════════════════════════════════════════════════════════
+      //  buildVarsPanel — VERSION COMPLÈTE v7
+      //  • Scalaire → chip normal, clic = insertVar
+      //  • list     → badge LIST violet, clic = insertListVar
+      //  • list-object → badge TABLE orange (pointillé), clic = insertListVar
+      // ═════════════════════════════════════════════════════════════
+      function buildVarsPanel(famId) {
+        const panel = document.getElementById("varsPanelEl");
+        panel.innerHTML = "";
+        if (!famId) return;
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+
+        fam.classes.forEach((cls) => {
+          const hdr = document.createElement("div");
+          hdr.className = "vc-hdr";
+          hdr.style.color = cls.couleur || "#555";
+          const hasLists = (cls.vars || []).some((v) => v.type === "list");
+          const hasObjs = (cls.vars || []).some(
+            (v) => v.type === "list-object",
+          );
+          hdr.textContent = cls.nom + (hasLists || hasObjs ? " ⚡" : "");
+
+          const chips = document.createElement("div");
+          chips.className = "vchips";
+
+          (cls.vars || []).forEach((v) => {
+            const chip = document.createElement("span");
+            const isObj = v.type === "list-object";
+            const isList = v.type === "list";
+
+            chip.className =
+              "vchip" + (isObj ? " is-table" : "") + (isList ? " is-list" : "");
+
+            chip.style.cssText = [
+              `background:${cls.couleur || "#555"}12`,
+              `color:${cls.couleur || "#555"}`,
+              `border-color:${cls.couleur || "#555"}33`,
+            ].join(";");
+
+            if (isObj) {
+              // ── list-object : badge TABLE orange ─────────────────
+              const colsPreview =
+                v.columns && v.columns.length
+                  ? v.columns.map((c) => c.label).join(" · ")
+                  : "colonnes auto-détectées";
+              chip.innerHTML = `<span class="vchip-badge tbl">TABLE</span>${v.label}`;
+              chip.title = `Insère un tableau éditable Tiptap\nColonnes : ${colsPreview}`;
+              chip.onclick = () => {
+                const ed = activeEditor || editorBody;
+                if (!ed) {
+                  toast("Ouvrez un template d'abord", "error");
+                  return;
+                }
+                insertListVar(ed, v);
+              };
+            } else if (isList) {
+              // ── list (string[]) : badge LIST violet ───────────────
+              chip.innerHTML = `<span class="vchip-badge">LIST</span>${v.label}`;
+              chip.title = `{{#${v.tech}:ul}} · :inline · :cell-expand`;
+              chip.onclick = () => {
+                const ed = activeEditor || editorBody;
+                if (!ed) {
+                  toast("Ouvrez un template d'abord", "error");
+                  return;
+                }
+                insertListVar(ed, v);
+              };
+            } else {
+              // ── scalaire ─────────────────────────────────────────
+              chip.textContent = v.label;
+              chip.title = `{{${v.tech}}} — ${v.label}`;
+              chip.onclick = () => window.insertVar(v.tech);
+            }
+
+            chips.appendChild(chip);
+          });
+
+          panel.appendChild(hdr);
+          panel.appendChild(chips);
+        });
+      }
+
+      // ── Color palettes ──────────────────────────────────────────
       const TEXT_COLORS = [
         "#000000",
         "#1a1d2e",
@@ -3933,16 +4347,15 @@
         "#1e3a5f",
       ];
 
-      // ═══════════════════════════════════════════════════════════════
+      // ═════════════════════════════════════════════════════════════
       //  TIPTAP EDITOR FACTORY
-      // ═══════════════════════════════════════════════════════════════
+      // ═════════════════════════════════════════════════════════════
       function createEditor(elementId, placeholder, onUpdate, onFocus) {
         const el = document.getElementById(elementId);
         if (!el) return null;
         el.innerHTML = "";
         const div = document.createElement("div");
         el.appendChild(div);
-
         const editor = new Editor({
           element: div,
           extensions: [
@@ -3980,7 +4393,6 @@
             }
           },
         });
-
         div.addEventListener("contextmenu", (e) => {
           e.preventDefault();
           showCtxMenu(e);
@@ -3995,9 +4407,7 @@
         if (ed && html) ed.commands.setContent(html, false);
       }
 
-      // ═══════════════════════════════════════════════════════════════
-      //  TOOLBAR SYNC
-      // ═══════════════════════════════════════════════════════════════
+      // ── Toolbar sync ────────────────────────────────────────────
       function syncToolbar() {
         const ed = activeEditor;
         if (!ed) return;
@@ -4018,7 +4428,6 @@
         Object.entries(toggles).forEach(([id, on]) =>
           document.getElementById(id)?.classList.toggle("on", on),
         );
-
         const hSel = document.getElementById("tb-heading");
         if (hSel) {
           if (ed.isActive("heading", { level: 1 })) hSel.value = "h1";
@@ -4054,9 +4463,7 @@
         } catch (_) {}
       }
 
-      // ═══════════════════════════════════════════════════════════════
-      //  EDITOR COMMANDS (exposed globally)
-      // ═══════════════════════════════════════════════════════════════
+      // ── Editor commands (global) ─────────────────────────────────
       window.edCmd = function (cmd, opts) {
         const ed = activeEditor || editorBody;
         if (!ed) return;
@@ -4064,7 +4471,6 @@
           ed.chain().focus()[cmd](opts).run();
         } catch (_) {}
       };
-
       window.applyHeading = function (val) {
         const ed = activeEditor || editorBody;
         if (!ed) return;
@@ -4075,14 +4481,12 @@
             .toggleHeading({ level: parseInt(val.replace("h", "")) })
             .run();
       };
-
       window.applyFontFamily = function (val) {
         if (!val) return;
         const ed = activeEditor || editorBody;
         if (ed) ed.chain().focus().setFontFamily(val).run();
         document.getElementById("tb-font").value = val;
       };
-
       window.applyFontSize = function (val) {
         if (!val) return;
         const ed = activeEditor || editorBody;
@@ -4094,14 +4498,12 @@
         }
         document.getElementById("tb-size").value = val;
       };
-
       window.applyTextColor = function (color) {
         const ed = activeEditor || editorBody;
         if (ed) ed.chain().focus().setColor(color).run();
         document.getElementById("bar-text").style.background = color;
         closeAllCpops();
       };
-
       window.applyHighlight = function (color) {
         const ed = activeEditor || editorBody;
         if (!ed) return;
@@ -4112,12 +4514,10 @@
           color || "transparent";
         closeAllCpops();
       };
-
       window.applyAlign = function (dir) {
         const ed = activeEditor || editorBody;
         if (ed) ed.chain().focus().setTextAlign(dir).run();
       };
-
       window.applyDir = function (dir) {
         document.getElementById("tb-ltr").classList.toggle("on", dir === "ltr");
         document.getElementById("tb-rtl").classList.toggle("on", dir === "rtl");
@@ -4131,12 +4531,10 @@
         toast(dir === "rtl" ? "Mode RTL activé" : "Mode LTR activé", "info");
       };
 
-      // ═══════════════════════════════════════════════════════════════
-      //  TABLES
-      // ═══════════════════════════════════════════════════════════════
+      // ── Tables ───────────────────────────────────────────────────
       window.doInsertTable = function () {
-        const rows = parseInt(document.getElementById("ti-rows").value) || 3;
-        const cols = parseInt(document.getElementById("ti-cols").value) || 3;
+        const rows = parseInt(document.getElementById("ti-rows").value) || 3,
+          cols = parseInt(document.getElementById("ti-cols").value) || 3;
         const ed = activeEditor || editorBody;
         if (ed)
           ed.chain()
@@ -4146,7 +4544,6 @@
         closeModal("modalTable");
         toast(`Tableau ${rows}×${cols} inséré`);
       };
-
       window.tblCmd = function (cmd) {
         const ed = activeEditor || editorBody;
         if (!ed) return;
@@ -4243,7 +4640,6 @@
         closeTblPops();
         toast("Couleur texte appliquée", "success");
       };
-
       window.toggleTblClrPop = function (e) {
         e.stopPropagation();
         const p = document.getElementById("tblClrPop");
@@ -4261,14 +4657,185 @@
       function closeTblPops() {
         document.getElementById("tblClrPop").classList.remove("on");
         document.getElementById("tblTxtPop").classList.remove("on");
+        document.getElementById("tblAlignPop").classList.remove("on");
       }
       document.addEventListener("click", (e) => {
         if (!e.target.closest(".tbl-cell-clr-wrap")) closeTblPops();
       });
 
-      // ═══════════════════════════════════════════════════════════════
-      //  IMAGES
-      // ═══════════════════════════════════════════════════════════════
+      // ── Alignement tableau ───────────────────────────────────────
+      let _tblAlignScope = "cell"; // cell | row | col | all
+
+      window.setTblAlignScope = function (scope) {
+        _tblAlignScope = scope;
+        ["cell", "row", "col", "all"].forEach((s) =>
+          document
+            .getElementById("scope-" + s)
+            .classList.toggle("on", s === scope),
+        );
+      };
+
+      window.toggleTblAlignPop = function (e) {
+        e.stopPropagation();
+        const p = document.getElementById("tblAlignPop");
+        const was = p.classList.contains("on");
+        closeTblPops();
+        if (!was) p.classList.add("on");
+      };
+
+      // Récupère la position ProseMirror (pos, rowIdx, colIdx) de la cellule active
+      function _getActiveCellInfo(ed) {
+        try {
+          const { state } = ed;
+          const { selection } = state;
+          const { $from } = selection;
+          // Remonter au nœud tableCell ou tableHeader
+          let depth = $from.depth;
+          while (depth > 0) {
+            const node = $from.node(depth);
+            if (
+              node.type.name === "tableCell" ||
+              node.type.name === "tableHeader"
+            ) {
+              return { pos: $from.before(depth), node, depth, $from };
+            }
+            depth--;
+          }
+        } catch (_) {}
+        return null;
+      }
+
+      // Calcule l'index de ligne et de colonne d'une cellule dans le tableau
+      function _getCellIndices(ed, cellPos) {
+        const { doc } = ed.state;
+        let tableNode = null,
+          tablePos = 0;
+        // Trouver le tableau parent
+        doc.descendants((node, pos) => {
+          if (
+            node.type.name === "table" &&
+            pos <= cellPos &&
+            pos + node.nodeSize > cellPos
+          ) {
+            tableNode = node;
+            tablePos = pos;
+            return false;
+          }
+        });
+        if (!tableNode) return { rowIdx: -1, colIdx: -1 };
+        let rowIdx = 0,
+          colIdx = 0,
+          found = false;
+        tableNode.forEach((rowNode, rowOff) => {
+          if (found) return;
+          let ci = 0;
+          rowNode.forEach((cellNode, cellOff) => {
+            if (found) return;
+            const absPos = tablePos + 1 + rowOff + 1 + cellOff;
+            if (Math.abs(absPos - cellPos) < 3) {
+              colIdx = ci;
+              found = true;
+            }
+            ci++;
+          });
+          if (!found) rowIdx++;
+        });
+        return { rowIdx, colIdx, tableNode, tablePos };
+      }
+
+      function applyTblAttrScoped(attrKey, val, scope) {
+        const ed = activeEditor || editorBody;
+        if (!ed) return;
+        const { state, dispatch } = ed.view;
+        const { doc, selection } = state;
+        const tr = state.tr;
+        let changed = false;
+
+        // Identifier la cellule active et ses indices
+        const cellInfo = _getActiveCellInfo(ed);
+        const { rowIdx, colIdx, tableNode, tablePos } = cellInfo
+          ? _getCellIndices(ed, cellInfo.pos)
+          : { rowIdx: -1, colIdx: -1, tableNode: null, tablePos: 0 };
+
+        const domSelected = ed.view.dom.querySelectorAll(".selectedCell");
+        const hasMultiSelect = domSelected.length > 1;
+
+        doc.descendants((node, pos) => {
+          if (
+            node.type.name !== "tableCell" &&
+            node.type.name !== "tableHeader"
+          )
+            return;
+
+          let apply = false;
+          if (hasMultiSelect && scope === "cell") {
+            // Multi-sélection Tiptap → appliquer aux cellules sélectionnées
+            try {
+              const dn = ed.view.nodeDOM(pos);
+              apply = dn && dn.classList?.contains("selectedCell");
+            } catch (_) {}
+          } else if (scope === "cell") {
+            apply = cellInfo && Math.abs(pos - cellInfo.pos) < 3;
+          } else if (scope === "row" && tableNode) {
+            // Même index de ligne → trouver toutes les cellules de la ligne
+            const { rowIdx: r, colIdx: c } = _getCellIndices(ed, pos);
+            apply = r === rowIdx;
+          } else if (scope === "col" && tableNode) {
+            const { colIdx: c } = _getCellIndices(ed, pos);
+            apply = c === colIdx;
+          } else if (scope === "all") {
+            apply = true;
+          }
+
+          if (apply) {
+            tr.setNodeMarkup(pos, undefined, {
+              ...node.attrs,
+              [attrKey]: val || null,
+            });
+            changed = true;
+          }
+        });
+
+        if (changed) dispatch(tr);
+      }
+
+      window.applyTblAlign = function (align) {
+        applyTblAttrScoped("textAlign", align, _tblAlignScope);
+        // Mettre à jour l'indicateur visuel
+        const icons = { left: "⬡", center: "◉", right: "⬡", justify: "≡" };
+        document.getElementById("tblAlignIndicator").textContent =
+          { left: "←", center: "↔", right: "→", justify: "≡" }[align] || "⬡";
+        // Marquer le bouton actif
+        document
+          .querySelectorAll(".tbl-align-dir-btn")
+          .forEach((b) => b.classList.remove("on"));
+        event?.currentTarget?.classList.add("on");
+        const scopeLabel = {
+          cell: "cellule",
+          row: "ligne",
+          col: "colonne",
+          all: "tableau",
+        }[_tblAlignScope];
+        toast(`Alignement ${align} appliqué à la ${scopeLabel}`, "success");
+        closeTblPops();
+      };
+
+      window.applyTblValign = function (valign) {
+        applyTblAttrScoped("verticalAlign", valign, _tblAlignScope);
+        const scopeLabel = {
+          cell: "cellule",
+          row: "ligne",
+          col: "colonne",
+          all: "tableau",
+        }[_tblAlignScope];
+        toast(
+          `Alignement vertical ${valign} appliqué à la ${scopeLabel}`,
+          "success",
+        );
+        closeTblPops();
+      };
+
+      // ── Images ───────────────────────────────────────────────────
       window.previewImgFile = function (input) {
         const f = input.files[0];
         if (!f) return;
@@ -4287,9 +4854,9 @@
       window.doInsertImage = function () {
         const ed = activeEditor || editorBody;
         if (!ed) return;
-        const fi = document.getElementById("img-file");
-        const url = document.getElementById("img-url").value;
-        const cap = document.getElementById("img-caption").value;
+        const fi = document.getElementById("img-file"),
+          url = document.getElementById("img-url").value,
+          cap = document.getElementById("img-caption").value;
         function ins(src) {
           ed.chain()
             .focus()
@@ -4325,29 +4892,16 @@
         img.parentNode.insertBefore(wrap, img);
         wrap.appendChild(img);
         img.dataset.rw = "1";
-
         const tb = document.createElement("div");
         tb.className = "img-toolbar-float";
         tb.style.cssText =
           "position:fixed;z-index:3000;background:#1a1d2e;border-radius:7px;display:none;align-items:center;gap:1px;padding:3px 5px;box-shadow:0 4px 18px rgba(0,0,0,.28);white-space:nowrap;pointer-events:auto";
-        tb.innerHTML = `
-    <button onclick="setImgAlign(this,'left')"   title="Gauche"  style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">◧</button>
-    <button onclick="setImgAlign(this,'center')" title="Centré"  style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▣</button>
-    <button onclick="setImgAlign(this,'right')"  title="Droite"  style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▧</button>
-    <div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div>
-    <button onclick="setImgWidthFixed(this,'25%')"  style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">25%</button>
-    <button onclick="setImgWidthFixed(this,'50%')"  style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">50%</button>
-    <button onclick="setImgWidthFixed(this,'75%')"  style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">75%</button>
-    <button onclick="setImgWidthFixed(this,'100%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">100%</button>
-    <div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div>
-    <button onclick="removeImgFixed()" title="Supprimer" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:#f87171;font-size:14px;font-weight:700">✕</button>`;
+        tb.innerHTML = `<button onclick="setImgAlign(this,'left')"   style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">◧</button><button onclick="setImgAlign(this,'center')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▣</button><button onclick="setImgAlign(this,'right')"  style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▧</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="setImgWidthFixed(this,'25%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">25%</button><button onclick="setImgWidthFixed(this,'50%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">50%</button><button onclick="setImgWidthFixed(this,'75%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">75%</button><button onclick="setImgWidthFixed(this,'100%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">100%</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="removeImgFixed()" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:#f87171;font-size:14px;font-weight:700">✕</button>`;
         document.body.appendChild(tb);
         img._floatTb = tb;
-
         const badge = document.createElement("div");
         badge.className = "img-size-badge";
         wrap.appendChild(badge);
-
         ["nw", "n", "ne", "e", "se", "s", "sw", "w"].forEach((d) => {
           const h = document.createElement("span");
           h.className = "img-handle " + d;
@@ -4357,7 +4911,6 @@
             startImgResize(e, wrap, img, badge, d),
           );
         });
-
         wrap.addEventListener("mousedown", (e) => {
           e.stopPropagation();
           selectImg(wrap, img);
@@ -4367,7 +4920,6 @@
           selectImg(wrap, img);
         });
       }
-
       function positionImgToolbar(wrap, img) {
         const tb = img?._floatTb;
         if (!tb) return;
@@ -4389,7 +4941,6 @@
         if (_activeResizeImgEl?._floatTb)
           positionImgToolbar(wrap, _activeResizeImgEl);
       }
-
       window.setImgAlign = function (btn, align) {
         if (!_activeResizeImg) return;
         const wrap = _activeResizeImg;
@@ -4438,7 +4989,6 @@
         _activeResizeImg = null;
         _activeResizeImgEl = null;
       };
-
       function startImgResize(e, wrap, img, badge, dir) {
         e.preventDefault();
         e.stopPropagation();
@@ -4447,8 +4997,8 @@
         const sx = e.clientX,
           sy = e.clientY,
           sw = img.offsetWidth,
-          sh = img.offsetHeight;
-        const aspect = sh > 0 ? sw / sh : 1;
+          sh = img.offsetHeight,
+          aspect = sh > 0 ? sw / sh : 1;
         function onMove(ev) {
           let dx = ev.clientX - sx,
             dy = ev.clientY - sy,
@@ -4479,7 +5029,6 @@
         document.addEventListener("mousemove", onMove);
         document.addEventListener("mouseup", onUp);
       }
-
       document.addEventListener("mousedown", (e) => {
         if (
           _activeResizeImg &&
@@ -4494,14 +5043,12 @@
         }
       });
 
-      // ═══════════════════════════════════════════════════════════════
-      //  LINKS
-      // ═══════════════════════════════════════════════════════════════
+      // ── Links ────────────────────────────────────────────────────
       window.doInsertLink = function () {
         const ed = activeEditor || editorBody;
         if (!ed) return;
-        const text = document.getElementById("link-text").value;
-        const url = document.getElementById("link-url").value;
+        const text = document.getElementById("link-text").value,
+          url = document.getElementById("link-url").value;
         if (!url) {
           toast("L'URL est requise", "error");
           return;
@@ -4518,9 +5065,7 @@
         toast("Lien inséré");
       };
 
-      // ═══════════════════════════════════════════════════════════════
-      //  MISC INSERTS
-      // ═══════════════════════════════════════════════════════════════
+      // ── Misc inserts ─────────────────────────────────────────────
       window.insHR = () => {
         const ed = activeEditor || editorBody;
         if (ed) ed.chain().focus().setHorizontalRule().run();
@@ -4564,9 +5109,7 @@
         toast("Bloc signature inséré");
       };
 
-      // ═══════════════════════════════════════════════════════════════
-      //  WORD COUNT
-      // ═══════════════════════════════════════════════════════════════
+      // ── Word count ───────────────────────────────────────────────
       function updateWordCount() {
         if (!editorBody) return;
         try {
@@ -4577,19 +5120,15 @@
         } catch (_) {}
       }
 
-      // ═══════════════════════════════════════════════════════════════
-      //  PAGINATION (aperçu pages fantômes)
-      // ═══════════════════════════════════════════════════════════════
+      // ── Pagination ───────────────────────────────────────────────
       function renderPagedPreview() {
         const previewHost = document.getElementById("ghostPages");
         if (!previewHost || !editorBody) return;
-
         const bodyHtml = getEditorHTML(editorBody);
         const headerHtml =
           headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "";
         const footerHtml =
           footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "";
-
         const bodyEl = editorBody.view.dom;
         const contentH = bodyEl
           ? bodyEl.scrollHeight || bodyEl.offsetHeight || 0
@@ -4606,12 +5145,9 @@
           : 0;
         const avail = Math.max(200, pageH - hdrH - ftrH);
         const total = Math.max(1, Math.ceil(contentH / avail));
-
         const wmEl = document.getElementById("docWatermark");
         const wmHTML =
           wmEl && wmEl.style.display !== "none" ? wmEl.outerHTML : "";
-
-        // Construire toutes les pages (pour impression)
         const pages = [];
         for (let i = 0; i < total; i++) {
           pages.push(`<div class="a4-page">${wmHTML}${headerEnabled ? `<div class="a4-header"><div class="a4-hf-label">EN-TÊTE</div>${headerHtml}</div>` : ""}
@@ -4620,15 +5156,12 @@
     <div class="a4-page-num">Page ${i + 1}</div></div>`);
         }
         pagedPreviewHTML = pages.join("");
-
-        // Pages fantômes (page 2+)
         previewHost.innerHTML = total > 1 ? pagedPreviewHTML : "";
         document.getElementById("overflowWarn").style.display =
           total > 1 ? "block" : "none";
         document.getElementById("pageCountBadge").textContent =
           `📄 ${total} page${total > 1 ? "s" : ""}`;
       }
-
       function schedulePageUpdate() {
         clearTimeout(pageCheckTimer);
         pageCheckTimer = setTimeout(
@@ -4636,7 +5169,6 @@
           350,
         );
       }
-
       function printWithPerson(person) {
         renderPagedPreview();
         let printHtml =
@@ -4655,21 +5187,18 @@
           300,
         );
       }
-
       window.printPagedDocument = function () {
         const pId = document.getElementById("prevPerson")?.value;
         printWithPerson(pId ? DB.getPerson(pId) : null);
       };
 
-      // ═══════════════════════════════════════════════════════════════
-      //  SAVE STATE
-      // ═══════════════════════════════════════════════════════════════
+      // ── Save state ───────────────────────────────────────────────
       function setSaveState(msg, modified) {
         document.getElementById("saveSt").textContent = msg;
         document.getElementById("saveSt").className =
           "save-st" + (modified ? " mod" : "");
         document.getElementById("sbDot").className =
-          "sb-dot " + (modified ? "mod" : "ok");
+          "sb-dot" + (modified ? " mod" : " ok");
         document.getElementById("sbText").textContent = msg;
       }
       function onEditorChange() {
@@ -4677,9 +5206,7 @@
         updateWordCount();
       }
 
-      // ═══════════════════════════════════════════════════════════════
-      //  FAMILY & TEMPLATE LIST
-      // ═══════════════════════════════════════════════════════════════
+      // ── Family & template list ───────────────────────────────────
       function populateFamilySelect() {
         const sel = document.getElementById("famSelAdmin");
         DB.getFamilies().forEach((f) => {
@@ -4700,189 +5227,6 @@
         clearEditor();
       };
 
-      (function applyTablePatch() {
-        // ── 1. Ajouter le style CSS pour les chips TABLE ──────────
-        const style = document.createElement("style");
-        style.textContent = `
-    .vchip.is-table {
-      border-style: dotted;
-      font-weight: 500;
-    }
-    .vchip-badge.tbl {
-      background: rgba(52,211,153,.18);
-      color: #16a34a;
-    }
-  `;
-        document.head.appendChild(style);
-
-        // ── 2. Remplacer buildVarsPanel ────────────────────────────
-        window.buildVarsPanel = function (famId) {
-          const panel = document.getElementById("varsPanelEl");
-          panel.innerHTML = "";
-          if (!famId) return;
-          const fam = DB.getFamily(famId);
-          if (!fam) return;
-
-          fam.classes.forEach((cls) => {
-            const hdr = document.createElement("div");
-            hdr.className = "vc-hdr";
-            hdr.style.color = cls.couleur || "#555";
-            const hasLists = (cls.vars || []).some((v) => v.type === "list");
-            const hasTables = (cls.vars || []).some((v) => v.type === "table");
-            hdr.textContent =
-              cls.nom + (hasLists ? " ⚡" : "") + (hasTables ? " ▦" : "");
-
-            const chips = document.createElement("div");
-            chips.className = "vchips";
-
-            (cls.vars || []).forEach((v) => {
-              const chip = document.createElement("span");
-              chip.className =
-                "vchip" +
-                (v.type === "list" ? " is-list" : "") +
-                (v.type === "table" ? " is-table" : "");
-              chip.style.cssText = [
-                `background:${cls.couleur || "#555"}12`,
-                `color:${cls.couleur || "#555"}`,
-                `border-color:${cls.couleur || "#555"}33`,
-              ].join(";");
-
-              if (v.type === "table") {
-                // Tableau d'objets → insertion directe {{#tech:table}}
-                chip.innerHTML = `<span class="vchip-badge tbl">TABLE</span>${v.label}`;
-                chip.title =
-                  `{{#${v.tech}:table}} — ${v.label}` +
-                  (v.cols?.length ? " (" + v.cols.join(", ") + ")" : "");
-                chip.onclick = () => {
-                  const ed =
-                    (typeof activeEditor !== "undefined"
-                      ? activeEditor
-                      : null) ||
-                    (typeof editorBody !== "undefined" ? editorBody : null);
-                  if (!ed) {
-                    toast("Ouvrez un template d'abord", "error");
-                    return;
-                  }
-                  ed.chain()
-                    .focus()
-                    .insertContent({
-                      type: "text",
-                      text: `{{#${v.tech}:table}}`,
-                      marks: [
-                        { type: "textStyle", attrs: { color: "#16a34a" } },
-                      ],
-                    })
-                    .run();
-                  toast(`Tableau «${v.label}» inséré`, "success");
-                };
-              } else if (v.type === "list") {
-                // Liste de chaînes → dialog ul / inline / cell-expand
-                chip.innerHTML = `<span class="vchip-badge">LIST</span>${v.label}`;
-                chip.title = `{{#${v.tech}:ul}} · :inline · :cell-expand — ${v.label}`;
-                chip.onclick = () => {
-                  const ed =
-                    (typeof activeEditor !== "undefined"
-                      ? activeEditor
-                      : null) ||
-                    (typeof editorBody !== "undefined" ? editorBody : null);
-                  if (!ed) {
-                    toast("Ouvrez un template d'abord", "error");
-                    return;
-                  }
-                  insertListVar(ed, v);
-                };
-              } else {
-                // Scalaire
-                chip.textContent = v.label;
-                chip.title = `{{${v.tech}}} — ${v.label}`;
-                chip.onclick = () => window.insertVar(v.tech);
-              }
-
-              chips.appendChild(chip);
-            });
-
-            panel.appendChild(hdr);
-            panel.appendChild(chips);
-          });
-        };
-
-        console.log("[SIRH-Doc patch] Support TABLE chargé ✓");
-      })();
-
-      function buildVarsPanel(famId) {
-        const panel = document.getElementById("varsPanelEl");
-        panel.innerHTML = "";
-        if (!famId) return;
-        const fam = DB.getFamily(famId);
-        if (!fam) return;
-
-        fam.classes.forEach((cls) => {
-          const hdr = document.createElement("div");
-          hdr.className = "vc-hdr";
-          hdr.style.color = cls.couleur || "#555";
-          const hasLists = (cls.vars || []).some((v) => v.type === "list");
-          const hasObjs = (cls.vars || []).some(
-            (v) => v.type === "list-object",
-          );
-          hdr.textContent = cls.nom + (hasLists || hasObjs ? " ⚡" : "");
-
-          const chips = document.createElement("div");
-          chips.className = "vchips";
-
-          (cls.vars || []).forEach((v) => {
-            const chip = document.createElement("span");
-            const isObj = v.type === "list-object";
-            const isList = v.type === "list";
-
-            chip.className =
-              "vchip" + (isObj ? " is-table" : "") + (isList ? " is-list" : "");
-
-            chip.style.cssText = [
-              `background:${cls.couleur || "#555"}12`,
-              `color:${cls.couleur || "#555"}`,
-              `border-color:${cls.couleur || "#555"}33`,
-            ].join(";");
-
-            if (isObj) {
-              const colsPreview =
-                v.columns && v.columns.length
-                  ? v.columns.map((c) => c.label).join(" · ")
-                  : "colonnes auto";
-              chip.innerHTML = `<span class="vchip-badge tbl">TABLE</span>${v.label}`;
-              chip.title = `{{#${v.tech}:table}} — Colonnes : ${colsPreview}`;
-              chip.onclick = () => {
-                const ed = activeEditor || editorBody;
-                if (!ed) {
-                  toast("Ouvrez un template d'abord", "error");
-                  return;
-                }
-                insertListVar(ed, v); // shared.js gère :table ou :cell-expand
-              };
-            } else if (isList) {
-              chip.innerHTML = `<span class="vchip-badge">LIST</span>${v.label}`;
-              chip.title = `{{#${v.tech}:ul}} · :inline · :cell-expand — ${v.label}`;
-              chip.onclick = () => {
-                const ed = activeEditor || editorBody;
-                if (!ed) {
-                  toast("Ouvrez un template d'abord", "error");
-                  return;
-                }
-                insertListVar(ed, v);
-              };
-            } else {
-              chip.textContent = v.label;
-              chip.title = `{{${v.tech}}} — ${v.label}`;
-              chip.onclick = () => window.insertVar(v.tech);
-            }
-
-            chips.appendChild(chip);
-          });
-
-          panel.appendChild(hdr);
-          panel.appendChild(chips);
-        });
-      }
-
       function renderTplList(famId) {
         const scroll = document.getElementById("tplScroll");
         scroll.innerHTML = "";
@@ -4900,22 +5244,13 @@
         tpls.forEach((tpl) => {
           const item = document.createElement("div");
           item.className = "tpl-item" + (curTplId === tpl.id ? " on" : "");
-          item.innerHTML = `<span style="font-size:16px;flex-shrink:0;margin-top:1px">📄</span>
-      <div class="tpl-body">
-        <div class="tpl-name">${escHtml(tpl.nom)}</div>
-        <div class="tpl-meta">${new Date(tpl.updatedAt).toLocaleDateString("fr-FR")}<span style="background:#dcfce7;color:#15803d;padding:1px 5px;border-radius:2px;font-size:8px;font-weight:700">Publié</span>${tpl.hasHeader ? "<span title='Avec en-tête'>📋</span>" : ""}${tpl.hasFooter ? "<span title='Avec pied'>📑</span>" : ""}</div>
-      </div>
-      <button class="tpl-del" title="Supprimer" onclick="event.stopPropagation();confirmDelTpl('${tpl.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-      </button>`;
+          item.innerHTML = `<span style="font-size:16px;flex-shrink:0;margin-top:1px">📄</span><div class="tpl-body"><div class="tpl-name">${escHtml(tpl.nom)}</div><div class="tpl-meta">${new Date(tpl.updatedAt).toLocaleDateString("fr-FR")}<span style="background:#dcfce7;color:#15803d;padding:1px 5px;border-radius:2px;font-size:8px;font-weight:700">Publié</span>${tpl.hasHeader ? "<span title='Avec en-tête'>📋</span>" : ""}${tpl.hasFooter ? "<span title='Avec pied'>📑</span>" : ""}</div></div><button class="tpl-del" title="Supprimer" onclick="event.stopPropagation();confirmDelTpl('${tpl.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>`;
           item.onclick = () => openTemplate(tpl.id);
           scroll.appendChild(item);
         });
       }
 
-      // ═══════════════════════════════════════════════════════════════
-      //  EDITOR LIFECYCLE
-      // ═══════════════════════════════════════════════════════════════
+      // ── Editor lifecycle ─────────────────────────────────────────
       function clearEditor() {
         document.getElementById("emptyState").style.display = "flex";
         document.getElementById("editorInner").style.display = "none";
@@ -4943,12 +5278,10 @@
         document.getElementById("tnameInput").value = tpl.nom;
         setSaveState("Prêt", false);
         destroyEditors();
-
         function onUpd() {
           onEditorChange();
           schedulePageUpdate();
         }
-
         editorBody = createEditor(
           "ck-body",
           "Rédigez le corps du document ici…",
@@ -4973,11 +5306,9 @@
             activeEditor = ed;
           },
         );
-
         if (editorBody && tpl.body) setEditorHTML(editorBody, tpl.body);
         if (editorHeader && tpl.header) setEditorHTML(editorHeader, tpl.header);
         if (editorFooter && tpl.footer) setEditorHTML(editorFooter, tpl.footer);
-
         activeEditor = editorBody;
         headerEnabled = !!tpl.hasHeader;
         footerEnabled = !!tpl.hasFooter;
@@ -5105,9 +5436,7 @@
         body.classList.toggle("no-footer", !footerEnabled);
       }
 
-      // ═══════════════════════════════════════════════════════════════
-      //  DELETE TEMPLATE
-      // ═══════════════════════════════════════════════════════════════
+      // ── Delete template ──────────────────────────────────────────
       window.confirmDelTpl = function (id) {
         pendingDelId = id;
         document.getElementById("delTplBtn").onclick = () => {
@@ -5123,9 +5452,7 @@
         openModal("modalDelTpl");
       };
 
-      // ═══════════════════════════════════════════════════════════════
-      //  WATERMARK
-      // ═══════════════════════════════════════════════════════════════
+      // ── Watermark ────────────────────────────────────────────────
       window.openWatermarkModal = function () {
         if (!curTplId) {
           toast("Ouvrez d'abord un template", "error");
@@ -5134,11 +5461,11 @@
         openModal("modalWatermark");
       };
       window.applyWatermark = function () {
-        const text = document.getElementById("wm-text").value || "CONFIDENTIEL";
-        const color = document.getElementById("wm-color").value || "#000000";
-        const opacity =
-          (parseInt(document.getElementById("wm-opacity").value) || 7) / 100;
-        const size = parseInt(document.getElementById("wm-size").value) || 80;
+        const text = document.getElementById("wm-text").value || "CONFIDENTIEL",
+          color = document.getElementById("wm-color").value || "#000000",
+          opacity =
+            (parseInt(document.getElementById("wm-opacity").value) || 7) / 100,
+          size = parseInt(document.getElementById("wm-size").value) || 80;
         const wm = document.getElementById("docWatermark"),
           sp = document.getElementById("wmText");
         wm.style.display = "flex";
@@ -5157,9 +5484,7 @@
         schedulePageUpdate();
       };
 
-      // ═══════════════════════════════════════════════════════════════
-      //  PAGE SETTINGS
-      // ═══════════════════════════════════════════════════════════════
+      // ── Page settings ────────────────────────────────────────────
       window.openPageSettings = function () {
         if (!curTplId) {
           toast("Ouvrez d'abord un template", "error");
@@ -5188,9 +5513,7 @@
         window.applyPageMargins();
       };
 
-      // ═══════════════════════════════════════════════════════════════
-      //  PREVIEW MODAL — uses resolveVars from shared.js
-      // ═══════════════════════════════════════════════════════════════
+      // ── Preview modal ────────────────────────────────────────────
       window.openPreviewModal = function () {
         if (!curTplId || !editorBody) {
           toast("Ouvrez d'abord un template", "error");
@@ -5207,7 +5530,6 @@
         window.refreshPrev();
         openModal("modalPreview");
       };
-
       window.refreshPrev = function () {
         const p = DB.getPerson(document.getElementById("prevPerson").value);
         if (!p || !editorBody) return;
@@ -5216,12 +5538,10 @@
         const bH = getEditorHTML(editorBody);
         const fH =
           footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "";
-
         const prevPage = document.getElementById("prevContent");
         prevPage.innerHTML = "";
         prevPage.style.cssText =
           "background:#fff;border-radius:2px;width:210mm;min-height:297mm;margin:0 auto;box-shadow:0 2px 12px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden";
-
         if (headerEnabled && hH) {
           const hdrDiv = document.createElement("div");
           hdrDiv.className = "prev-header";
@@ -5241,14 +5561,11 @@
           ftrDiv.innerHTML = resolveVars(fH, p);
           prevPage.appendChild(ftrDiv);
         }
-
         document.getElementById("prevPrintBtn").onclick = () =>
           printWithPerson(p);
       };
 
-      // ═══════════════════════════════════════════════════════════════
-      //  EXPORT — uses resolveVarsRaw from shared.js
-      // ═══════════════════════════════════════════════════════════════
+      // ── Export ───────────────────────────────────────────────────
       window.openExportModal = function () {
         if (!curTplId || !editorBody) {
           toast("Ouvrez d'abord un template", "error");
@@ -5284,7 +5601,6 @@
         const should = document.getElementById("exp-resolve").checked;
         const pId = document.getElementById("exp-person").value;
         const person = should ? DB.getPerson(pId) : null;
-
         const hH =
           headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "";
         const fH =
@@ -5300,8 +5616,19 @@
             : "");
         if (person) full = resolveVarsRaw(full, person);
 
+        // CSS commun pour exports HTML et impression
+        const TABLE_CSS = `
+table{border-collapse:collapse;width:100%}
+td,th{border:1px solid #c8cdd8;padding:7px 10px;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+td p,th p{color:inherit}
+th:not([style]){background:#f2f2f2;color:#111;font-weight:700;text-align:left}
+th{font-weight:700}
+ul{padding-left:2em;list-style-type:disc}
+ol{padding-left:2em;list-style-type:decimal}
+li{display:list-item}`;
+
         if (expMode === "html") {
-          const pageHtml = `<!doctype html>\n<html lang="fr">\n<head>\n<meta charset="UTF-8"/>\n<title>${escHtml(tpl?.nom || "Document")}</title>\n<link href="https://fonts.googleapis.com/css2?family=Amiri&family=Cairo&family=Tajawal&display=swap" rel="stylesheet"/>\n<style>\n@page{size:A4;margin:20mm 25mm}\nbody{font-family:"Times New Roman",Times,serif;font-size:12pt;line-height:1.6;color:#111;background:#fff;padding:20mm 25mm;max-width:210mm;margin:0 auto}\ntable{border-collapse:collapse;width:100%}\ntd,th{border:1px solid #c8cdd8;padding:7px 10px}\nth{background:#eef2ff;color:#1d4ed8;font-weight:600}\nul,ol{padding-left:2em}\nul{list-style-type:disc}\nol{list-style-type:decimal}\nli{display:list-item}\n</style>\n</head>\n<body>\n${full}\n</body>\n</html>`;
+          const pageHtml = `<!doctype html>\n<html lang="fr">\n<head>\n<meta charset="UTF-8"/>\n<title>${escHtml(tpl?.nom || "Document")}</title>\n<link href="https://fonts.googleapis.com/css2?family=Amiri&family=Cairo&family=Tajawal&display=swap" rel="stylesheet"/>\n<style>\n@page{size:A4;margin:20mm 25mm}\nbody{font-family:"Times New Roman",Times,serif;font-size:12pt;line-height:1.6;color:#111;background:#fff;padding:20mm 25mm;max-width:210mm;margin:0 auto}\n${TABLE_CSS}\n</style>\n</head>\n<body>\n${full}\n</body>\n</html>`;
           downloadFile(fname + ".html", pageHtml, "text/html");
           closeModal("modalExport");
           toast("Export HTML téléchargé", "success");
@@ -5313,7 +5640,7 @@
           if (person) printHtml = resolveVarsRaw(printHtml, person);
           const pw = window.open("", "_blank");
           pw.document.write(
-            `<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><title>${escHtml(tpl?.nom || "Document")}</title><link href="https://fonts.googleapis.com/css2?family=Amiri&family=Cairo&family=Tajawal&display=swap" rel="stylesheet"/><style>@page{size:A4 portrait;margin:0}body{margin:0;background:#fff}.a4-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;page-break-after:always;break-after:page}.a4-page:last-child{page-break-after:auto;break-after:auto}.a4-header{padding:5mm 25mm 3mm 25mm}.a4-footer{padding:3mm 25mm 5mm 25mm;margin-top:auto}.a4-body{flex:1;padding:5mm 25mm;font-family:"Times New Roman",Times,serif;font-size:12pt;line-height:1.6;color:#111}.a4-body.no-header{padding-top:20mm}.a4-body.no-footer{padding-bottom:20mm}.a4-hf-label,.a4-page-num{display:none}table{border-collapse:collapse;width:100%}td,th{border:1px solid #c8cdd8;padding:7px 10px}th{background:#eef2ff;color:#1d4ed8;font-weight:600}ul,ol{padding-left:2em!important;list-style:revert!important}li{display:list-item!important}</style></head><body>${printHtml}</body></html>`,
+            `<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><title>${escHtml(tpl?.nom || "Document")}</title><link href="https://fonts.googleapis.com/css2?family=Amiri&family=Cairo&family=Tajawal&display=swap" rel="stylesheet"/><style>@page{size:A4 portrait;margin:0}body{margin:0;background:#fff}.a4-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;page-break-after:always;break-after:page}.a4-page:last-child{page-break-after:auto;break-after:auto}.a4-header{padding:5mm 25mm 3mm 25mm}.a4-footer{padding:3mm 25mm 5mm 25mm;margin-top:auto}.a4-body{flex:1;padding:5mm 25mm;font-family:"Times New Roman",Times,serif;font-size:12pt;line-height:1.6;color:#111}.a4-body.no-header{padding-top:20mm}.a4-body.no-footer{padding-bottom:20mm}.a4-hf-label,.a4-page-num{display:none}${TABLE_CSS}</style></head><body>${printHtml}</body></html>`,
           );
           pw.document.close();
           setTimeout(() => pw.print(), 500);
@@ -5338,7 +5665,6 @@
           toast("Template JSON téléchargé", "success");
         }
       };
-
       function downloadFile(name, content, type) {
         const blob = new Blob([content], { type });
         const a = document.createElement("a");
@@ -5348,9 +5674,7 @@
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       }
 
-      // ═══════════════════════════════════════════════════════════════
-      //  ZOOM
-      // ═══════════════════════════════════════════════════════════════
+      // ── Zoom ─────────────────────────────────────────────────────
       window.setZoom = function (delta) {
         if (delta === 0) zoomLv = 100;
         else zoomLv = Math.max(40, Math.min(220, zoomLv + delta));
@@ -5362,9 +5686,7 @@
         document.getElementById("sbZoom").textContent = zoomLv + "%";
       };
 
-      // ═══════════════════════════════════════════════════════════════
-      //  SEARCH & REPLACE
-      // ═══════════════════════════════════════════════════════════════
+      // ── Search & replace ─────────────────────────────────────────
       let srchMatches = [],
         srchIdx = 0;
       window.openSearchPanel = function () {
@@ -5387,8 +5709,8 @@
           srchMatches = [];
           return;
         }
-        const cs = document.getElementById("srch-case").checked;
-        const txt = ed.getText();
+        const cs = document.getElementById("srch-case").checked,
+          txt = ed.getText();
         srchMatches = [];
         srchIdx = 0;
         const re = new RegExp(escRegex(term), cs ? "g" : "gi");
@@ -5436,9 +5758,7 @@
         window.doSearch();
       };
 
-      // ═══════════════════════════════════════════════════════════════
-      //  UI HELPERS
-      // ═══════════════════════════════════════════════════════════════
+      // ── UI helpers ───────────────────────────────────────────────
       window.toggleSidebar = function () {
         document.getElementById("sidebarEl").classList.toggle("closed");
       };
@@ -5552,9 +5872,7 @@
         );
       }
 
-      // ═══════════════════════════════════════════════════════════════
-      //  KEYBOARD SHORTCUTS
-      // ═══════════════════════════════════════════════════════════════
+      // ── Keyboard shortcuts ───────────────────────────────────────
       document.addEventListener("keydown", (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === "s") {
           e.preventDefault();
@@ -5586,16 +5904,13 @@
           document.getElementById("tblToolbar").classList.remove("on");
       });
 
-      // ═══════════════════════════════════════════════════════════════
-      //  BOOT
-      // ═══════════════════════════════════════════════════════════════
+      // ── BOOT ────────────────────────────────────────────────────
       buildSwatches("sw-text", TEXT_COLORS, (c) => window.applyTextColor(c));
       buildSwatches("sw-bg", BG_COLORS, (c) => window.applyHighlight(c));
       buildTableGrid();
       buildTblColorSwatches();
       populateFamilySelect();
       if (!localStorage.getItem(STORE_KEY)) DB.seed();
-
       document.getElementById("loading").classList.add("done");
       document.getElementById("app").style.opacity = "1";
     </script>

@@ -44,7 +44,6 @@
         --sh: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 20px rgba(0, 0, 0, 0.06);
         --shlg: 0 12px 40px rgba(0, 0, 0, 0.12);
         --font: "Inter", sans-serif;
-        /* Page canvas */
         --page-w: 210mm;
         --page-h: 297mm;
         --page-mt: 20mm;
@@ -72,7 +71,7 @@
         border-radius: 3px;
       }
 
-      /* ── LOADING ─────────────────────────── */
+      /* ── LOADING ── */
       #loading {
         position: fixed;
         inset: 0;
@@ -116,7 +115,7 @@
         }
       }
 
-      /* ── TOP NAV ─────────────────────────── */
+      /* ── TOP NAV ── */
       .topnav {
         background: var(--surface);
         border-bottom: 1px solid var(--border);
@@ -176,7 +175,7 @@
         color: var(--text);
       }
 
-      /* ── HERO ────────────────────────────── */
+      /* ── HERO ── */
       .hero {
         background: linear-gradient(
           135deg,
@@ -224,7 +223,7 @@
         white-space: nowrap;
       }
 
-      /* ── LAYOUT ──────────────────────────── */
+      /* ── LAYOUT ── */
       .main-wrap {
         max-width: 1200px;
         margin: 0 auto;
@@ -235,7 +234,7 @@
         align-items: start;
       }
 
-      /* ── STEPPER ─────────────────────────── */
+      /* ── STEPPER ── */
       .stepper {
         background: var(--surface);
         border: 1px solid var(--border);
@@ -353,7 +352,7 @@
         display: block;
       }
 
-      /* ── CARDS FAMILLE ───────────────────── */
+      /* ── CARDS ── */
       .fam-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -391,8 +390,6 @@
         color: var(--text3);
         margin-top: 2px;
       }
-
-      /* ── CARDS TEMPLATE ──────────────────── */
       .tpl-list {
         display: flex;
         flex-direction: column;
@@ -445,8 +442,6 @@
         background: var(--green);
         color: #fff;
       }
-
-      /* ── CARDS PERSONNE ──────────────────── */
       .person-list {
         display: flex;
         flex-direction: column;
@@ -496,7 +491,7 @@
         margin-top: 1px;
       }
 
-      /* ── DOC PANEL (droite) ──────────────── */
+      /* ── DOC PANEL ── */
       .doc-panel {
         background: var(--surface);
         border: 1px solid var(--border);
@@ -527,8 +522,6 @@
         padding: 0;
         min-height: 400px;
       }
-
-      /* Progress bar */
       .pbar {
         display: flex;
         align-items: center;
@@ -573,7 +566,7 @@
         margin-left: auto;
       }
 
-      /* ── A4 CANVAS (aperçu paginé) ───────── */
+      /* ── A4 CANVAS ── */
       .a4-canvas {
         background: #c8cdd8;
         overflow-y: auto;
@@ -646,10 +639,6 @@
         padding: 5mm var(--page-mr) 5mm var(--page-ml);
         overflow: hidden;
         position: relative;
-        font-family: "Times New Roman", Times, serif;
-        font-size: 12pt;
-        line-height: 1.6;
-        color: #111;
       }
       .a4-body.no-header {
         padding-top: var(--page-mt);
@@ -657,6 +646,18 @@
       .a4-body.no-footer {
         padding-bottom: var(--page-mb);
       }
+      .overflow-warn {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #f59e0b, #ef4444);
+        z-index: 10;
+        pointer-events: none;
+      }
+
+      /* ── CONTENU DOC (aperçu + impression) ── */
       .doc-content {
         font-family: "Times New Roman", Times, serif;
         font-size: 12pt;
@@ -684,20 +685,6 @@
         font-weight: 700;
         margin: 0.6em 0 0.3em;
       }
-      .doc-content table {
-        border-collapse: collapse;
-        width: 100%;
-      }
-      .doc-content td,
-      .doc-content th {
-        border: 1px solid #c8cdd8;
-        padding: 7px 10px;
-      }
-      .doc-content th {
-        background: #eef2ff;
-        color: #1d4ed8;
-        font-weight: 600;
-      }
       .doc-content ul {
         padding-left: 2em;
         list-style-type: disc;
@@ -716,18 +703,37 @@
         border-top: 1.5px solid #c8cdd8;
         margin: 10px 0;
       }
-      .overflow-warn {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, #f59e0b, #ef4444);
-        z-index: 10;
-        pointer-events: none;
+
+      /* ── TABLEAUX : règles identiques à admin ── */
+      .doc-content table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      .doc-content td,
+      .doc-content th {
+        border: 1px solid #c8cdd8;
+        padding: 7px 10px;
+        /* Fond imprimé fidèlement */
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      /* th par défaut (sans style inline) : gris/noir */
+      .doc-content th:not([style]) {
+        background: #f2f2f2;
+        color: #111;
+        font-weight: 700;
+        text-align: left;
+      }
+      .doc-content th {
+        font-weight: 700;
+      }
+      /* ── Couleur texte héritée par les <p> enfants ── */
+      .doc-content td p,
+      .doc-content th p {
+        color: inherit !important;
       }
 
-      /* Aperçu variables */
+      /* Variables */
       .var-resolved {
         color: #2563eb;
         font-weight: 500;
@@ -744,7 +750,7 @@
         font-size: 0.9em;
       }
 
-      /* Barre de zoom */
+      /* Zoom bar */
       .zoom-bar {
         display: flex;
         align-items: center;
@@ -761,7 +767,7 @@
         text-align: center;
       }
 
-      /* ── DOC WAIT ────────────────────────── */
+      /* Doc wait */
       .doc-wait {
         display: flex;
         flex-direction: column;
@@ -786,7 +792,7 @@
         line-height: 1.6;
       }
 
-      /* ── BUTTONS ─────────────────────────── */
+      /* Buttons */
       .btn {
         display: inline-flex;
         align-items: center;
@@ -843,7 +849,7 @@
         font-size: 10px;
       }
 
-      /* ── MODAL ───────────────────────────── */
+      /* Modal */
       .modal-overlay {
         position: fixed;
         inset: 0;
@@ -929,7 +935,7 @@
         height: 24px;
       }
 
-      /* ── TOAST ───────────────────────────── */
+      /* Toast */
       .toast-stack {
         position: fixed;
         bottom: 24px;
@@ -969,121 +975,7 @@
         }
       }
 
-      /* ── PRINT ───────────────────────────── */
-      #print-area {
-        display: none;
-      }
-      @media print {
-        .topnav,
-        .hero,
-        .stepper,
-        .doc-ph,
-        .pbar,
-        .zoom-bar,
-        .modal-overlay,
-        .toast-stack,
-        .doc-wait,
-        .a4-canvas,
-        .zoom-scaler,
-        .a4-page-num,
-        .a4-hf-label,
-        .overflow-warn {
-          display: none !important;
-        }
-        #print-area {
-          display: block !important;
-        }
-        html,
-        body {
-          margin: 0 !important;
-          padding: 0 !important;
-          background: #fff !important;
-          overflow: visible !important;
-          height: auto !important;
-        }
-        .main-wrap,
-        .doc-panel,
-        .doc-pb {
-          all: unset;
-          display: block !important;
-        }
-        @page {
-          size: A4 portrait;
-          margin: 0;
-        }
-        .a4-page {
-          width: 210mm !important;
-          min-height: 297mm !important;
-          margin: 0 auto !important;
-          background: #fff !important;
-          display: flex !important;
-          flex-direction: column !important;
-          page-break-after: always !important;
-          break-after: page !important;
-          box-shadow: none !important;
-        }
-        .a4-page:last-child {
-          page-break-after: auto !important;
-          break-after: auto !important;
-        }
-        .a4-header {
-          flex-shrink: 0 !important;
-          padding: 5mm 25mm 3mm 25mm !important;
-          border-bottom: 1px solid #e2e8f0 !important;
-        }
-        .a4-footer {
-          flex-shrink: 0 !important;
-          padding: 3mm 25mm 5mm 25mm !important;
-          border-top: 1px solid #e2e8f0 !important;
-          margin-top: auto !important;
-        }
-        .a4-body {
-          flex: 1 !important;
-          padding: 5mm 25mm !important;
-          font-family: "Times New Roman", Times, serif !important;
-          font-size: 12pt !important;
-          line-height: 1.6 !important;
-          color: #111 !important;
-          overflow: visible !important;
-        }
-        .a4-body.no-header {
-          padding-top: 20mm !important;
-        }
-        .a4-body.no-footer {
-          padding-bottom: 20mm !important;
-        }
-        .a4-body table {
-          border-collapse: collapse !important;
-          width: 100% !important;
-        }
-        .a4-body td,
-        .a4-body th {
-          border: 1px solid #c8cdd8 !important;
-          padding: 7px 10px !important;
-        }
-        .a4-body th {
-          background: #eef2ff !important;
-          color: #1d4ed8 !important;
-          font-weight: 600 !important;
-        }
-        .a4-body ul,
-        .a4-body ol {
-          padding-left: 2em !important;
-          list-style: revert !important;
-        }
-        .a4-body li {
-          display: list-item !important;
-        }
-        .var-resolved {
-          color: #111 !important;
-          font-weight: inherit !important;
-          background: none !important;
-          padding: 0 !important;
-        }
-        .var-missing {
-          color: #dc2626 !important;
-        }
-      }
+      /* L'impression est gérée par printDoc() dans shared.js */
     </style>
   </head>
   <body>
@@ -1131,7 +1023,6 @@
             </div>
           </div>
 
-          <!-- Étape 1 -->
           <div class="step-block">
             <div class="step-hdr" onclick="toggleStep(1)">
               <div class="step-num cur" id="sn1">1</div>
@@ -1155,7 +1046,6 @@
             </div>
           </div>
 
-          <!-- Étape 2 -->
           <div class="step-block">
             <div class="step-hdr" onclick="toggleStep(2)">
               <div class="step-num" id="sn2">2</div>
@@ -1179,7 +1069,6 @@
             </div>
           </div>
 
-          <!-- Étape 3 -->
           <div class="step-block">
             <div class="step-hdr" onclick="toggleStep(3)">
               <div class="step-num" id="sn3">3</div>
@@ -1211,7 +1100,6 @@
             <div class="doc-actions" id="docActions"></div>
           </div>
 
-          <!-- Barre zoom -->
           <div class="zoom-bar" id="zoomBar" style="display: none">
             <span style="font-size: 11px; color: var(--text3); font-weight: 600"
               >ZOOM</span
@@ -1235,7 +1123,6 @@
             <span class="page-count" id="pageCount">📄 1 page</span>
           </div>
 
-          <!-- Barre de progression -->
           <div class="pbar" id="pbar">
             <div class="pb-step cur" id="ps1">Famille</div>
             <div class="pb-arr">›</div>
@@ -1245,7 +1132,6 @@
           </div>
 
           <div class="doc-pb" id="docPb">
-            <!-- État vide -->
             <div class="doc-wait" id="docWait">
               <svg
                 viewBox="0 0 24 24"
@@ -1261,8 +1147,6 @@
               <h3>Document en attente</h3>
               <p>Complétez les 3 étapes pour générer votre document</p>
             </div>
-
-            <!-- Canvas A4 (masqué jusqu'à génération) -->
             <div class="a4-canvas" id="a4Canvas" style="display: none">
               <div class="zoom-scaler" id="zoomScaler"></div>
             </div>
@@ -1271,10 +1155,8 @@
       </div>
     </div>
 
-    <!-- Zone impression (invisible à l'écran, visible lors du print) -->
-    <div id="print-area"></div>
-
-    <!-- Modal export -->
+    <!-- Zone impression — invisible à l'écran, visible au print -->
+    <div class="toast-stack" id="toastStack"></div>
     <div class="modal-overlay" id="modalExport">
       <div class="modal">
         <div class="modal-hdr">
@@ -1348,13 +1230,9 @@
 
     <div class="toast-stack" id="toastStack"></div>
 
-    <!-- shared.js : DB, resolveVars, resolveVarsRaw, insertListVar, toast, openModal, closeModal, genId -->
     <script src="shared.js"></script>
 
     <script>
-      // ═══════════════════════════════════════════
-      //  STATE
-      // ═══════════════════════════════════════════
       const ETAB_ID = "etab_1";
       let selFamId = null,
         selTplId = null,
@@ -1362,9 +1240,6 @@
       let openSteps = { 1: true, 2: false, 3: false };
       let zoomLv = 100;
 
-      // ═══════════════════════════════════════════
-      //  INIT
-      // ═══════════════════════════════════════════
       window.addEventListener("DOMContentLoaded", () => {
         if (!localStorage.getItem(STORE_KEY)) DB.seed();
         const etab = DB.getEtablissement(ETAB_ID);
@@ -1379,9 +1254,7 @@
         }, 500);
       });
 
-      // ═══════════════════════════════════════════
-      //  STEPPER
-      // ═══════════════════════════════════════════
+      /* ── STEPPER ── */
       function toggleStep(n) {
         openSteps[n] = !openSteps[n];
         syncStepBodies();
@@ -1437,9 +1310,7 @@
         ps3.textContent = pers ? pers.nom_prenom.substring(0, 14) : "Personne";
       }
 
-      // ═══════════════════════════════════════════
-      //  ÉTAPE 1 — FAMILLE
-      // ═══════════════════════════════════════════
+      /* ── ÉTAPE 1 ── */
       function buildFamGrid() {
         const grid = document.getElementById("famGrid");
         grid.innerHTML = "";
@@ -1456,7 +1327,6 @@
           grid.appendChild(card);
         });
       }
-
       function selectFamily(famId) {
         selFamId = famId;
         selTplId = null;
@@ -1476,16 +1346,14 @@
         showWait("Sélectionnez un modèle de document");
       }
 
-      // ═══════════════════════════════════════════
-      //  ÉTAPE 2 — TEMPLATE
-      // ═══════════════════════════════════════════
+      /* ── ÉTAPE 2 ── */
       function buildTplList(famId) {
         const c = document.getElementById("tplList");
         c.innerHTML = "";
         const tpls = DB.getTemplates(famId, ETAB_ID);
         if (!tpls.length) {
           c.innerHTML =
-            '<div style="font-size:11px;color:#aaa;text-align:center;padding:14px">Aucun modèle pour cette famille</div>';
+            '<div style="font-size:11px;color:#aaa;text-align:center;padding:14px">Aucun modèle</div>';
           return;
         }
         tpls.forEach((tpl) => {
@@ -1496,7 +1364,6 @@
           c.appendChild(card);
         });
       }
-
       function selectTemplate(tplId) {
         selTplId = tplId;
         selPersonId = null;
@@ -1514,16 +1381,14 @@
         showWait("Sélectionnez la personne concernée");
       }
 
-      // ═══════════════════════════════════════════
-      //  ÉTAPE 3 — PERSONNE
-      // ═══════════════════════════════════════════
+      /* ── ÉTAPE 3 ── */
       function buildPersonList() {
         const c = document.getElementById("personList");
         c.innerHTML = "";
         const persons = DB.getPersonnel(ETAB_ID);
         if (!persons.length) {
           c.innerHTML =
-            '<div style="font-size:11px;color:#aaa;text-align:center;padding:14px">Aucune personne enregistrée</div>';
+            '<div style="font-size:11px;color:#aaa;text-align:center;padding:14px">Aucune personne</div>';
           return;
         }
         persons.forEach((p) => {
@@ -1540,7 +1405,6 @@
           c.appendChild(item);
         });
       }
-
       function selectPerson(personId) {
         selPersonId = personId;
         buildPersonList();
@@ -1554,15 +1418,13 @@
         generateDocument();
       }
 
-      // ═══════════════════════════════════════════
-      //  GÉNÉRATION — APERÇU A4 PAGINÉ
-      // ═══════════════════════════════════════════
+      /* ── GÉNÉRATION ── */
       function generateDocument() {
         const tpl = DB.getTemplate(selTplId);
         const person = DB.getPerson(selPersonId);
         if (!tpl || !person) return;
 
-        // Résolution des variables (aperçu : couleurs)
+        // Aperçu avec variables colorées
         const hdrHtml = tpl.hasHeader
           ? resolveVars(tpl.header || "", person)
           : "";
@@ -1571,13 +1433,8 @@
           ? resolveVars(tpl.footer || "", person)
           : "";
 
-        // Construire les pages A4 dans le canvas
         buildA4Canvas(hdrHtml, bHtml, ftrHtml, tpl, person);
 
-        // Construire la zone d'impression (raw, sans couleurs)
-        buildPrintArea(tpl, person);
-
-        // Afficher les actions
         document.getElementById("zoomBar").style.display = "flex";
         const actions = document.getElementById("docActions");
         actions.innerHTML = "";
@@ -1588,14 +1445,15 @@
           b.onclick = fn;
           actions.appendChild(b);
         };
-        mkBtn("🖨 Imprimer", "primary", () => window.print());
+        // ── Impression via printDoc() de shared.js ──
+        mkBtn("🖨 Imprimer", "primary", () => printDoc(tpl, person));
         mkBtn("Exporter", "success", () => openModal("modalExport"));
         mkBtn("Nouveau", "ghost", resetAll);
 
         toast("Document généré !", "success");
       }
 
-      // ── Canvas A4 (aperçu) ────────────────────
+      /* ── CANVAS A4 (aperçu) ── */
       function buildA4Canvas(hdrHtml, bHtml, ftrHtml, tpl, person) {
         const wait = document.getElementById("docWait");
         const canvas = document.getElementById("a4Canvas");
@@ -1603,12 +1461,8 @@
         wait.style.display = "none";
         canvas.style.display = "flex";
         scaler.innerHTML = "";
-
-        // Page principale
         const page = makePage(hdrHtml, bHtml, ftrHtml, tpl, 1);
         scaler.appendChild(page);
-
-        // Détecter overflow et ajouter des pages supplémentaires
         setTimeout(() => {
           const bodyEl = page.querySelector(".a4-body");
           if (!bodyEl) return;
@@ -1626,14 +1480,12 @@
               (bodyEl.scrollHeight || bodyEl.offsetHeight || 0) / avail,
             ),
           );
-
           if (total > 1) {
-            // Ajouter des pages fantômes (même contenu, indicateur visuel)
             const ow = page.querySelector(".overflow-warn");
             if (ow) ow.style.display = "block";
             for (let i = 2; i <= total; i++) {
               const gp = makePage(hdrHtml, bHtml, ftrHtml, tpl, i);
-              gp.style.opacity = ".55"; // indique continuation
+              gp.style.opacity = ".55";
               scaler.appendChild(gp);
             }
           }
@@ -1646,14 +1498,12 @@
         const page = document.createElement("div");
         page.className = "a4-page";
         page.style.position = "relative";
-
         if (tpl.hasHeader && hdrHtml) {
           const hdr = document.createElement("div");
           hdr.className = "a4-header";
           hdr.innerHTML = `<div class="a4-hf-label">EN-TÊTE</div><div class="doc-content">${hdrHtml}</div>`;
           page.appendChild(hdr);
         }
-
         const body = document.createElement("div");
         body.className =
           "a4-body doc-content" +
@@ -1661,72 +1511,24 @@
           (!tpl.hasFooter ? " no-footer" : "");
         body.innerHTML = bHtml;
         page.appendChild(body);
-
         if (tpl.hasFooter && ftrHtml) {
           const ftr = document.createElement("div");
           ftr.className = "a4-footer";
           ftr.innerHTML = `<div class="a4-hf-label">PIED DE PAGE</div><div class="doc-content">${ftrHtml}</div>`;
           page.appendChild(ftr);
         }
-
-        // Indicateur overflow
         const ow = document.createElement("div");
         ow.className = "overflow-warn";
         ow.style.display = "none";
         page.appendChild(ow);
-
         const pnum = document.createElement("div");
         pnum.className = "a4-page-num";
         pnum.textContent = `Page ${num}`;
         page.appendChild(pnum);
-
         return page;
       }
 
-      // ── Zone d'impression (raw) ───────────────
-      function buildPrintArea(tpl, person) {
-        const area = document.getElementById("print-area");
-        area.innerHTML = "";
-
-        const hdrRaw = tpl.hasHeader
-          ? resolveVarsRaw(tpl.header || "", person)
-          : "";
-        const bRaw = resolveVarsRaw(tpl.body || "", person);
-        const ftrRaw = tpl.hasFooter
-          ? resolveVarsRaw(tpl.footer || "", person)
-          : "";
-
-        const page = document.createElement("div");
-        page.className = "a4-page";
-
-        if (tpl.hasHeader && hdrRaw) {
-          const hdr = document.createElement("div");
-          hdr.className = "a4-header";
-          hdr.innerHTML = hdrRaw;
-          page.appendChild(hdr);
-        }
-
-        const body = document.createElement("div");
-        body.className =
-          "a4-body" +
-          (!tpl.hasHeader ? " no-header" : "") +
-          (!tpl.hasFooter ? " no-footer" : "");
-        body.innerHTML = bRaw;
-        page.appendChild(body);
-
-        if (tpl.hasFooter && ftrRaw) {
-          const ftr = document.createElement("div");
-          ftr.className = "a4-footer";
-          ftr.innerHTML = ftrRaw;
-          page.appendChild(ftr);
-        }
-
-        area.appendChild(page);
-      }
-
-      // ═══════════════════════════════════════════
-      //  ZOOM
-      // ═══════════════════════════════════════════
+      /* ── ZOOM ── */
       function setZoom(delta) {
         if (delta === 0) zoomLv = 100;
         else zoomLv = Math.max(40, Math.min(200, zoomLv + delta));
@@ -1737,20 +1539,15 @@
         document.getElementById("zoomLbl").textContent = zoomLv + "%";
       }
 
-      // ═══════════════════════════════════════════
-      //  UI HELPERS
-      // ═══════════════════════════════════════════
+      /* ── HELPERS ── */
       function showWait(msg) {
-        document.getElementById("docWait").innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <h3>${msg}</h3>`;
+        document.getElementById("docWait").innerHTML =
+          `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><h3>${msg}</h3>`;
         document.getElementById("docWait").style.display = "flex";
         document.getElementById("a4Canvas").style.display = "none";
         document.getElementById("zoomBar").style.display = "none";
         document.getElementById("docActions").innerHTML = "";
-        document.getElementById("print-area").innerHTML = "";
       }
-
       function resetAll() {
         selFamId = null;
         selTplId = null;
@@ -1773,9 +1570,7 @@
         document.getElementById("pageCount").textContent = "📄 1 page";
       }
 
-      // ═══════════════════════════════════════════
-      //  EXPORT
-      // ═══════════════════════════════════════════
+      /* ── EXPORT ── */
       function doExport(type) {
         closeModal("modalExport");
         const tpl = selTplId ? DB.getTemplate(selTplId) : null;
@@ -1783,8 +1578,7 @@
         if (!tpl || !person) return;
 
         if (type === "print") {
-          buildPrintArea(tpl, person);
-          window.print();
+          printDoc(tpl, person);
           return;
         }
 
@@ -1804,10 +1598,13 @@
             ? `<div style="border-top:1px solid #e2e8f0;padding-top:10px;margin-top:14px">${ftrRaw}</div>`
             : "");
 
+        // CSS identique à admin pour export HTML
+        const TABLE_CSS = `table{border-collapse:collapse;width:100%}td,th{border:1px solid #c8cdd8;padding:7px 10px;print-color-adjust:exact;-webkit-print-color-adjust:exact}td p,th p{color:inherit}th:not([style]){background:#f2f2f2;color:#111;font-weight:700;text-align:left}th{font-weight:700}ul{padding-left:2em;list-style-type:disc}ol{padding-left:2em;list-style-type:decimal}li{display:list-item}`;
+
         if (type === "html") {
           const blob = new Blob(
             [
-              `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${tpl.nom}</title><link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600&display=swap" rel="stylesheet"><style>body{font-family:"Times New Roman",Times,serif;max-width:800px;margin:40px auto;padding:32px;font-size:14pt;line-height:1.8}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px}th{background:#f5f7ff;color:#2563eb}ul{padding-left:2em;list-style-type:disc}ol{padding-left:2em;list-style-type:decimal}li{display:list-item}</style></head><body>${full}</body></html>`,
+              `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${tpl.nom}</title><link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600&display=swap" rel="stylesheet"><style>body{font-family:"Times New Roman",Times,serif;max-width:800px;margin:40px auto;padding:32px;font-size:14pt;line-height:1.8}${TABLE_CSS}</style></head><body>${full}</body></html>`,
             ],
             { type: "text/html" },
           );
@@ -1830,7 +1627,6 @@
           toast("Envoi e-mail à connecter au backend", "success");
       }
 
-      // Events globaux
       document.addEventListener("click", (e) => {
         if (e.target.classList.contains("modal-overlay"))
           e.target.classList.remove("open");
