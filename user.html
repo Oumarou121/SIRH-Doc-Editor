@@ -435,7 +435,7 @@
         align-items: center;
         justify-content: center;
         font-size: 9px;
-        transition: all 0.12s;
+        transition: all 0.12px;
       }
       .tpl-card.sel .tpl-chk {
         border-color: var(--green);
@@ -704,7 +704,7 @@
         margin: 10px 0;
       }
 
-      /* ── TABLEAUX : règles identiques à admin ── */
+      /* ── TABLEAUX ── */
       .doc-content table {
         border-collapse: collapse;
         width: 100%;
@@ -713,11 +713,9 @@
       .doc-content th {
         border: 1px solid #c8cdd8;
         padding: 7px 10px;
-        /* Fond imprimé fidèlement */
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
       }
-      /* th par défaut (sans style inline) : gris/noir */
       .doc-content th:not([style]) {
         background: #f2f2f2;
         color: #111;
@@ -727,7 +725,6 @@
       .doc-content th {
         font-weight: 700;
       }
-      /* ── Couleur texte héritée par les <p> enfants ── */
       .doc-content td p,
       .doc-content th p {
         color: inherit !important;
@@ -825,14 +822,6 @@
       .btn.primary:hover {
         background: #1d4ed8;
       }
-      .btn.success {
-        background: var(--green);
-        color: #fff;
-        border-color: var(--green);
-      }
-      .btn.success:hover {
-        filter: brightness(1.08);
-      }
       .btn.ghost {
         border-color: transparent;
         background: transparent;
@@ -847,92 +836,6 @@
       .btn.xs {
         padding: 2px 6px;
         font-size: 10px;
-      }
-
-      /* Modal */
-      .modal-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 1000;
-        background: rgba(0, 0, 0, 0.3);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        backdrop-filter: blur(3px);
-      }
-      .modal-overlay.open {
-        display: flex;
-      }
-      .modal {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--rxl);
-        padding: 22px;
-        width: 90%;
-        max-width: 480px;
-        max-height: 90vh;
-        overflow-y: auto;
-        box-shadow: var(--shlg);
-      }
-      .modal-hdr {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 16px;
-      }
-      .modal-title {
-        font-size: 15px;
-        font-weight: 700;
-        color: var(--text);
-      }
-      .modal-close {
-        width: 28px;
-        height: 28px;
-        border-radius: var(--r);
-        border: 1px solid var(--border);
-        background: var(--surface2);
-        color: var(--text3);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-      }
-      .modal-actions {
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-        margin-top: 16px;
-        padding-top: 13px;
-        border-top: 1px solid var(--border);
-      }
-      .exp-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 9px;
-      }
-      .exp-card {
-        border: 1px solid var(--border);
-        border-radius: var(--r);
-        padding: 14px;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
-        color: var(--text2);
-        transition: all 0.12s;
-        background: var(--surface2);
-      }
-      .exp-card:hover {
-        border-color: var(--border2);
-        background: var(--surface3);
-        color: var(--text);
-      }
-      .exp-card svg {
-        width: 24px;
-        height: 24px;
       }
 
       /* Toast */
@@ -974,8 +877,6 @@
           transform: translateY(0);
         }
       }
-
-      /* L'impression est gérée par printDoc() dans shared.js */
     </style>
   </head>
   <body>
@@ -1151,79 +1052,6 @@
               <div class="zoom-scaler" id="zoomScaler"></div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Zone impression — invisible à l'écran, visible au print -->
-    <div class="toast-stack" id="toastStack"></div>
-    <div class="modal-overlay" id="modalExport">
-      <div class="modal">
-        <div class="modal-hdr">
-          <span class="modal-title">Exporter le document</span>
-          <button class="modal-close" onclick="closeModal('modalExport')">
-            ✕
-          </button>
-        </div>
-        <div class="exp-grid">
-          <div class="exp-card" onclick="doExport('print')">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#dc2626"
-              stroke-width="1.5"
-            >
-              <polyline points="6 9 6 2 18 2 18 9" />
-              <path
-                d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"
-              />
-              <rect x="6" y="14" width="12" height="8" />
-            </svg>
-            Imprimer / PDF
-          </div>
-          <div class="exp-card" onclick="doExport('html')">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#2563eb"
-              stroke-width="1.5"
-            >
-              <polyline points="16 18 22 12 16 6" />
-              <polyline points="8 6 2 12 8 18" />
-            </svg>
-            Télécharger HTML
-          </div>
-          <div class="exp-card" onclick="doExport('copy')">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#16a34a"
-              stroke-width="1.5"
-            >
-              <rect x="9" y="9" width="13" height="13" rx="2" />
-              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-            </svg>
-            Copier le texte
-          </div>
-          <div class="exp-card" onclick="doExport('email')">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#d97706"
-              stroke-width="1.5"
-            >
-              <path
-                d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-              />
-              <polyline points="22,6 12,13 2,6" />
-            </svg>
-            E-mail
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn" onclick="closeModal('modalExport')">
-            Fermer
-          </button>
         </div>
       </div>
     </div>
@@ -1424,7 +1252,6 @@
         const person = DB.getPerson(selPersonId);
         if (!tpl || !person) return;
 
-        // Aperçu avec variables colorées
         const hdrHtml = tpl.hasHeader
           ? resolveVars(tpl.header || "", person)
           : "";
@@ -1445,9 +1272,7 @@
           b.onclick = fn;
           actions.appendChild(b);
         };
-        // ── Impression via printDoc() de shared.js ──
         mkBtn("🖨 Imprimer", "primary", () => printDoc(tpl, person));
-        mkBtn("Exporter", "success", () => openModal("modalExport"));
         mkBtn("Nouveau", "ghost", resetAll);
 
         toast("Document généré !", "success");
@@ -1569,74 +1394,6 @@
         syncStepBodies();
         document.getElementById("pageCount").textContent = "📄 1 page";
       }
-
-      /* ── EXPORT ── */
-      function doExport(type) {
-        closeModal("modalExport");
-        const tpl = selTplId ? DB.getTemplate(selTplId) : null;
-        const person = selPersonId ? DB.getPerson(selPersonId) : null;
-        if (!tpl || !person) return;
-
-        if (type === "print") {
-          printDoc(tpl, person);
-          return;
-        }
-
-        const hdrRaw = tpl.hasHeader
-          ? resolveVarsRaw(tpl.header || "", person)
-          : "";
-        const bRaw = resolveVarsRaw(tpl.body || "", person);
-        const ftrRaw = tpl.hasFooter
-          ? resolveVarsRaw(tpl.footer || "", person)
-          : "";
-        const full =
-          (hdrRaw
-            ? `<div style="border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:14px">${hdrRaw}</div>`
-            : "") +
-          bRaw +
-          (ftrRaw
-            ? `<div style="border-top:1px solid #e2e8f0;padding-top:10px;margin-top:14px">${ftrRaw}</div>`
-            : "");
-
-        // CSS identique à admin pour export HTML
-        const TABLE_CSS = `table{border-collapse:collapse;width:100%}td,th{border:1px solid #c8cdd8;padding:7px 10px;print-color-adjust:exact;-webkit-print-color-adjust:exact}td p,th p{color:inherit}th:not([style]){background:#f2f2f2;color:#111;font-weight:700;text-align:left}th{font-weight:700}ul{padding-left:2em;list-style-type:disc}ol{padding-left:2em;list-style-type:decimal}li{display:list-item}`;
-
-        if (type === "html") {
-          const blob = new Blob(
-            [
-              `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${tpl.nom}</title><link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600&display=swap" rel="stylesheet"><style>body{font-family:"Times New Roman",Times,serif;max-width:800px;margin:40px auto;padding:32px;font-size:14pt;line-height:1.8}${TABLE_CSS}</style></head><body>${full}</body></html>`,
-            ],
-            { type: "text/html" },
-          );
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = person.nom_prenom.replace(/\s+/g, "-") + ".html";
-          a.click();
-          toast("Fichier téléchargé", "success");
-          return;
-        }
-        if (type === "copy") {
-          const tmp = document.createElement("div");
-          tmp.innerHTML = full;
-          navigator.clipboard
-            .writeText(tmp.textContent || "")
-            .then(() => toast("Texte copié", "success"));
-          return;
-        }
-        if (type === "email")
-          toast("Envoi e-mail à connecter au backend", "success");
-      }
-
-      document.addEventListener("click", (e) => {
-        if (e.target.classList.contains("modal-overlay"))
-          e.target.classList.remove("open");
-      });
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape")
-          document
-            .querySelectorAll(".modal-overlay.open")
-            .forEach((m) => m.classList.remove("open"));
-      });
     </script>
   </body>
 </html>

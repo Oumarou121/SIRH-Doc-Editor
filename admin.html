@@ -439,7 +439,6 @@
       .vchip.is-list {
         border-style: dashed;
       }
-      /* ── NOUVEAU : chip table-objet (orange, pointillé) ── */
       .vchip.is-table {
         border-style: dotted;
         font-weight: 600;
@@ -454,7 +453,6 @@
         margin-right: 3px;
         letter-spacing: 0.04em;
       }
-      /* Badge TABLE orange */
       .vchip-badge.tbl {
         background: var(--orange-bg);
         color: var(--orange);
@@ -924,8 +922,6 @@
       .tiptap-wrapper .ProseMirror th {
         font-weight: 700;
       }
-      /* ── FIX COULEUR TEXTE : le <p> hérite la couleur du td/th parent ──────────── */
-      /* Sans ça, "color:#111" sur .ProseMirror écrase tout style de couleur sur td/th */
       .tiptap-wrapper .ProseMirror td p {
         color: inherit !important;
       }
@@ -984,7 +980,6 @@
       .preview-page th {
         font-weight: 700;
       }
-      /* Propager couleur cellule vers paragraphes enfants */
       .preview-page td p,
       .preview-page th p {
         color: inherit !important;
@@ -1202,39 +1197,6 @@
         max-height: 150px;
         display: block;
       }
-      .export-opts {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-bottom: 16px;
-      }
-      .export-opt {
-        border: 2px solid var(--border);
-        border-radius: var(--rlg);
-        padding: 14px;
-        cursor: pointer;
-        transition: all 0.15s;
-        text-align: center;
-      }
-      .export-opt:hover,
-      .export-opt.on {
-        border-color: var(--accent);
-        background: var(--accent-bg);
-      }
-      .export-opt-icon {
-        font-size: 28px;
-        margin-bottom: 6px;
-      }
-      .export-opt-title {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--text);
-      }
-      .export-opt-desc {
-        font-size: 10px;
-        color: var(--text3);
-        margin-top: 2px;
-      }
       .preview-a4-wrap {
         overflow: auto;
         max-height: 72vh;
@@ -1445,7 +1407,6 @@
         cursor: pointer;
         padding: 2px;
       }
-      /* ── Boutons scope alignement ── */
       .tbl-scope-btn {
         flex: 1;
         padding: 3px 0;
@@ -1469,7 +1430,6 @@
         color: #fff;
         border-color: rgba(37, 99, 235, 0.9);
       }
-      /* ── Boutons direction alignement ── */
       .tbl-align-dir-btn {
         flex: 1;
         display: flex;
@@ -1752,152 +1712,6 @@
       #print-render-area {
         display: none;
       }
-
-      /* ── PRINT ── */
-      @media print {
-        .tnav,
-        .ed-toolbar,
-        .sec-tabs,
-        .sidebar,
-        .statusbar,
-        .modal-overlay,
-        .ctxmenu,
-        .search-panel,
-        .tname-bar,
-        .a4-page-num,
-        .a4-hf-label,
-        .a4-watermark,
-        .overflow-warning,
-        .empty-state,
-        #emptyState,
-        .tbl-toolbar {
-          display: none !important;
-        }
-        #mainPage,
-        #ghostPages {
-          display: none !important;
-        }
-        #print-render-area {
-          display: block !important;
-        }
-        html,
-        body {
-          overflow: visible !important;
-          height: auto !important;
-        }
-        #app {
-          height: auto !important;
-          overflow: visible !important;
-          display: block !important;
-        }
-        .main-area {
-          display: block !important;
-          height: auto !important;
-          overflow: visible !important;
-        }
-        .ed-zone {
-          display: block !important;
-          height: auto !important;
-          overflow: visible !important;
-        }
-        .pcanvas {
-          display: block !important;
-          height: auto !important;
-          overflow: visible !important;
-          padding: 0 !important;
-          background: white !important;
-        }
-        .zoom-scaler {
-          transform: none !important;
-          display: block !important;
-        }
-        @page {
-          size: A4 portrait;
-          margin: 0;
-        }
-        #print-render-area .a4-page {
-          width: 210mm !important;
-          min-height: 297mm !important;
-          margin: 0 auto !important;
-          background: white !important;
-          box-shadow: none !important;
-          page-break-after: always !important;
-          break-after: page !important;
-          display: flex !important;
-          flex-direction: column !important;
-        }
-        #print-render-area .a4-page:last-child {
-          page-break-after: auto !important;
-          break-after: auto !important;
-        }
-        #print-render-area .a4-header {
-          padding: 5mm 25mm 3mm 25mm !important;
-          border-bottom: 1px solid #e2e8f0 !important;
-        }
-        #print-render-area .a4-footer {
-          padding: 3mm 25mm 5mm 25mm !important;
-          border-top: 1px solid #e2e8f0 !important;
-          margin-top: auto !important;
-        }
-        #print-render-area .a4-body {
-          flex: 1 !important;
-          padding: 5mm 25mm !important;
-          font-family: "Times New Roman", Times, serif !important;
-          font-size: 12pt !important;
-          line-height: 1.6 !important;
-          color: #111 !important;
-          overflow: visible !important;
-        }
-        #print-render-area .a4-body.no-header {
-          padding-top: 20mm !important;
-        }
-        #print-render-area .a4-body.no-footer {
-          padding-bottom: 20mm !important;
-        }
-        #print-render-area table {
-          border-collapse: collapse !important;
-          width: 100% !important;
-        }
-        /* ── FIX FOND : forcer l'impression des couleurs de fond ── */
-        #print-render-area td,
-        #print-render-area th {
-          border: 1px solid #c8cdd8 !important;
-          padding: 7px 10px !important;
-          print-color-adjust: exact !important;
-          -webkit-print-color-adjust: exact !important;
-        }
-        /* ── FIX COULEUR TEXTE : propager la couleur du td/th vers ses <p> ── */
-        #print-render-area td p,
-        #print-render-area th p {
-          color: inherit !important;
-        }
-        #print-render-area th:not([style]) {
-          background: #f2f2f2 !important;
-          color: #111 !important;
-          font-weight: 700 !important;
-          text-align: left !important;
-        }
-        #print-render-area th {
-          font-weight: 700 !important;
-        }
-        #print-render-area ul,
-        #print-render-area ol {
-          padding-left: 2em !important;
-          list-style: revert !important;
-        }
-        #print-render-area li {
-          display: list-item !important;
-        }
-        .var-resolved {
-          color: #111 !important;
-          font-weight: inherit !important;
-          background: none !important;
-          padding: 0 !important;
-        }
-        .var-missing {
-          color: #dc2626 !important;
-        }
-      }
     </style>
   </head>
   <body>
@@ -2087,20 +1901,6 @@
                   <circle cx="12" cy="12" r="3" />
                 </svg>
                 Aperçu
-              </button>
-              <button class="btn ghost sm" onclick="openExportModal()">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  style="width: 13px; height: 13px"
-                >
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                Exporter
               </button>
               <button class="btn success" onclick="saveTemplate()">
                 <svg
@@ -2837,16 +2637,17 @@
     <div class="modal-overlay" id="modalDelTpl">
       <div class="modal modal-sm">
         <div class="mhdr">
-          <span class="mtitle">Supprimer le template ?</span
-          ><button class="mclose" onclick="closeModal('modalDelTpl')">✕</button>
+          <span class="mtitle">Supprimer le template ?</span>
+          <button class="mclose" onclick="closeModal('modalDelTpl')">✕</button>
         </div>
         <p style="font-size: 12px; color: var(--text2); line-height: 1.7">
           Ce template sera définitivement supprimé.
         </p>
         <div class="mactions">
           <button class="btn" onclick="closeModal('modalDelTpl')">
-            Annuler</button
-          ><button class="btn danger" id="delTplBtn">Supprimer</button>
+            Annuler
+          </button>
+          <button class="btn danger" id="delTplBtn">Supprimer</button>
         </div>
       </div>
     </div>
@@ -2854,8 +2655,8 @@
     <div class="modal-overlay" id="modalTable">
       <div class="modal modal-sm">
         <div class="mhdr">
-          <span class="mtitle">Insérer un tableau</span
-          ><button class="mclose" onclick="closeModal('modalTable')">✕</button>
+          <span class="mtitle">Insérer un tableau</span>
+          <button class="mclose" onclick="closeModal('modalTable')">✕</button>
         </div>
         <div style="font-size: 10px; color: var(--text3); margin-bottom: 8px">
           Survolez la grille pour sélectionner la taille
@@ -2898,10 +2699,10 @@
           </div>
         </div>
         <div class="mactions">
-          <button class="btn" onclick="closeModal('modalTable')">Annuler</button
-          ><button class="btn primary" onclick="doInsertTable()">
-            Insérer
+          <button class="btn" onclick="closeModal('modalTable')">
+            Annuler
           </button>
+          <button class="btn primary" onclick="doInsertTable()">Insérer</button>
         </div>
       </div>
     </div>
@@ -2909,8 +2710,8 @@
     <div class="modal-overlay" id="modalImage">
       <div class="modal">
         <div class="mhdr">
-          <span class="mtitle">Insérer une image</span
-          ><button class="mclose" onclick="closeModal('modalImage')">✕</button>
+          <span class="mtitle">Insérer une image</span>
+          <button class="mclose" onclick="closeModal('modalImage')">✕</button>
         </div>
         <div class="frow">
           <label class="flabel">Fichier local</label
@@ -2958,10 +2759,10 @@
           />
         </div>
         <div class="mactions">
-          <button class="btn" onclick="closeModal('modalImage')">Annuler</button
-          ><button class="btn primary" onclick="doInsertImage()">
-            Insérer
+          <button class="btn" onclick="closeModal('modalImage')">
+            Annuler
           </button>
+          <button class="btn primary" onclick="doInsertImage()">Insérer</button>
         </div>
       </div>
     </div>
@@ -2969,8 +2770,8 @@
     <div class="modal-overlay" id="modalLink">
       <div class="modal modal-sm">
         <div class="mhdr">
-          <span class="mtitle">Insérer un lien</span
-          ><button class="mclose" onclick="closeModal('modalLink')">✕</button>
+          <span class="mtitle">Insérer un lien</span>
+          <button class="mclose" onclick="closeModal('modalLink')">✕</button>
         </div>
         <div class="frow">
           <label class="flabel">Texte affiché</label
@@ -2986,8 +2787,8 @@
           />
         </div>
         <div class="mactions">
-          <button class="btn" onclick="closeModal('modalLink')">Annuler</button
-          ><button class="btn primary" onclick="doInsertLink()">Insérer</button>
+          <button class="btn" onclick="closeModal('modalLink')">Annuler</button>
+          <button class="btn primary" onclick="doInsertLink()">Insérer</button>
         </div>
       </div>
     </div>
@@ -2995,8 +2796,8 @@
     <div class="modal-overlay" id="modalWatermark">
       <div class="modal modal-sm">
         <div class="mhdr">
-          <span class="mtitle">Filigrane de page</span
-          ><button class="mclose" onclick="closeModal('modalWatermark')">
+          <span class="mtitle">Filigrane de page</span>
+          <button class="mclose" onclick="closeModal('modalWatermark')">
             ✕
           </button>
         </div>
@@ -3040,10 +2841,12 @@
         </div>
         <div class="mactions">
           <button class="btn danger" onclick="removeWatermark()">
-            Supprimer</button
-          ><button class="btn" onclick="closeModal('modalWatermark')">
-            Annuler</button
-          ><button class="btn primary" onclick="applyWatermark()">
+            Supprimer
+          </button>
+          <button class="btn" onclick="closeModal('modalWatermark')">
+            Annuler
+          </button>
+          <button class="btn primary" onclick="applyWatermark()">
             Appliquer
           </button>
         </div>
@@ -3053,8 +2856,8 @@
     <div class="modal-overlay" id="modalPageSettings">
       <div class="modal modal-sm">
         <div class="mhdr">
-          <span class="mtitle">Mise en page — Marges A4</span
-          ><button class="mclose" onclick="closeModal('modalPageSettings')">
+          <span class="mtitle">Mise en page — Marges A4</span>
+          <button class="mclose" onclick="closeModal('modalPageSettings')">
             ✕
           </button>
         </div>
@@ -3108,23 +2911,25 @@
           </div>
         </div>
         <div class="mactions">
-          <button class="btn" onclick="resetPageMargins()">Réinitialiser</button
-          ><button class="btn" onclick="closeModal('modalPageSettings')">
-            Annuler</button
-          ><button class="btn primary" onclick="applyPageMargins()">
+          <button class="btn" onclick="resetPageMargins()">
+            Réinitialiser
+          </button>
+          <button class="btn" onclick="closeModal('modalPageSettings')">
+            Annuler
+          </button>
+          <button class="btn primary" onclick="applyPageMargins()">
             Appliquer
           </button>
         </div>
       </div>
     </div>
 
+    <!-- Modal aperçu — le bouton Imprimer utilise printDoc() de shared.js -->
     <div class="modal-overlay" id="modalPreview">
       <div class="modal" style="max-width: 880px">
         <div class="mhdr">
-          <span class="mtitle">Aperçu du document</span
-          ><button class="mclose" onclick="closeModal('modalPreview')">
-            ✕
-          </button>
+          <span class="mtitle">Aperçu du document</span>
+          <button class="mclose" onclick="closeModal('modalPreview')">✕</button>
         </div>
         <div
           style="
@@ -3154,9 +2959,9 @@
           <button
             id="prevPrintBtn"
             class="btn sm primary"
-            onclick="printPagedDocument()"
+            onclick="doPrintFromPreview()"
           >
-            🖨 Imprimer / PDF
+            🖨 Imprimer
           </button>
           <span
             style="
@@ -3172,86 +2977,6 @@
         </div>
         <div class="preview-a4-wrap" id="previewA4Wrap">
           <div class="preview-page" id="prevContent"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal-overlay" id="modalExport">
-      <div class="modal modal-sm">
-        <div class="mhdr">
-          <span class="mtitle">Exporter le document</span
-          ><button class="mclose" onclick="closeModal('modalExport')">✕</button>
-        </div>
-        <div class="export-opts">
-          <div
-            class="export-opt on"
-            id="exp-html"
-            onclick="selectExport('html')"
-          >
-            <div class="export-opt-icon">🌐</div>
-            <div class="export-opt-title">HTML</div>
-            <div class="export-opt-desc">Fichier .html autonome</div>
-          </div>
-          <div
-            class="export-opt"
-            id="exp-print"
-            onclick="selectExport('print')"
-          >
-            <div class="export-opt-icon">🖨️</div>
-            <div class="export-opt-title">Imprimer / PDF</div>
-            <div class="export-opt-desc">Via l'impression navigateur</div>
-          </div>
-          <div class="export-opt" id="exp-txt" onclick="selectExport('txt')">
-            <div class="export-opt-icon">📄</div>
-            <div class="export-opt-title">Texte brut</div>
-            <div class="export-opt-desc">Sans mise en forme</div>
-          </div>
-          <div
-            class="export-opt"
-            id="exp-template"
-            onclick="selectExport('template')"
-          >
-            <div class="export-opt-icon">📋</div>
-            <div class="export-opt-title">Template JSON</div>
-            <div class="export-opt-desc">Sauvegarde &amp; partage</div>
-          </div>
-        </div>
-        <div class="frow">
-          <label class="flabel">Nom du fichier</label
-          ><input class="finput" id="exp-filename" placeholder="document" />
-        </div>
-        <div style="margin-bottom: 12px">
-          <label
-            style="
-              font-size: 11px;
-              display: flex;
-              gap: 6px;
-              align-items: center;
-              cursor: pointer;
-              color: var(--text2);
-            "
-            ><input type="checkbox" id="exp-resolve" checked />Résoudre les
-            variables avec un bénéficiaire</label
-          >
-          <select
-            id="exp-person"
-            style="
-              margin-top: 6px;
-              width: 100%;
-              font-size: 12px;
-              border: 1px solid var(--border);
-              border-radius: var(--r);
-              padding: 5px 9px;
-              outline: none;
-              background: var(--surface2);
-              color: var(--text);
-            "
-          ></select>
-        </div>
-        <div class="mactions">
-          <button class="btn" onclick="closeModal('modalExport')">
-            Annuler</button
-          ><button class="btn primary" onclick="doExport()">Télécharger</button>
         </div>
       </div>
     </div>
@@ -3412,7 +3137,6 @@
         >−C
       </button>
       <div class="tbl-tb-sep"></div>
-      <!-- ── ALIGNEMENT : scope + direction ── -->
       <div class="tbl-cell-clr-wrap">
         <button
           class="tbl-tb-btn"
@@ -3435,7 +3159,6 @@
           >
         </button>
         <div class="tbl-clr-pop" id="tblAlignPop" style="width: 210px">
-          <!-- Scope -->
           <div
             style="
               font-size: 9px;
@@ -3482,7 +3205,6 @@
               Tout
             </button>
           </div>
-          <!-- Alignement horizontal -->
           <div
             style="
               font-size: 9px;
@@ -3561,7 +3283,6 @@
               </svg>
             </button>
           </div>
-          <!-- Alignement vertical -->
           <div
             style="
               font-size: 9px;
@@ -3933,7 +3654,7 @@
       document.getElementById("loadSub").textContent =
         "Initialisation des éditeurs…";
 
-      // ── FontSize extension ──────────────────────────────────────
+      // ── FontSize extension ──
       const FontSize = TextStyle.extend({
         addAttributes() {
           return {
@@ -3964,9 +3685,7 @@
         },
       });
 
-      // ── TableCell/Header with background & text color ───────────
-      // ── Helper unique pour le style inline des cellules ──────────
-      // Appelé par backgroundColor.renderHTML (qui reçoit TOUS les attrs)
+      // ── TableCell/Header with bg, text color, align ──
       function _cellStyle(attrs) {
         let s = "";
         if (attrs.backgroundColor && attrs.backgroundColor !== "transparent")
@@ -3976,7 +3695,6 @@
         if (attrs.verticalAlign) s += `vertical-align:${attrs.verticalAlign};`;
         return s ? { style: s } : {};
       }
-
       const TableCellExt = TableCell.extend({
         addAttributes() {
           return {
@@ -4032,9 +3750,9 @@
         },
       });
 
-      // ═════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════
       //  STATE
-      // ═════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════
       const ETAB_ID = "etab_1";
       let curFamId = null,
         curTplId = null,
@@ -4046,13 +3764,11 @@
       let zoomLv = 100;
       let headerEnabled = false,
         footerEnabled = false;
-      let expMode = "html";
       let pageCheckTimer = null,
         pagedPreviewHTML = "";
       let _activeResizeImg = null,
         _activeResizeImgEl = null;
 
-      // ── Expose insertVar for scalar chips ───────────────────────
       window.insertVar = function (tech) {
         const ed = activeEditor || editorBody;
         if (!ed) return;
@@ -4068,24 +3784,16 @@
 
       window.__getActiveEditor = () => activeEditor || editorBody;
 
-      // ═════════════════════════════════════════════════════════════
-      //  insertListVar — VERSION COMPLÈTE v7
-      //  • list-object → insère un VRAI tableau Tiptap éditable
-      //    dont les th sont noirs gras, et dont la ligne de données
-      //    contient les marqueurs {{#tech:table}} répartis par colonne.
-      //    shared.js remplace cette ligne par N lignes à la résolution.
-      //  • list (string[]) → comportement original (ul/inline/cell-expand)
-      // ═════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════
+      //  insertListVar
+      // ═══════════════════════════════════════════════════════════
       async function insertListVar(editor, varDef) {
         if (!editor || !varDef) return;
-
         const inCell =
           editor.isActive("tableCell") || editor.isActive("tableHeader");
 
-        // ── list-object ──────────────────────────────────────────
         if (varDef.type === "list-object") {
           if (inCell) {
-            // Dans une cellule existante → marqueur simple
             editor
               .chain()
               .focus()
@@ -4101,8 +3809,6 @@
             );
             return;
           }
-
-          // Hors tableau → insérer un vrai tableau Tiptap éditable
           const cols =
             varDef.columns && varDef.columns.length
               ? varDef.columns
@@ -4110,19 +3816,12 @@
                   { key: "col1", label: "Colonne 1" },
                   { key: "col2", label: "Colonne 2" },
                 ];
-
-          // Ligne d'en-tête : th NOIRS GRAS avec les libellés
           const thCells = cols
             .map(
               (c) =>
                 `<th style="font-weight:700;color:#111;background:#f2f2f2"><p><strong>${escHtml(c.label)}</strong></p></th>`,
             )
             .join("");
-
-          // Ligne de données : première cellule porte le marqueur principal
-          // Les autres portent un marqueur de colonne visible mais discret.
-          // shared.js détecte {{#tech:table}} dans la <tr> et répartit
-          // les valeurs colonne par colonne (1-1 selon l'ordre des cols).
           const tdCells = cols
             .map((c, i) => {
               const marker =
@@ -4132,9 +3831,7 @@
               return `<td><p>${marker}</p></td>`;
             })
             .join("");
-
           const tableHTML = `<table style="border-collapse:collapse;width:100%"><thead><tr>${thCells}</tr></thead><tbody><tr>${tdCells}</tr></tbody></table><p></p>`;
-
           editor.chain().focus().insertContent(tableHTML).run();
           toast(
             `Tableau éditable inséré pour « ${varDef.label} » — personnalisez le style !`,
@@ -4143,7 +3840,6 @@
           return;
         }
 
-        // ── list (string[]) ──────────────────────────────────────
         if (inCell) {
           editor
             .chain()
@@ -4174,19 +3870,15 @@
         }
       }
 
-      // ═════════════════════════════════════════════════════════════
-      //  buildVarsPanel — VERSION COMPLÈTE v7
-      //  • Scalaire → chip normal, clic = insertVar
-      //  • list     → badge LIST violet, clic = insertListVar
-      //  • list-object → badge TABLE orange (pointillé), clic = insertListVar
-      // ═════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════
+      //  buildVarsPanel
+      // ═══════════════════════════════════════════════════════════
       function buildVarsPanel(famId) {
         const panel = document.getElementById("varsPanelEl");
         panel.innerHTML = "";
         if (!famId) return;
         const fam = DB.getFamily(famId);
         if (!fam) return;
-
         fam.classes.forEach((cls) => {
           const hdr = document.createElement("div");
           hdr.className = "vc-hdr";
@@ -4196,26 +3888,20 @@
             (v) => v.type === "list-object",
           );
           hdr.textContent = cls.nom + (hasLists || hasObjs ? " ⚡" : "");
-
           const chips = document.createElement("div");
           chips.className = "vchips";
-
           (cls.vars || []).forEach((v) => {
             const chip = document.createElement("span");
             const isObj = v.type === "list-object";
             const isList = v.type === "list";
-
             chip.className =
               "vchip" + (isObj ? " is-table" : "") + (isList ? " is-list" : "");
-
             chip.style.cssText = [
               `background:${cls.couleur || "#555"}12`,
               `color:${cls.couleur || "#555"}`,
               `border-color:${cls.couleur || "#555"}33`,
             ].join(";");
-
             if (isObj) {
-              // ── list-object : badge TABLE orange ─────────────────
               const colsPreview =
                 v.columns && v.columns.length
                   ? v.columns.map((c) => c.label).join(" · ")
@@ -4231,7 +3917,6 @@
                 insertListVar(ed, v);
               };
             } else if (isList) {
-              // ── list (string[]) : badge LIST violet ───────────────
               chip.innerHTML = `<span class="vchip-badge">LIST</span>${v.label}`;
               chip.title = `{{#${v.tech}:ul}} · :inline · :cell-expand`;
               chip.onclick = () => {
@@ -4243,21 +3928,18 @@
                 insertListVar(ed, v);
               };
             } else {
-              // ── scalaire ─────────────────────────────────────────
               chip.textContent = v.label;
               chip.title = `{{${v.tech}}} — ${v.label}`;
               chip.onclick = () => window.insertVar(v.tech);
             }
-
             chips.appendChild(chip);
           });
-
           panel.appendChild(hdr);
           panel.appendChild(chips);
         });
       }
 
-      // ── Color palettes ──────────────────────────────────────────
+      // ── Color palettes ──
       const TEXT_COLORS = [
         "#000000",
         "#1a1d2e",
@@ -4347,9 +4029,9 @@
         "#1e3a5f",
       ];
 
-      // ═════════════════════════════════════════════════════════════
-      //  TIPTAP EDITOR FACTORY
-      // ═════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════
+      //  TIPTAP FACTORY
+      // ═══════════════════════════════════════════════════════════
       function createEditor(elementId, placeholder, onUpdate, onFocus) {
         const el = document.getElementById(elementId);
         if (!el) return null;
@@ -4407,7 +4089,6 @@
         if (ed && html) ed.commands.setContent(html, false);
       }
 
-      // ── Toolbar sync ────────────────────────────────────────────
       function syncToolbar() {
         const ed = activeEditor;
         if (!ed) return;
@@ -4463,7 +4144,6 @@
         } catch (_) {}
       }
 
-      // ── Editor commands (global) ─────────────────────────────────
       window.edCmd = function (cmd, opts) {
         const ed = activeEditor || editorBody;
         if (!ed) return;
@@ -4531,7 +4211,6 @@
         toast(dir === "rtl" ? "Mode RTL activé" : "Mode LTR activé", "info");
       };
 
-      // ── Tables ───────────────────────────────────────────────────
       window.doInsertTable = function () {
         const rows = parseInt(document.getElementById("ti-rows").value) || 3,
           cols = parseInt(document.getElementById("ti-cols").value) || 3;
@@ -4655,17 +4334,15 @@
         if (!was) p.classList.add("on");
       };
       function closeTblPops() {
-        document.getElementById("tblClrPop").classList.remove("on");
-        document.getElementById("tblTxtPop").classList.remove("on");
-        document.getElementById("tblAlignPop").classList.remove("on");
+        ["tblClrPop", "tblTxtPop", "tblAlignPop"].forEach((id) =>
+          document.getElementById(id).classList.remove("on"),
+        );
       }
       document.addEventListener("click", (e) => {
         if (!e.target.closest(".tbl-cell-clr-wrap")) closeTblPops();
       });
 
-      // ── Alignement tableau ───────────────────────────────────────
-      let _tblAlignScope = "cell"; // cell | row | col | all
-
+      let _tblAlignScope = "cell";
       window.setTblAlignScope = function (scope) {
         _tblAlignScope = scope;
         ["cell", "row", "col", "all"].forEach((s) =>
@@ -4674,7 +4351,6 @@
             .classList.toggle("on", s === scope),
         );
       };
-
       window.toggleTblAlignPop = function (e) {
         e.stopPropagation();
         const p = document.getElementById("tblAlignPop");
@@ -4683,13 +4359,10 @@
         if (!was) p.classList.add("on");
       };
 
-      // Récupère la position ProseMirror (pos, rowIdx, colIdx) de la cellule active
       function _getActiveCellInfo(ed) {
         try {
-          const { state } = ed;
-          const { selection } = state;
+          const { selection } = ed.state;
           const { $from } = selection;
-          // Remonter au nœud tableCell ou tableHeader
           let depth = $from.depth;
           while (depth > 0) {
             const node = $from.node(depth);
@@ -4704,13 +4377,10 @@
         } catch (_) {}
         return null;
       }
-
-      // Calcule l'index de ligne et de colonne d'une cellule dans le tableau
       function _getCellIndices(ed, cellPos) {
         const { doc } = ed.state;
         let tableNode = null,
           tablePos = 0;
-        // Trouver le tableau parent
         doc.descendants((node, pos) => {
           if (
             node.type.name === "table" &&
@@ -4742,7 +4412,6 @@
         });
         return { rowIdx, colIdx, tableNode, tablePos };
       }
-
       function applyTblAttrScoped(attrKey, val, scope) {
         const ed = activeEditor || editorBody;
         if (!ed) return;
@@ -4750,26 +4419,20 @@
         const { doc, selection } = state;
         const tr = state.tr;
         let changed = false;
-
-        // Identifier la cellule active et ses indices
         const cellInfo = _getActiveCellInfo(ed);
         const { rowIdx, colIdx, tableNode, tablePos } = cellInfo
           ? _getCellIndices(ed, cellInfo.pos)
           : { rowIdx: -1, colIdx: -1, tableNode: null, tablePos: 0 };
-
         const domSelected = ed.view.dom.querySelectorAll(".selectedCell");
         const hasMultiSelect = domSelected.length > 1;
-
         doc.descendants((node, pos) => {
           if (
             node.type.name !== "tableCell" &&
             node.type.name !== "tableHeader"
           )
             return;
-
           let apply = false;
           if (hasMultiSelect && scope === "cell") {
-            // Multi-sélection Tiptap → appliquer aux cellules sélectionnées
             try {
               const dn = ed.view.nodeDOM(pos);
               apply = dn && dn.classList?.contains("selectedCell");
@@ -4777,8 +4440,7 @@
           } else if (scope === "cell") {
             apply = cellInfo && Math.abs(pos - cellInfo.pos) < 3;
           } else if (scope === "row" && tableNode) {
-            // Même index de ligne → trouver toutes les cellules de la ligne
-            const { rowIdx: r, colIdx: c } = _getCellIndices(ed, pos);
+            const { rowIdx: r } = _getCellIndices(ed, pos);
             apply = r === rowIdx;
           } else if (scope === "col" && tableNode) {
             const { colIdx: c } = _getCellIndices(ed, pos);
@@ -4786,7 +4448,6 @@
           } else if (scope === "all") {
             apply = true;
           }
-
           if (apply) {
             tr.setNodeMarkup(pos, undefined, {
               ...node.attrs,
@@ -4795,17 +4456,12 @@
             changed = true;
           }
         });
-
         if (changed) dispatch(tr);
       }
-
       window.applyTblAlign = function (align) {
         applyTblAttrScoped("textAlign", align, _tblAlignScope);
-        // Mettre à jour l'indicateur visuel
-        const icons = { left: "⬡", center: "◉", right: "⬡", justify: "≡" };
         document.getElementById("tblAlignIndicator").textContent =
           { left: "←", center: "↔", right: "→", justify: "≡" }[align] || "⬡";
-        // Marquer le bouton actif
         document
           .querySelectorAll(".tbl-align-dir-btn")
           .forEach((b) => b.classList.remove("on"));
@@ -4819,7 +4475,6 @@
         toast(`Alignement ${align} appliqué à la ${scopeLabel}`, "success");
         closeTblPops();
       };
-
       window.applyTblValign = function (valign) {
         applyTblAttrScoped("verticalAlign", valign, _tblAlignScope);
         const scopeLabel = {
@@ -4835,7 +4490,7 @@
         closeTblPops();
       };
 
-      // ── Images ───────────────────────────────────────────────────
+      // ── Images ──
       window.previewImgFile = function (input) {
         const f = input.files[0];
         if (!f) return;
@@ -4893,7 +4548,6 @@
         wrap.appendChild(img);
         img.dataset.rw = "1";
         const tb = document.createElement("div");
-        tb.className = "img-toolbar-float";
         tb.style.cssText =
           "position:fixed;z-index:3000;background:#1a1d2e;border-radius:7px;display:none;align-items:center;gap:1px;padding:3px 5px;box-shadow:0 4px 18px rgba(0,0,0,.28);white-space:nowrap;pointer-events:auto";
         tb.innerHTML = `<button onclick="setImgAlign(this,'left')"   style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">◧</button><button onclick="setImgAlign(this,'center')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▣</button><button onclick="setImgAlign(this,'right')"  style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▧</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="setImgWidthFixed(this,'25%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">25%</button><button onclick="setImgWidthFixed(this,'50%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">50%</button><button onclick="setImgWidthFixed(this,'75%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">75%</button><button onclick="setImgWidthFixed(this,'100%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">100%</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="removeImgFixed()" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:#f87171;font-size:14px;font-weight:700">✕</button>`;
@@ -5043,7 +4697,7 @@
         }
       });
 
-      // ── Links ────────────────────────────────────────────────────
+      // ── Links ──
       window.doInsertLink = function () {
         const ed = activeEditor || editorBody;
         if (!ed) return;
@@ -5065,7 +4719,7 @@
         toast("Lien inséré");
       };
 
-      // ── Misc inserts ─────────────────────────────────────────────
+      // ── Misc inserts ──
       window.insHR = () => {
         const ed = activeEditor || editorBody;
         if (ed) ed.chain().focus().setHorizontalRule().run();
@@ -5109,7 +4763,7 @@
         toast("Bloc signature inséré");
       };
 
-      // ── Word count ───────────────────────────────────────────────
+      // ── Word count ──
       function updateWordCount() {
         if (!editorBody) return;
         try {
@@ -5120,7 +4774,7 @@
         } catch (_) {}
       }
 
-      // ── Pagination ───────────────────────────────────────────────
+      // ── Pagination ──
       function renderPagedPreview() {
         const previewHost = document.getElementById("ghostPages");
         if (!previewHost || !editorBody) return;
@@ -5151,9 +4805,9 @@
         const pages = [];
         for (let i = 0; i < total; i++) {
           pages.push(`<div class="a4-page">${wmHTML}${headerEnabled ? `<div class="a4-header"><div class="a4-hf-label">EN-TÊTE</div>${headerHtml}</div>` : ""}
-    <div class="a4-body ${!headerEnabled ? "no-header" : ""} ${!footerEnabled ? "no-footer" : ""}" style="font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:1.6;color:#111">${bodyHtml}</div>
-    ${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE</div>${footerHtml}</div>` : ""}
-    <div class="a4-page-num">Page ${i + 1}</div></div>`);
+<div class="a4-body ${!headerEnabled ? "no-header" : ""} ${!footerEnabled ? "no-footer" : ""}" style="font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:1.6;color:#111">${bodyHtml}</div>
+${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE</div>${footerHtml}</div>` : ""}
+<div class="a4-page-num">Page ${i + 1}</div></div>`);
         }
         pagedPreviewHTML = pages.join("");
         previewHost.innerHTML = total > 1 ? pagedPreviewHTML : "";
@@ -5169,30 +4823,39 @@
           350,
         );
       }
-      function printWithPerson(person) {
-        renderPagedPreview();
-        let printHtml =
-          pagedPreviewHTML ||
-          `<div class="a4-page"><div class="a4-body">${getEditorHTML(editorBody)}</div></div>`;
-        if (person) printHtml = resolveVarsRaw(printHtml, person);
-        const printArea = document.createElement("div");
-        printArea.id = "print-render-area";
-        printArea.innerHTML = printHtml;
-        const old = document.getElementById("print-render-area");
-        if (old) old.remove();
-        document.body.appendChild(printArea);
-        window.print();
-        setTimeout(
-          () => document.getElementById("print-render-area")?.remove(),
-          300,
-        );
-      }
-      window.printPagedDocument = function () {
+
+      // ── Impression via printDoc() de shared.js (même logique que user.html) ──
+      window.doPrintFromPreview = function () {
         const pId = document.getElementById("prevPerson")?.value;
-        printWithPerson(pId ? DB.getPerson(pId) : null);
+        const person = pId ? DB.getPerson(pId) : null;
+        const tpl = curTplId ? DB.getTemplate(curTplId) : null;
+        if (!tpl) {
+          toast("Aucun template actif", "error");
+          return;
+        }
+
+        // Construire un objet tpl à la volée avec le contenu actuel des éditeurs
+        const liveTpl = {
+          ...tpl,
+          header:
+            headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "",
+          body: getEditorHTML(editorBody),
+          footer:
+            footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "",
+          hasHeader: headerEnabled,
+          hasFooter: footerEnabled,
+        };
+
+        if (!person) {
+          toast("Sélectionnez un bénéficiaire pour imprimer", "error");
+          return;
+        }
+
+        // Déléguer entièrement à printDoc() de shared.js
+        printDoc(liveTpl, person);
       };
 
-      // ── Save state ───────────────────────────────────────────────
+      // ── Save state ──
       function setSaveState(msg, modified) {
         document.getElementById("saveSt").textContent = msg;
         document.getElementById("saveSt").className =
@@ -5206,7 +4869,7 @@
         updateWordCount();
       }
 
-      // ── Family & template list ───────────────────────────────────
+      // ── Family & template list ──
       function populateFamilySelect() {
         const sel = document.getElementById("famSelAdmin");
         DB.getFamilies().forEach((f) => {
@@ -5218,7 +4881,6 @@
         const etab = DB.getEtablissement(ETAB_ID);
         if (etab) document.getElementById("etabLabel").textContent = etab.nom;
       }
-
       window.onFamChange = function () {
         curFamId = document.getElementById("famSelAdmin").value;
         curTplId = null;
@@ -5250,7 +4912,6 @@
         });
       }
 
-      // ── Editor lifecycle ─────────────────────────────────────────
       function clearEditor() {
         document.getElementById("emptyState").style.display = "flex";
         document.getElementById("editorInner").style.display = "none";
@@ -5436,7 +5097,6 @@
         body.classList.toggle("no-footer", !footerEnabled);
       }
 
-      // ── Delete template ──────────────────────────────────────────
       window.confirmDelTpl = function (id) {
         pendingDelId = id;
         document.getElementById("delTplBtn").onclick = () => {
@@ -5452,7 +5112,6 @@
         openModal("modalDelTpl");
       };
 
-      // ── Watermark ────────────────────────────────────────────────
       window.openWatermarkModal = function () {
         if (!curTplId) {
           toast("Ouvrez d'abord un template", "error");
@@ -5484,7 +5143,6 @@
         schedulePageUpdate();
       };
 
-      // ── Page settings ────────────────────────────────────────────
       window.openPageSettings = function () {
         if (!curTplId) {
           toast("Ouvrez d'abord un template", "error");
@@ -5513,7 +5171,7 @@
         window.applyPageMargins();
       };
 
-      // ── Preview modal ────────────────────────────────────────────
+      // ── Modal Aperçu ──
       window.openPreviewModal = function () {
         if (!curTplId || !editorBody) {
           toast("Ouvrez d'abord un template", "error");
@@ -5561,120 +5219,9 @@
           ftrDiv.innerHTML = resolveVars(fH, p);
           prevPage.appendChild(ftrDiv);
         }
-        document.getElementById("prevPrintBtn").onclick = () =>
-          printWithPerson(p);
       };
 
-      // ── Export ───────────────────────────────────────────────────
-      window.openExportModal = function () {
-        if (!curTplId || !editorBody) {
-          toast("Ouvrez d'abord un template", "error");
-          return;
-        }
-        const sel = document.getElementById("exp-person");
-        sel.innerHTML = "";
-        DB.getPersonnel(ETAB_ID).forEach((p) => {
-          const o = document.createElement("option");
-          o.value = p.id;
-          o.textContent = p.nom_prenom + " — " + p.poste;
-          sel.appendChild(o);
-        });
-        const tpl = DB.getTemplate(curTplId);
-        document.getElementById("exp-filename").value = (
-          tpl?.nom || "document"
-        ).replace(/[^a-z0-9\-_]/gi, "_");
-        openModal("modalExport");
-      };
-      window.selectExport = function (mode) {
-        expMode = mode;
-        ["html", "print", "txt", "template"].forEach((m) =>
-          document
-            .getElementById("exp-" + m)
-            .classList.toggle("on", m === mode),
-        );
-      };
-      window.doExport = function () {
-        if (!editorBody) return;
-        const tpl = DB.getTemplate(curTplId);
-        const fname =
-          document.getElementById("exp-filename").value || "document";
-        const should = document.getElementById("exp-resolve").checked;
-        const pId = document.getElementById("exp-person").value;
-        const person = should ? DB.getPerson(pId) : null;
-        const hH =
-          headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "";
-        const fH =
-          footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "";
-        let body = getEditorHTML(editorBody);
-        let full =
-          (hH
-            ? `<div class="doc-header" style="border-bottom:1px solid #c8cdd8;padding-bottom:12px;margin-bottom:20px">${hH}</div>`
-            : "") +
-          body +
-          (fH
-            ? `<div class="doc-footer" style="border-top:1px solid #c8cdd8;padding-top:12px;margin-top:20px">${fH}</div>`
-            : "");
-        if (person) full = resolveVarsRaw(full, person);
-
-        // CSS commun pour exports HTML et impression
-        const TABLE_CSS = `
-table{border-collapse:collapse;width:100%}
-td,th{border:1px solid #c8cdd8;padding:7px 10px;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-td p,th p{color:inherit}
-th:not([style]){background:#f2f2f2;color:#111;font-weight:700;text-align:left}
-th{font-weight:700}
-ul{padding-left:2em;list-style-type:disc}
-ol{padding-left:2em;list-style-type:decimal}
-li{display:list-item}`;
-
-        if (expMode === "html") {
-          const pageHtml = `<!doctype html>\n<html lang="fr">\n<head>\n<meta charset="UTF-8"/>\n<title>${escHtml(tpl?.nom || "Document")}</title>\n<link href="https://fonts.googleapis.com/css2?family=Amiri&family=Cairo&family=Tajawal&display=swap" rel="stylesheet"/>\n<style>\n@page{size:A4;margin:20mm 25mm}\nbody{font-family:"Times New Roman",Times,serif;font-size:12pt;line-height:1.6;color:#111;background:#fff;padding:20mm 25mm;max-width:210mm;margin:0 auto}\n${TABLE_CSS}\n</style>\n</head>\n<body>\n${full}\n</body>\n</html>`;
-          downloadFile(fname + ".html", pageHtml, "text/html");
-          closeModal("modalExport");
-          toast("Export HTML téléchargé", "success");
-        } else if (expMode === "print") {
-          renderPagedPreview();
-          let printHtml =
-            pagedPreviewHTML ||
-            `<div class="a4-page"><div class="a4-body">${full}</div></div>`;
-          if (person) printHtml = resolveVarsRaw(printHtml, person);
-          const pw = window.open("", "_blank");
-          pw.document.write(
-            `<!doctype html><html lang="fr"><head><meta charset="UTF-8"/><title>${escHtml(tpl?.nom || "Document")}</title><link href="https://fonts.googleapis.com/css2?family=Amiri&family=Cairo&family=Tajawal&display=swap" rel="stylesheet"/><style>@page{size:A4 portrait;margin:0}body{margin:0;background:#fff}.a4-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;display:flex;flex-direction:column;page-break-after:always;break-after:page}.a4-page:last-child{page-break-after:auto;break-after:auto}.a4-header{padding:5mm 25mm 3mm 25mm}.a4-footer{padding:3mm 25mm 5mm 25mm;margin-top:auto}.a4-body{flex:1;padding:5mm 25mm;font-family:"Times New Roman",Times,serif;font-size:12pt;line-height:1.6;color:#111}.a4-body.no-header{padding-top:20mm}.a4-body.no-footer{padding-bottom:20mm}.a4-hf-label,.a4-page-num{display:none}${TABLE_CSS}</style></head><body>${printHtml}</body></html>`,
-          );
-          pw.document.close();
-          setTimeout(() => pw.print(), 500);
-          closeModal("modalExport");
-        } else if (expMode === "txt") {
-          const tmp = document.createElement("div");
-          tmp.innerHTML = full;
-          downloadFile(
-            fname + ".txt",
-            tmp.textContent || tmp.innerText || "",
-            "text/plain",
-          );
-          closeModal("modalExport");
-          toast("Export texte téléchargé", "success");
-        } else if (expMode === "template") {
-          downloadFile(
-            fname + ".json",
-            JSON.stringify(tpl, null, 2),
-            "application/json",
-          );
-          closeModal("modalExport");
-          toast("Template JSON téléchargé", "success");
-        }
-      };
-      function downloadFile(name, content, type) {
-        const blob = new Blob([content], { type });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = name;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      }
-
-      // ── Zoom ─────────────────────────────────────────────────────
+      // ── Zoom ──
       window.setZoom = function (delta) {
         if (delta === 0) zoomLv = 100;
         else zoomLv = Math.max(40, Math.min(220, zoomLv + delta));
@@ -5686,7 +5233,7 @@ li{display:list-item}`;
         document.getElementById("sbZoom").textContent = zoomLv + "%";
       };
 
-      // ── Search & replace ─────────────────────────────────────────
+      // ── Search & replace ──
       let srchMatches = [],
         srchIdx = 0;
       window.openSearchPanel = function () {
@@ -5758,7 +5305,7 @@ li{display:list-item}`;
         window.doSearch();
       };
 
-      // ── UI helpers ───────────────────────────────────────────────
+      // ── UI helpers ──
       window.toggleSidebar = function () {
         document.getElementById("sidebarEl").classList.toggle("closed");
       };
@@ -5872,7 +5419,7 @@ li{display:list-item}`;
         );
       }
 
-      // ── Keyboard shortcuts ───────────────────────────────────────
+      // ── Keyboard shortcuts ──
       document.addEventListener("keydown", (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === "s") {
           e.preventDefault();
@@ -5904,7 +5451,7 @@ li{display:list-item}`;
           document.getElementById("tblToolbar").classList.remove("on");
       });
 
-      // ── BOOT ────────────────────────────────────────────────────
+      // ── BOOT ──
       buildSwatches("sw-text", TEXT_COLORS, (c) => window.applyTextColor(c));
       buildSwatches("sw-bg", BG_COLORS, (c) => window.applyHighlight(c));
       buildTableGrid();
