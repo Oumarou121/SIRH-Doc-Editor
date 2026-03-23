@@ -435,7 +435,7 @@
         align-items: center;
         justify-content: center;
         font-size: 9px;
-        transition: all 0.12px;
+        transition: all 0.12s;
       }
       .tpl-card.sel .tpl-chk {
         border-color: var(--green);
@@ -555,16 +555,6 @@
         color: var(--border2);
         font-size: 10px;
       }
-      .page-count {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--text2);
-        padding: 2px 10px;
-        background: var(--surface2);
-        border: 1px solid var(--border);
-        border-radius: 20px;
-        margin-left: auto;
-      }
 
       /* ── A4 CANVAS ── */
       .a4-canvas {
@@ -582,7 +572,6 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
         transform-origin: top center;
         transition: transform 0.1s;
       }
@@ -598,16 +587,6 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
-      }
-      .a4-page-num {
-        position: absolute;
-        bottom: -20px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 9px;
-        color: rgba(0, 0, 0, 0.3);
-        user-select: none;
-        white-space: nowrap;
       }
       .a4-header {
         padding: 5mm var(--page-mr) 3mm var(--page-ml);
@@ -646,18 +625,25 @@
       .a4-body.no-footer {
         padding-bottom: var(--page-mb);
       }
-      .overflow-warn {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, #f59e0b, #ef4444);
-        z-index: 10;
-        pointer-events: none;
+
+      /* ── ZOOM BAR ── */
+      .zoom-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface2);
+      }
+      .zoom-lbl {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text2);
+        min-width: 38px;
+        text-align: center;
       }
 
-      /* ── CONTENU DOC (aperçu + impression) ── */
+      /* ── CONTENU DOC ── */
       .doc-content {
         font-family: "Times New Roman", Times, serif;
         font-size: 12pt;
@@ -703,8 +689,6 @@
         border-top: 1.5px solid #c8cdd8;
         margin: 10px 0;
       }
-
-      /* ── TABLEAUX ── */
       .doc-content table {
         border-collapse: collapse;
         width: 100%;
@@ -729,8 +713,6 @@
       .doc-content th p {
         color: inherit !important;
       }
-
-      /* Variables */
       .var-resolved {
         color: #2563eb;
         font-weight: 500;
@@ -747,24 +729,7 @@
         font-size: 0.9em;
       }
 
-      /* Zoom bar */
-      .zoom-bar {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 16px;
-        border-bottom: 1px solid var(--border);
-        background: var(--surface2);
-      }
-      .zoom-lbl {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--text2);
-        min-width: 38px;
-        text-align: center;
-      }
-
-      /* Doc wait */
+      /* ── DOC WAIT ── */
       .doc-wait {
         display: flex;
         flex-direction: column;
@@ -789,7 +754,7 @@
         line-height: 1.6;
       }
 
-      /* Buttons */
+      /* ── BUTTONS ── */
       .btn {
         display: inline-flex;
         align-items: center;
@@ -838,7 +803,7 @@
         font-size: 10px;
       }
 
-      /* Toast */
+      /* ── TOAST ── */
       .toast-stack {
         position: fixed;
         bottom: 24px;
@@ -1021,7 +986,6 @@
               +
             </button>
             <button class="btn xs ghost" onclick="setZoom(0)">↺</button>
-            <span class="page-count" id="pageCount">📄 1 page</span>
           </div>
 
           <div class="pbar" id="pbar">
@@ -1105,9 +1069,9 @@
         }
       }
       function setStepState(n, state) {
-        const num = document.getElementById("sn" + n);
-        const lbl = document.getElementById("sl" + n);
-        const dot = document.getElementById("dot" + n);
+        const num = document.getElementById("sn" + n),
+          lbl = document.getElementById("sl" + n),
+          dot = document.getElementById("dot" + n);
         if (!num) return;
         num.className =
           "step-num" +
@@ -1260,7 +1224,7 @@
           ? resolveVars(tpl.footer || "", person)
           : "";
 
-        buildA4Canvas(hdrHtml, bHtml, ftrHtml, tpl, person);
+        buildA4Canvas(hdrHtml, bHtml, ftrHtml, tpl);
 
         document.getElementById("zoomBar").style.display = "flex";
         const actions = document.getElementById("docActions");
@@ -1278,51 +1242,21 @@
         toast("Document généré !", "success");
       }
 
-      /* ── CANVAS A4 (aperçu) ── */
-      function buildA4Canvas(hdrHtml, bHtml, ftrHtml, tpl, person) {
+      /* ── CANVAS A4 (une seule page) ── */
+      function buildA4Canvas(hdrHtml, bHtml, ftrHtml, tpl) {
         const wait = document.getElementById("docWait");
         const canvas = document.getElementById("a4Canvas");
         const scaler = document.getElementById("zoomScaler");
         wait.style.display = "none";
         canvas.style.display = "flex";
         scaler.innerHTML = "";
-        const page = makePage(hdrHtml, bHtml, ftrHtml, tpl, 1);
+        const page = makePage(hdrHtml, bHtml, ftrHtml, tpl);
         scaler.appendChild(page);
-        setTimeout(() => {
-          const bodyEl = page.querySelector(".a4-body");
-          if (!bodyEl) return;
-          const pageH = page.getBoundingClientRect().height || 1123;
-          const hdrH =
-            page.querySelector(".a4-header")?.getBoundingClientRect().height ||
-            0;
-          const ftrH =
-            page.querySelector(".a4-footer")?.getBoundingClientRect().height ||
-            0;
-          const avail = pageH - hdrH - ftrH;
-          const total = Math.max(
-            1,
-            Math.ceil(
-              (bodyEl.scrollHeight || bodyEl.offsetHeight || 0) / avail,
-            ),
-          );
-          if (total > 1) {
-            const ow = page.querySelector(".overflow-warn");
-            if (ow) ow.style.display = "block";
-            for (let i = 2; i <= total; i++) {
-              const gp = makePage(hdrHtml, bHtml, ftrHtml, tpl, i);
-              gp.style.opacity = ".55";
-              scaler.appendChild(gp);
-            }
-          }
-          document.getElementById("pageCount").textContent =
-            `📄 ${total} page${total > 1 ? "s" : ""}`;
-        }, 150);
       }
 
-      function makePage(hdrHtml, bHtml, ftrHtml, tpl, num) {
+      function makePage(hdrHtml, bHtml, ftrHtml, tpl) {
         const page = document.createElement("div");
         page.className = "a4-page";
-        page.style.position = "relative";
         if (tpl.hasHeader && hdrHtml) {
           const hdr = document.createElement("div");
           hdr.className = "a4-header";
@@ -1342,14 +1276,6 @@
           ftr.innerHTML = `<div class="a4-hf-label">PIED DE PAGE</div><div class="doc-content">${ftrHtml}</div>`;
           page.appendChild(ftr);
         }
-        const ow = document.createElement("div");
-        ow.className = "overflow-warn";
-        ow.style.display = "none";
-        page.appendChild(ow);
-        const pnum = document.createElement("div");
-        pnum.className = "a4-page-num";
-        pnum.textContent = `Page ${num}`;
-        page.appendChild(pnum);
         return page;
       }
 
@@ -1392,7 +1318,6 @@
         showWait("Complétez les 3 étapes pour générer votre document");
         updatePbar();
         syncStepBodies();
-        document.getElementById("pageCount").textContent = "📄 1 page";
       }
     </script>
   </body>

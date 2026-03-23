@@ -505,18 +505,6 @@
         color: var(--amber);
         font-weight: 600;
       }
-      .page-count-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 8px;
-        border-radius: 20px;
-        font-size: 10px;
-        font-weight: 600;
-        background: var(--surface3);
-        color: var(--text2);
-        border: 1px solid var(--border);
-      }
       .sec-tabs {
         display: flex;
         background: var(--surface);
@@ -762,18 +750,7 @@
         flex-shrink: 0;
         display: flex;
         flex-direction: column;
-        margin-bottom: 16px;
         overflow: hidden;
-      }
-      .a4-page-num {
-        position: absolute;
-        bottom: -20px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 9px;
-        color: rgba(0, 0, 0, 0.35);
-        user-select: none;
-        white-space: nowrap;
       }
       .a4-header {
         padding: 5mm var(--page-mr) 3mm var(--page-ml);
@@ -812,17 +789,6 @@
       }
       #sec-body.no-footer {
         padding-bottom: var(--page-mb);
-      }
-      .overflow-warning {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, #f59e0b, #ef4444);
-        z-index: 10;
-        pointer-events: none;
-        border-radius: 0 0 2px 2px;
       }
 
       /* ── DOC CONTENT (Tiptap) ── */
@@ -1886,9 +1852,6 @@
                 placeholder="Nom du template"
               />
               <span class="save-st" id="saveSt">Prêt</span>
-              <span class="page-count-badge" id="pageCountBadge"
-                >📄 1 page</span
-              >
               <button class="btn ghost sm" onclick="openPreviewModal()">
                 <svg
                   viewBox="0 0 24 24"
@@ -2494,14 +2457,6 @@
                 </button>
                 <button
                   class="tb-btn"
-                  onclick="insPageBreak()"
-                  data-tip="Saut de page"
-                  style="font-size: 13px"
-                >
-                  ⏸
-                </button>
-                <button
-                  class="tb-btn"
                   onclick="insDate()"
                   data-tip="Date du jour"
                   style="font-size: 13px"
@@ -2607,14 +2562,7 @@
                       <div class="tiptap-wrapper" id="ck-footer"></div>
                     </div>
                   </div>
-                  <div
-                    class="overflow-warning"
-                    id="overflowWarn"
-                    style="display: none"
-                  ></div>
-                  <div class="a4-page-num">Page 1</div>
                 </div>
-                <div id="ghostPages"></div>
               </div>
             </div>
           </div>
@@ -2924,7 +2872,6 @@
       </div>
     </div>
 
-    <!-- Modal aperçu — le bouton Imprimer utilise printDoc() de shared.js -->
     <div class="modal-overlay" id="modalPreview">
       <div class="modal" style="max-width: 880px">
         <div class="mhdr">
@@ -3034,8 +2981,9 @@
           cursor: pointer;
           color: var(--text2);
         "
-        ><input type="checkbox" id="srch-case" />Respecter la casse</label
       >
+        <input type="checkbox" id="srch-case" />Respecter la casse
+      </label>
     </div>
 
     <div class="tbl-toolbar" id="tblToolbar">
@@ -3141,7 +3089,7 @@
         <button
           class="tbl-tb-btn"
           onclick="toggleTblAlignPop(event)"
-          title="Alignement du texte"
+          title="Alignement"
           id="tblAlignBtn"
         >
           <svg
@@ -3176,7 +3124,6 @@
               class="tbl-scope-btn on"
               id="scope-cell"
               onclick="setTblAlignScope('cell')"
-              title="Cellule active"
             >
               Cellule
             </button>
@@ -3184,7 +3131,6 @@
               class="tbl-scope-btn"
               id="scope-row"
               onclick="setTblAlignScope('row')"
-              title="Toute la ligne"
             >
               Ligne
             </button>
@@ -3192,7 +3138,6 @@
               class="tbl-scope-btn"
               id="scope-col"
               onclick="setTblAlignScope('col')"
-              title="Toute la colonne"
             >
               Colonne
             </button>
@@ -3200,7 +3145,6 @@
               class="tbl-scope-btn"
               id="scope-all"
               onclick="setTblAlignScope('all')"
-              title="Tout le tableau"
             >
               Tout
             </button>
@@ -3218,11 +3162,7 @@
             Alignement horizontal
           </div>
           <div style="display: flex; gap: 3px; margin-bottom: 9px">
-            <button
-              class="tbl-align-dir-btn"
-              onclick="applyTblAlign('left')"
-              title="Gauche"
-            >
+            <button class="tbl-align-dir-btn" onclick="applyTblAlign('left')">
               <svg
                 viewBox="0 0 16 16"
                 fill="none"
@@ -3234,11 +3174,7 @@
                 <line x1="1" y1="12" x2="12" y2="12" />
               </svg>
             </button>
-            <button
-              class="tbl-align-dir-btn"
-              onclick="applyTblAlign('center')"
-              title="Centré"
-            >
+            <button class="tbl-align-dir-btn" onclick="applyTblAlign('center')">
               <svg
                 viewBox="0 0 16 16"
                 fill="none"
@@ -3250,11 +3186,7 @@
                 <line x1="2" y1="12" x2="14" y2="12" />
               </svg>
             </button>
-            <button
-              class="tbl-align-dir-btn"
-              onclick="applyTblAlign('right')"
-              title="Droite"
-            >
+            <button class="tbl-align-dir-btn" onclick="applyTblAlign('right')">
               <svg
                 viewBox="0 0 16 16"
                 fill="none"
@@ -3269,7 +3201,6 @@
             <button
               class="tbl-align-dir-btn"
               onclick="applyTblAlign('justify')"
-              title="Justifié"
             >
               <svg
                 viewBox="0 0 16 16"
@@ -3296,11 +3227,7 @@
             Alignement vertical
           </div>
           <div style="display: flex; gap: 3px">
-            <button
-              class="tbl-align-dir-btn"
-              onclick="applyTblValign('top')"
-              title="Haut"
-            >
+            <button class="tbl-align-dir-btn" onclick="applyTblValign('top')">
               <svg
                 viewBox="0 0 16 16"
                 fill="none"
@@ -3315,7 +3242,6 @@
             <button
               class="tbl-align-dir-btn"
               onclick="applyTblValign('middle')"
-              title="Milieu"
             >
               <svg
                 viewBox="0 0 16 16"
@@ -3333,7 +3259,6 @@
             <button
               class="tbl-align-dir-btn"
               onclick="applyTblValign('bottom')"
-              title="Bas"
             >
               <svg
                 viewBox="0 0 16 16"
@@ -3605,6 +3530,7 @@
     <div class="toast-stack" id="toastStack"></div>
 
     <script src="shared.js"></script>
+    <script src="cursorResize.js"></script>
 
     <script type="module">
       const ESM = "https://esm.sh";
@@ -3764,8 +3690,6 @@
       let zoomLv = 100;
       let headerEnabled = false,
         footerEnabled = false;
-      let pageCheckTimer = null,
-        pagedPreviewHTML = "";
       let _activeResizeImg = null,
         _activeResizeImgEl = null;
 
@@ -3784,9 +3708,7 @@
 
       window.__getActiveEditor = () => activeEditor || editorBody;
 
-      // ═══════════════════════════════════════════════════════════
-      //  insertListVar
-      // ═══════════════════════════════════════════════════════════
+      // ── insertListVar ──
       async function insertListVar(editor, varDef) {
         if (!editor || !varDef) return;
         const inCell =
@@ -3870,9 +3792,7 @@
         }
       }
 
-      // ═══════════════════════════════════════════════════════════
-      //  buildVarsPanel
-      // ═══════════════════════════════════════════════════════════
+      // ── buildVarsPanel ──
       function buildVarsPanel(famId) {
         const panel = document.getElementById("varsPanelEl");
         panel.innerHTML = "";
@@ -4029,9 +3949,7 @@
         "#1e3a5f",
       ];
 
-      // ═══════════════════════════════════════════════════════════
-      //  TIPTAP FACTORY
-      // ═══════════════════════════════════════════════════════════
+      // ── TIPTAP FACTORY ──
       function createEditor(elementId, placeholder, onUpdate, onFocus) {
         const el = document.getElementById(elementId);
         if (!el) return null;
@@ -4550,7 +4468,7 @@
         const tb = document.createElement("div");
         tb.style.cssText =
           "position:fixed;z-index:3000;background:#1a1d2e;border-radius:7px;display:none;align-items:center;gap:1px;padding:3px 5px;box-shadow:0 4px 18px rgba(0,0,0,.28);white-space:nowrap;pointer-events:auto";
-        tb.innerHTML = `<button onclick="setImgAlign(this,'left')"   style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">◧</button><button onclick="setImgAlign(this,'center')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▣</button><button onclick="setImgAlign(this,'right')"  style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▧</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="setImgWidthFixed(this,'25%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">25%</button><button onclick="setImgWidthFixed(this,'50%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">50%</button><button onclick="setImgWidthFixed(this,'75%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">75%</button><button onclick="setImgWidthFixed(this,'100%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">100%</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="removeImgFixed()" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:#f87171;font-size:14px;font-weight:700">✕</button>`;
+        tb.innerHTML = `<button onclick="setImgAlign(this,'left')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">◧</button><button onclick="setImgAlign(this,'center')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▣</button><button onclick="setImgAlign(this,'right')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▧</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="setImgWidthFixed(this,'25%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">25%</button><button onclick="setImgWidthFixed(this,'50%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">50%</button><button onclick="setImgWidthFixed(this,'75%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">75%</button><button onclick="setImgWidthFixed(this,'100%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">100%</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="removeImgFixed()" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:#f87171;font-size:14px;font-weight:700">✕</button>`;
         document.body.appendChild(tb);
         img._floatTb = tb;
         const badge = document.createElement("div");
@@ -4739,18 +4657,6 @@
           )
           .run();
       };
-      window.insPageBreak = () => {
-        const ed = activeEditor || editorBody;
-        if (!ed) return;
-        ed.chain()
-          .focus()
-          .insertContent(
-            '<div class="page-break" style="page-break-after:always;break-after:page;border-top:2px dashed #b0b8cc;margin:12px 0;text-align:center;font-size:9px;color:#aaa;font-family:sans-serif">— Saut de page —</div><p></p>',
-          )
-          .run();
-        toast("Saut de page inséré");
-        schedulePageUpdate();
-      };
       window.insSignature = () => {
         const ed = activeEditor || editorBody;
         if (!ed) return;
@@ -4774,57 +4680,7 @@
         } catch (_) {}
       }
 
-      // ── Pagination ──
-      function renderPagedPreview() {
-        const previewHost = document.getElementById("ghostPages");
-        if (!previewHost || !editorBody) return;
-        const bodyHtml = getEditorHTML(editorBody);
-        const headerHtml =
-          headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "";
-        const footerHtml =
-          footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "";
-        const bodyEl = editorBody.view.dom;
-        const contentH = bodyEl
-          ? bodyEl.scrollHeight || bodyEl.offsetHeight || 0
-          : 0;
-        const page = document.getElementById("mainPage");
-        const pageH = page ? page.getBoundingClientRect().height : 1123;
-        const hdrH = headerEnabled
-          ? document.getElementById("sec-header")?.getBoundingClientRect()
-              .height || 0
-          : 0;
-        const ftrH = footerEnabled
-          ? document.getElementById("sec-footer")?.getBoundingClientRect()
-              .height || 0
-          : 0;
-        const avail = Math.max(200, pageH - hdrH - ftrH);
-        const total = Math.max(1, Math.ceil(contentH / avail));
-        const wmEl = document.getElementById("docWatermark");
-        const wmHTML =
-          wmEl && wmEl.style.display !== "none" ? wmEl.outerHTML : "";
-        const pages = [];
-        for (let i = 0; i < total; i++) {
-          pages.push(`<div class="a4-page">${wmHTML}${headerEnabled ? `<div class="a4-header"><div class="a4-hf-label">EN-TÊTE</div>${headerHtml}</div>` : ""}
-<div class="a4-body ${!headerEnabled ? "no-header" : ""} ${!footerEnabled ? "no-footer" : ""}" style="font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:1.6;color:#111">${bodyHtml}</div>
-${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE</div>${footerHtml}</div>` : ""}
-<div class="a4-page-num">Page ${i + 1}</div></div>`);
-        }
-        pagedPreviewHTML = pages.join("");
-        previewHost.innerHTML = total > 1 ? pagedPreviewHTML : "";
-        document.getElementById("overflowWarn").style.display =
-          total > 1 ? "block" : "none";
-        document.getElementById("pageCountBadge").textContent =
-          `📄 ${total} page${total > 1 ? "s" : ""}`;
-      }
-      function schedulePageUpdate() {
-        clearTimeout(pageCheckTimer);
-        pageCheckTimer = setTimeout(
-          () => requestAnimationFrame(renderPagedPreview),
-          350,
-        );
-      }
-
-      // ── Impression via printDoc() de shared.js (même logique que user.html) ──
+      // ── Impression ──
       window.doPrintFromPreview = function () {
         const pId = document.getElementById("prevPerson")?.value;
         const person = pId ? DB.getPerson(pId) : null;
@@ -4833,8 +4689,6 @@ ${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE<
           toast("Aucun template actif", "error");
           return;
         }
-
-        // Construire un objet tpl à la volée avec le contenu actuel des éditeurs
         const liveTpl = {
           ...tpl,
           header:
@@ -4845,13 +4699,10 @@ ${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE<
           hasHeader: headerEnabled,
           hasFooter: footerEnabled,
         };
-
         if (!person) {
           toast("Sélectionnez un bénéficiaire pour imprimer", "error");
           return;
         }
-
-        // Déléguer entièrement à printDoc() de shared.js
         printDoc(liveTpl, person);
       };
 
@@ -4939,14 +4790,10 @@ ${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE<
         document.getElementById("tnameInput").value = tpl.nom;
         setSaveState("Prêt", false);
         destroyEditors();
-        function onUpd() {
-          onEditorChange();
-          schedulePageUpdate();
-        }
         editorBody = createEditor(
           "ck-body",
           "Rédigez le corps du document ici…",
-          onUpd,
+          onEditorChange,
           (ed) => {
             activeEditor = ed;
           },
@@ -4954,7 +4801,7 @@ ${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE<
         editorHeader = createEditor(
           "ck-header",
           "En-tête du document…",
-          onUpd,
+          onEditorChange,
           (ed) => {
             activeEditor = ed;
           },
@@ -4962,7 +4809,7 @@ ${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE<
         editorFooter = createEditor(
           "ck-footer",
           "Pied de page…",
-          onUpd,
+          onEditorChange,
           (ed) => {
             activeEditor = ed;
           },
@@ -4976,7 +4823,6 @@ ${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE<
         updateSectionVisibility();
         switchSection("body");
         updateWordCount();
-        setTimeout(renderPagedPreview, 600);
         setTimeout(() => {
           [editorBody, editorHeader, editorFooter].forEach((ed) => {
             if (ed) activateImageResizers(ed);
@@ -5070,7 +4916,6 @@ ${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE<
               : "Pied désactivé",
         );
         onEditorChange();
-        schedulePageUpdate();
       };
 
       function updateSectionVisibility() {
@@ -5134,13 +4979,11 @@ ${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE<
         sp.style.opacity = opacity;
         closeModal("modalWatermark");
         toast("Filigrane appliqué");
-        schedulePageUpdate();
       };
       window.removeWatermark = function () {
         document.getElementById("docWatermark").style.display = "none";
         closeModal("modalWatermark");
         toast("Filigrane supprimé");
-        schedulePageUpdate();
       };
 
       window.openPageSettings = function () {
@@ -5161,7 +5004,6 @@ ${footerEnabled ? `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE<
         document.documentElement.style.setProperty("--page-mr", mr);
         closeModal("modalPageSettings");
         toast(`Marges : haut ${mt} · bas ${mb} · gauche ${ml} · droite ${mr}`);
-        setTimeout(renderPagedPreview, 200);
       };
       window.resetPageMargins = function () {
         document.getElementById("pg-mt").value = 20;
