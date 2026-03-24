@@ -3800,6 +3800,7 @@
       let _activeResizeImg = null,
         _activeResizeImgEl = null;
       let pageGuideRaf = 0;
+      let adminPreviewState = null;
 
       window.insertVar = function (tech) {
         const ed = activeEditor || editorBody;
@@ -4124,7 +4125,10 @@
         const styles = getComputedStyle(secBody);
         const padTop = parseFloat(styles.paddingTop) || 0;
         const padBottom = parseFloat(styles.paddingBottom) || 0;
-        const pageHeight = Math.max(1, secBody.clientHeight - padTop - padBottom);
+        const pageHeight = Math.max(
+          1,
+          secBody.clientHeight - padTop - padBottom,
+        );
         return { secBody, padTop, padBottom, pageHeight };
       }
 
@@ -4167,7 +4171,10 @@
           }
         } catch (_) {}
 
-        return Math.max(1, Math.min(totalPages, Math.floor(Math.max(0, y) / pageHeight) + 1));
+        return Math.max(
+          1,
+          Math.min(totalPages, Math.floor(Math.max(0, y) / pageHeight) + 1),
+        );
       }
 
       function updatePageLiveBadge(currentPage, totalPages) {
@@ -4906,21 +4913,11 @@
       window.doPreviewFromPreview = function () {
         const pId = document.getElementById("prevPerson")?.value;
         const person = pId ? DB.getPerson(pId) : null;
-        const tpl = curTplId ? DB.getTemplate(curTplId) : null;
-        if (!tpl) {
+        const liveTpl = buildLivePreviewTemplate();
+        if (!liveTpl) {
           toast("Aucun template actif", "error");
           return;
         }
-        const liveTpl = {
-          ...tpl,
-          header:
-            headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "",
-          body: getEditorHTML(editorBody),
-          footer:
-            footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "",
-          hasHeader: headerEnabled,
-          hasFooter: footerEnabled,
-        };
         if (!person) {
           toast("Sélectionnez un bénéficiaire pour afficher l'aperçu", "error");
           return;
@@ -4931,26 +4928,22 @@
       window.doPrintFromPreview = function () {
         const pId = document.getElementById("prevPerson")?.value;
         const person = pId ? DB.getPerson(pId) : null;
-        const tpl = curTplId ? DB.getTemplate(curTplId) : null;
-        if (!tpl) {
+        const liveTpl = buildLivePreviewTemplate();
+        if (!liveTpl) {
           toast("Aucun template actif", "error");
           return;
         }
-        const liveTpl = {
-          ...tpl,
-          header:
-            headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "",
-          body: getEditorHTML(editorBody),
-          footer:
-            footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "",
-          hasHeader: headerEnabled,
-          hasFooter: footerEnabled,
-        };
         if (!person) {
           toast("Sélectionnez un bénéficiaire pour imprimer", "error");
           return;
         }
-        printDocPaginated(liveTpl, person);
+        const cachedPages =
+          adminPreviewState &&
+          adminPreviewState.tplId === curTplId &&
+          adminPreviewState.personId === person.id
+            ? adminPreviewState.pages
+            : null;
+        printDocPaginated(liveTpl, person, cachedPages);
       };
 
       // ── Save state ──
@@ -5354,11 +5347,18 @@
         prevPage.className = "preview-pages";
 
         const result = paginateWithVariablesBlue(liveTpl, p);
+        adminPreviewState = null;
         if (!result.pages.length) {
           prevPage.innerHTML =
             '<div style="font-size:12px;color:var(--text3);text-align:center;padding:30px 20px">Aucun contenu à afficher</div>';
           return;
         }
+
+        adminPreviewState = {
+          tplId: curTplId,
+          personId: p.id,
+          pages: result.pages,
+        };
 
         result.pages.forEach((page, idx) => {
           const pageEl = document.createElement("div");

@@ -1710,6 +1710,12 @@ function printDocPaginated(tpl, person, pages = null) {
 
   const printCSS = `
     @page { size: A4 portrait; margin: 0; }
+    html, body {
+      width: auto !important;
+      height: auto !important;
+      min-height: auto !important;
+      overflow: visible !important;
+    }
     * { margin: 0; padding: 0; }
     body { margin: 0; padding: 0; background: #fff; }
     #sirh-print-area { display: block; }
