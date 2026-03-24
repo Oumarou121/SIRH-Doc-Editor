@@ -1064,128 +1064,679 @@ function closeModal(id) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  printDoc(tpl, person)
-//  Fonction d'impression commune à admin.html ET user.html.
-//  Construit un <div id="sirh-print-area"> avec le HTML résolu,
-//  l'injecte dans le body, appelle window.print(), puis nettoie.
-//
-//  Le CSS d'impression est injecté en même temps dans une <style>
-//  pour être 100% autonome — aucune dépendance aux feuilles de style
-//  de la page hôte.
+//  PAGINATION PROFESSIONNEL — Moteur complet Word-like
+//  Gestion des pages A4, aperçu avec navigation, impression
 // ═══════════════════════════════════════════════════════════════
-function printDoc(tpl, person) {
+
+/**
+ * Classe PagePaginator
+ * Divise le contenu HTML intelligemment en pages A4
+ * Tient compte de la hauteur des headers/footers et du contenu
+ */
+class PagePaginator {
+  constructor(opts = {}) {
+    // Configuration A4 (en mm → pixels à 96 DPI)
+    this.pageWidthMm = 210;
+    this.pageHeightMm = 297;
+    this.marginTopMm = opts.marginTop || 20;
+    this.marginBottomMm = opts.marginBottom || 20;
+    this.marginLeftMm = opts.marginLeft || 25;
+    this.marginRightMm = opts.marginRight || 25;
+
+    // Conversion mm → px (96 DPI standard)
+    this.mmToPx = (mm) => (mm * 96) / 25.4;
+
+    this.pageWidthPx = this.mmToPx(this.pageWidthMm);
+    this.pageHeightPx = this.mmToPx(this.pageHeightMm);
+    this.marginTopPx = this.mmToPx(this.marginTopMm);
+    this.marginBottomPx = this.mmToPx(this.marginBottomMm);
+    this.marginLeftPx = this.mmToPx(this.marginLeftMm);
+    this.marginRightPx = this.mmToPx(this.marginRightMm);
+
+    // Hauteur disponible pour le contenu (sans headers/footers)
+    this.contentHeightPx =
+      this.pageHeightPx - this.marginTopPx - this.marginBottomPx;
+
+    this.pages = [];
+    this.headerHeight = 0;
+    this.footerHeight = 0;
+  }
+
+  /**
+   * Pagine le contenu HTML en divisant intelligemment
+   * @param {string} contentHtml - HTML du contenu principal
+   * @param {string} headerHtml - HTML du header (optionnel)
+   * @param {string} footerHtml - HTML du footer (optionnel)
+   * @returns {Array} Array d'objects {header, content, footer}
+   */
+  paginate(contentHtml, headerHtml = "", footerHtml = "") {
+    this.pages = [];
+
+    // Créer un conteneur invisible pour mesurer les hauteurs
+    const tempContainer = document.createElement("div");
+    tempContainer.style.position = "absolute";
+    tempContainer.style.visibility = "hidden";
+    tempContainer.style.width = this.pageWidthPx + "px";
+    tempContainer.style.fontFamily = '"Times New Roman", Times, serif';
+    tempContainer.style.fontSize = "12pt";
+    tempContainer.style.lineHeight = "1.6";
+    tempContainer.style.color = "#111";
+
+    // Mesurer hauteur du header
+    if (headerHtml) {
+      const hdrEl = document.createElement("div");
+      hdrEl.innerHTML = headerHtml;
+      hdrEl.style.padding = "5mm 25mm 3mm 25mm";
+      tempContainer.appendChild(hdrEl);
+      document.body.appendChild(tempContainer);
+      this.headerHeight = hdrEl.offsetHeight;
+      tempContainer.removeChild(hdrEl);
+    }
+
+    // Mesurer hauteur du footer
+    if (footerHtml) {
+      const ftrEl = document.createElement("div");
+      ftrEl.innerHTML = footerHtml;
+      ftrEl.style.padding = "3mm 25mm 5mm 25mm";
+      tempContainer.appendChild(ftrEl);
+      document.body.appendChild(tempContainer);
+      this.footerHeight = ftrEl.offsetHeight;
+      tempContainer.removeChild(ftrEl);
+    }
+
+    document.body.removeChild(tempContainer);
+
+    // Hauteur disponible pour le contenu = hauteur page - headers/footers
+    const availableHeightPx =
+      this.contentHeightPx - this.headerHeight - this.footerHeight;
+
+    // Parser le contenu en éléments
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(
+      `<div>${contentHtml}</div>`,
+      "text/html",
+    );
+    const content = doc.body.firstChild;
+
+    // Diviser les éléments enfants entre les pages
+    this._distributeContent(content.children, availableHeightPx);
+
+    // Construire les pages finales
+    this.pages = this.pages.map((pageContent) => ({
+      header: headerHtml,
+      content: pageContent,
+      footer: footerHtml,
+    }));
+
+    return this.pages;
+  }
+
+  /**
+   * Distribue les éléments enfants entre les pages
+   * @private
+   */
+  _distributeContent(elements, availableHeight) {
+    let currentPageHTML = "";
+    let currentPageHeight = 0;
+
+    const tempMeasure = document.createElement("div");
+    tempMeasure.style.position = "absolute";
+    tempMeasure.style.visibility = "hidden";
+    tempMeasure.style.width =
+      this.pageWidthPx - this.marginLeftPx - this.marginRightPx + "px";
+    tempMeasure.style.fontFamily = '"Times New Roman", Times, serif';
+    tempMeasure.style.fontSize = "12pt";
+    tempMeasure.style.lineHeight = "1.6";
+    tempMeasure.style.color = "#111";
+    document.body.appendChild(tempMeasure);
+
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i];
+      if (!el) continue;
+
+      // Cloner l'élément pour mesurer
+      const clone = el.cloneNode(true);
+      tempMeasure.innerHTML = "";
+      tempMeasure.appendChild(clone);
+
+      const elHeight = tempMeasure.offsetHeight;
+
+      // Si l'élément est une table ou très grand, garder son intégrité
+      const isLargeElement =
+        el.tagName === "TABLE" || elHeight > availableHeight * 0.75;
+
+      // Si ça déborde ET la page n'est pas vide, créer une nouvelle page
+      if (
+        currentPageHeight + elHeight > availableHeight &&
+        currentPageHTML.trim() !== ""
+      ) {
+        this.pages.push(currentPageHTML);
+        currentPageHTML = "";
+        currentPageHeight = 0;
+      }
+
+      // Ajouter l'élément à la page actuelle
+      currentPageHTML += el.outerHTML;
+      currentPageHeight += elHeight;
+    }
+
+    // Ajouter la dernière page s'il y a du contenu
+    if (currentPageHTML.trim() !== "") {
+      this.pages.push(currentPageHTML);
+    }
+
+    document.body.removeChild(tempMeasure);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  paginateWithVariablesBlue(tpl, person)
+//  Pagine le contenu avec variables en bleu (pas résolues)
+//  Retourne: { pages: [...], hasHeader, hasFooter }
+// ═══════════════════════════════════════════════════════════════
+function paginateWithVariablesBlue(tpl, person) {
+  if (!tpl || !person) return { pages: [], hasHeader: false, hasFooter: false };
+
+  // Résoudre les variables (avec classes .var-resolved pour le bleu)
+  const hdrHtml = tpl.hasHeader ? resolveVars(tpl.header || "", person) : "";
+  const bHtml = resolveVars(tpl.body || "", person);
+  const ftrHtml = tpl.hasFooter ? resolveVars(tpl.footer || "", person) : "";
+
+  // Paginer le contenu
+  const paginator = new PagePaginator({
+    marginTop: 20,
+    marginBottom: 20,
+    marginLeft: 25,
+    marginRight: 25,
+  });
+
+  const pages = paginator.paginate(bHtml, hdrHtml, ftrHtml);
+
+  return {
+    pages: pages,
+    hasHeader: tpl.hasHeader,
+    hasFooter: tpl.hasFooter,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  previewDocument(tpl, person)
+//  Affiche un aperçu multi-pages complet avec navigation
+// ═══════════════════════════════════════════════════════════════
+function previewDocument(tpl, person) {
   if (!tpl || !person) {
     toast("Template ou personne manquant", "error");
     return;
   }
 
-  const hdrRaw = tpl.hasHeader ? resolveVarsRaw(tpl.header || "", person) : "";
-  const bRaw = resolveVarsRaw(tpl.body || "", person);
-  const ftrRaw = tpl.hasFooter ? resolveVarsRaw(tpl.footer || "", person) : "";
+  const hdrRaw = tpl.hasHeader ? resolveVars(tpl.header || "", person) : "";
+  const bRaw = resolveVars(tpl.body || "", person);
+  const ftrRaw = tpl.hasFooter ? resolveVars(tpl.footer || "", person) : "";
 
-  // ── Construire le HTML d'une page A4 ──
-  const noHdr = !tpl.hasHeader ? " no-header" : "";
-  const noFtr = !tpl.hasFooter ? " no-footer" : "";
+  // Paginer le contenu
+  const paginator = new PagePaginator({
+    marginTop: 20,
+    marginBottom: 20,
+    marginLeft: 25,
+    marginRight: 25,
+  });
 
-  const pageHtml = `
-    <div class="sirh-page">
-      ${tpl.hasHeader && hdrRaw ? `<div class="sirh-header">${hdrRaw}</div>` : ""}
-      <div class="sirh-body${noHdr}${noFtr}">${bRaw}</div>
-      ${tpl.hasFooter && ftrRaw ? `<div class="sirh-footer">${ftrRaw}</div>` : ""}
-    </div>`;
+  const pages = paginator.paginate(bRaw, hdrRaw, ftrRaw);
 
-  // ── CSS d'impression autonome ──
-  // Identique aux règles @media print de admin.html :
-  //   • print-color-adjust:exact  → fonds de cellules imprimés
-  //   • td p / th p color:inherit → couleur texte custom préservée
-  //   • th:not([style])           → défaut gris/noir seulement sans style inline
+  if (!pages.length) {
+    toast("Aucun contenu à afficher", "error");
+    return;
+  }
+
+  // Créer le modal d'aperçu
+  const modal = document.createElement("div");
+  modal.className = "preview-modal";
+  modal.id = "pagePreviewModal";
+
+  // CSS du modal
+  const styleEl = document.createElement("style");
+  styleEl.textContent = `
+    .preview-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    .preview-modal.hidden {
+      display: none;
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      padding: 12px 20px;
+      border-radius: 8px 8px 0 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .preview-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .preview-pageinfo {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .preview-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .preview-btn {
+      padding: 6px 12px;
+      border: 1px solid #ddd;
+      background: #f5f5f5;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: #333;
+    }
+
+    .preview-btn:hover {
+      background: #e8e8e8;
+      border-color: #bbb;
+    }
+
+    .preview-btn.primary {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+    }
+
+    .preview-btn.primary:hover {
+      background: #1d4ed8;
+    }
+
+    .preview-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .preview-container {
+      flex: 1;
+      background: #e8e8e8;
+      border-radius: 0 0 8px 8px;
+      overflow: auto;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .preview-page {
+      width: 210mm;
+      height: 297mm;
+      background: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .preview-page-header {
+      flex-shrink: 0;
+      padding: 5mm 25mm 3mm 25mm;
+      border-bottom: 1px solid #e2e8f0;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
+      overflow: hidden;
+    }
+
+    .preview-page-body {
+      flex: 1;
+      padding: 5mm 25mm;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
+      overflow: hidden;
+    }
+
+    .preview-page-body.no-header {
+      padding-top: 20mm;
+    }
+
+    .preview-page-body.no-footer {
+      padding-bottom: 20mm;
+    }
+
+    .preview-page-footer {
+      flex-shrink: 0;
+      padding: 3mm 25mm 5mm 25mm;
+      border-top: 1px solid #e2e8f0;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
+      overflow: hidden;
+    }
+
+    .preview-page p {
+      margin: 0 0 0.4em 0;
+    }
+
+    .preview-page ul, .preview-page ol {
+      padding-left: 2em;
+      list-style: revert;
+    }
+
+    .preview-page table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 6px 0;
+    }
+
+    .preview-page td, .preview-page th {
+      border: 1px solid #c8cdd8;
+      padding: 6px 10px;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+
+    .preview-page td p, .preview-page th p {
+      color: inherit;
+    }
+
+    .preview-page th:not([style]) {
+      background: #f2f2f2;
+      color: #111;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    .preview-page th {
+      font-weight: 700;
+    }
+
+    .var-resolved {
+      color: #111 !important;
+      font-weight: inherit !important;
+      background: none !important;
+      padding: 0 !important;
+    }
+
+    .var-missing {
+      color: #dc2626 !important;
+    }
+
+    .preview-close {
+      font-size: 20px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #666;
+      padding: 0;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .preview-close:hover {
+      background: #f0f0f0;
+      color: #333;
+    }
+  `;
+  document.head.appendChild(styleEl);
+
+  let currentPage = 0;
+
+  const render = () => {
+    const page = pages[currentPage];
+    const noHdr = !tpl.hasHeader ? " no-header" : "";
+    const noFtr = !tpl.hasFooter ? " no-footer" : "";
+
+    modal.innerHTML = `
+      <div class="preview-header">
+        <div class="preview-title">Aperçu du document</div>
+        <div class="preview-pageinfo">
+          Page <strong>${currentPage + 1}</strong> sur <strong>${pages.length}</strong>
+        </div>
+        <div class="preview-controls">
+          <button class="preview-btn" id="prevPageBtn" ${currentPage === 0 ? "disabled" : ""}>← Précédent</button>
+          <button class="preview-btn" id="nextPageBtn" ${currentPage === pages.length - 1 ? "disabled" : ""}>Suivant →</button>
+          <button class="preview-btn primary" id="printAllBtn">🖨 Imprimer</button>
+          <button class="preview-close" id="closePreviewBtn">✕</button>
+        </div>
+      </div>
+      <div class="preview-container">
+        <div class="preview-page">
+          ${page.header ? `<div class="preview-page-header">${page.header}</div>` : ""}
+          <div class="preview-page-body${noHdr}${noFtr}">${page.content}</div>
+          ${page.footer ? `<div class="preview-page-footer">${page.footer}</div>` : ""}
+        </div>
+      </div>
+    `;
+
+    // Attacher les événements
+    document.getElementById("prevPageBtn")?.addEventListener("click", () => {
+      if (currentPage > 0) {
+        currentPage--;
+        render();
+      }
+    });
+
+    document.getElementById("nextPageBtn")?.addEventListener("click", () => {
+      if (currentPage < pages.length - 1) {
+        currentPage++;
+        render();
+      }
+    });
+
+    document.getElementById("printAllBtn")?.addEventListener("click", () => {
+      printDocPaginated(tpl, person, pages);
+    });
+
+    document
+      .getElementById("closePreviewBtn")
+      ?.addEventListener("click", () => {
+        modal.remove();
+        styleEl.remove();
+      });
+  };
+
+  document.body.appendChild(modal);
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  printDocPaginated(tpl, person, pages)
+//  Impression avec pagination complète
+// ═══════════════════════════════════════════════════════════════
+function printDocPaginated(tpl, person, pages = null) {
+  if (!tpl || !person) {
+    toast("Template ou personne manquant", "error");
+    return;
+  }
+
+  // Utiliser les pages déjà paginées ou les générer
+  let pagesToPrint = pages;
+  if (!pages) {
+    const hdrRaw = tpl.hasHeader
+      ? resolveVarsRaw(tpl.header || "", person)
+      : "";
+    const bRaw = resolveVarsRaw(tpl.body || "", person);
+    const ftrRaw = tpl.hasFooter
+      ? resolveVarsRaw(tpl.footer || "", person)
+      : "";
+
+    const paginator = new PagePaginator();
+    pagesToPrint = paginator.paginate(bRaw, hdrRaw, ftrRaw);
+  }
+
   const printCSS = `
-    @page { size:A4 portrait; margin:0; }
-    body  { margin:0; padding:0; background:#fff; }
-    #sirh-print-area { display:block; }
+    @page { size: A4 portrait; margin: 0; }
+    * { margin: 0; padding: 0; }
+    body { margin: 0; padding: 0; background: #fff; }
+    #sirh-print-area { display: block; }
 
-    .sirh-page {
-      width:210mm; min-height:297mm;
-      background:#fff;
-      display:flex; flex-direction:column;
-      page-break-after:always; break-after:page;
+    .sirh-print-page {
+      width: 210mm;
+      height: 297mm;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      page-break-after: always;
+      break-after: page;
     }
-    .sirh-page:last-child { page-break-after:auto; break-after:auto; }
 
-    .sirh-header {
-      flex-shrink:0;
-      padding:5mm 25mm 3mm 25mm;
-      font-family:"Times New Roman",Times,serif; font-size:12pt; line-height:1.6; color:#111;
+    .sirh-print-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
     }
-    .sirh-footer {
-      flex-shrink:0; margin-top:auto;
-      padding:3mm 25mm 5mm 25mm;
-      font-family:"Times New Roman",Times,serif; font-size:12pt; line-height:1.6; color:#111;
+
+    .sirh-print-header {
+      flex-shrink: 0;
+      padding: 5mm 25mm 3mm 25mm;
+      border-bottom: 1px solid #e2e8f0;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
     }
-    .sirh-body {
-      flex:1;
-      padding:5mm 25mm;
-      font-family:"Times New Roman",Times,serif; font-size:12pt; line-height:1.6; color:#111;
-      overflow:visible;
+
+    .sirh-print-body {
+      flex: 1;
+      padding: 5mm 25mm;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
+      overflow: visible;
     }
-    .sirh-body.no-header { padding-top:20mm; }
-    .sirh-body.no-footer  { padding-bottom:20mm; }
 
-    /* Paragraphes */
-    .sirh-header p, .sirh-body p, .sirh-footer p { margin:0 0 .4em; }
+    .sirh-print-body.no-header {
+      padding-top: 20mm;
+    }
 
-    /* Listes */
-    .sirh-header ul, .sirh-body ul, .sirh-footer ul,
-    .sirh-header ol, .sirh-body ol, .sirh-footer ol { padding-left:2em; list-style:revert; }
-    li { display:list-item; }
+    .sirh-print-body.no-footer {
+      padding-bottom: 20mm;
+    }
 
-    /* ── TABLEAUX ── */
-    table { border-collapse:collapse; width:100%; }
+    .sirh-print-footer {
+      flex-shrink: 0;
+      padding: 3mm 25mm 5mm 25mm;
+      border-top: 1px solid #e2e8f0;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
+    }
+
+    .sirh-print-header p,
+    .sirh-print-body p,
+    .sirh-print-footer p {
+      margin: 0 0 0.4em;
+    }
+
+    .sirh-print-header ul,
+    .sirh-print-body ul,
+    .sirh-print-footer ul,
+    .sirh-print-header ol,
+    .sirh-print-body ol,
+    .sirh-print-footer ol {
+      padding-left: 2em;
+      list-style: revert;
+    }
+
+    li { display: list-item; }
+
+    table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+
     td, th {
-      border:1px solid #c8cdd8; padding:7px 10px;
-      /* Forcer l'impression des couleurs de fond */
-      print-color-adjust:exact;
-      -webkit-print-color-adjust:exact;
+      border: 1px solid #c8cdd8;
+      padding: 6px 10px;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
     }
-    /* Propager la couleur texte du td/th vers ses <p> enfants */
-    td p, th p { color:inherit; }
-    /* Défaut th : gris/noir SEULEMENT si pas de style inline custom */
-    th:not([style]) { background:#f2f2f2; color:#111; font-weight:700; text-align:left; }
-    th { font-weight:700; }
 
-    /* Variables résolues → texte pur */
-    .var-resolved { color:#111 !important; font-weight:inherit !important; background:none !important; padding:0 !important; }
-    .var-missing  { color:#dc2626 !important; }
+    td p, th p { color: inherit; }
+
+    th:not([style]) {
+      background: #f2f2f2;
+      color: #111;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    th { font-weight: 700; }
+
+    .var-resolved {
+      color: #111 !important;
+      font-weight: inherit !important;
+      background: none !important;
+      padding: 0 !important;
+    }
+
+    .var-missing { color: #dc2626 !important; }
   `;
 
-  // ── Nettoyer une éventuelle zone précédente ──
   document.getElementById("sirh-print-area")?.remove();
 
-  // ── Injecter dans le DOM ──
   const wrap = document.createElement("div");
   wrap.id = "sirh-print-area";
-  wrap.style.display = "none"; // caché à l'écran
+  wrap.style.display = "none";
+
+  const pagesHtml = pagesToPrint
+    .map((page) => {
+      const noHdr = !tpl.hasHeader ? " no-header" : "";
+      const noFtr = !tpl.hasFooter ? " no-footer" : "";
+
+      return `
+        <div class="sirh-print-page">
+          ${page.header ? `<div class="sirh-print-header">${page.header}</div>` : ""}
+          <div class="sirh-print-body${noHdr}${noFtr}">${page.content}</div>
+          ${page.footer ? `<div class="sirh-print-footer">${page.footer}</div>` : ""}
+        </div>
+      `;
+    })
+    .join("");
+
+  wrap.innerHTML = pagesHtml;
 
   const style = document.createElement("style");
   style.id = "sirh-print-css";
   style.media = "print";
   style.textContent = printCSS;
 
-  wrap.innerHTML = pageHtml;
-  document.body.appendChild(style);
-  document.body.appendChild(wrap);
-
-  // ── Masquer le reste de la page à l'impression ──
   const hideStyle = document.createElement("style");
   hideStyle.id = "sirh-hide-css";
   hideStyle.media = "print";
   hideStyle.textContent = `
-    body > *:not(#sirh-print-area):not(#sirh-print-css):not(#sirh-hide-css) { display:none !important; }
-    #sirh-print-area { display:block !important; }
+    body > *:not(#sirh-print-area):not(#sirh-print-css):not(#sirh-hide-css) { display: none !important; }
+    #sirh-print-area { display: block !important; }
   `;
-  document.body.appendChild(hideStyle);
 
-  // ── Imprimer puis nettoyer ──
+  document.body.appendChild(style);
+  document.body.appendChild(hideStyle);
+  document.body.appendChild(wrap);
+
   setTimeout(() => {
     window.print();
     setTimeout(() => {
@@ -1195,3 +1746,194 @@ function printDoc(tpl, person) {
     }, 500);
   }, 80);
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  printDoc(tpl, person) — Compatibilité rétroactive
+//  Utilise la nouvelle logique de pagination
+// ═══════════════════════════════════════════════════════════════
+function printDoc(tpl, person) {
+  printDocPaginated(tpl, person);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GESTIONNAIRE DE PAGES MULTIPLES POUR L'ÉDITEUR (admin.html)
+//  Gère la création automatique de pages quand le contenu dépasse A4
+// ═══════════════════════════════════════════════════════════════
+
+class EditorPageManager {
+  constructor(opts = {}) {
+    // Dimensions A4 (en mm)
+    this.pageHeightMm = 297;
+    this.pageWidthMm = 210;
+    this.marginTopMm = opts.marginTop || 20;
+    this.marginBottomMm = opts.marginBottom || 20;
+    this.marginLeftMm = opts.marginLeft || 25;
+    this.marginRightMm = opts.marginRight || 25;
+
+    // Conversion mm → px (96 DPI)
+    this.mmToPx = (mm) => (mm * 96) / 25.4;
+
+    this.pageHeightPx = this.mmToPx(this.pageHeightMm);
+    this.pageWidthPx = this.mmToPx(this.pageWidthMm);
+    this.marginTopPx = this.mmToPx(this.marginTopMm);
+    this.marginBottomPx = this.mmToPx(this.marginBottomMm);
+    this.marginLeftPx = this.mmToPx(this.marginLeftMm);
+    this.marginRightPx = this.mmToPx(this.marginRightMm);
+
+    this.pages = [];
+    this.containerWidth = 0;
+    this.headerHeightPx = 0;
+    this.footerHeightPx = 0;
+  }
+
+  /**
+   * Initialiser les pages multiples dans le conteneur
+   * @param {string} containerId - ID du div contenant le canvas
+   * @param {boolean} hasHeader - Si header affiché
+   * @param {boolean} hasFooter - Si footer affiché
+   */
+  init(containerId, hasHeader = false, hasFooter = false) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    this.containerId = containerId;
+    const scaler = container.querySelector("#zoomScaler");
+    const mainPage = container.querySelector("#mainPage");
+    const secHeader = container.querySelector("#sec-header");
+    const secBody = container.querySelector("#sec-body");
+    const secFooter = container.querySelector("#sec-footer");
+
+    if (!scaler || !mainPage) return;
+
+    // Mesurer les hauteurs
+    if (hasHeader && secHeader) {
+      secHeader.style.display = "block";
+      this.headerHeightPx = secHeader.offsetHeight;
+    }
+
+    if (hasFooter && secFooter) {
+      secFooter.style.display = "block";
+      this.footerHeightPx = secFooter.offsetHeight;
+    }
+
+    // Hauteur disponible pour le contenu sur une page
+    this.contentHeightPx =
+      this.pageHeightPx -
+      this.marginTopPx -
+      this.marginBottomPx -
+      this.headerHeightPx -
+      this.footerHeightPx;
+
+    // Initialiser avec la première page
+    this.pages = [{ id: "page_1", element: mainPage, editors: {} }];
+
+    // Surveiller les changements de contenu
+    this._watchPageOverflow();
+  }
+
+  /**
+   * Surveiller le débordement de contenu et créer des pages
+   * @private
+   */
+  _watchPageOverflow() {
+    if (!this.containerId) return;
+
+    // Surveillance tous les 500ms
+    this.watchInterval = setInterval(() => {
+      const scaler = document
+        .getElementById(this.containerId)
+        ?.querySelector("#zoomScaler");
+      if (!scaler) return;
+
+      const currentPages = scaler.querySelectorAll(".a4-page");
+      let needsNewPage = false;
+
+      // Vérifier chaque page existante
+      currentPages.forEach((page, idx) => {
+        const secBody = page.querySelector("#sec-body");
+        if (!secBody) return;
+
+        const contentHeight = secBody.scrollHeight;
+
+        // Si contenu dépasse la hauteur disponible, créer nouvelle page
+        if (
+          contentHeight > this.contentHeightPx * 1.1 &&
+          idx === currentPages.length - 1
+        ) {
+          needsNewPage = true;
+        }
+      });
+
+      if (needsNewPage) {
+        this._createNewPage();
+      }
+    }, 500);
+  }
+
+  /**
+   * Créer une nouvelle page éditable
+   * @private
+   */
+  _createNewPage() {
+    const scaler = document
+      .getElementById(this.containerId)
+      ?.querySelector("#zoomScaler");
+    const firstPage = scaler?.querySelector("#mainPage");
+    if (!scaler || !firstPage) return;
+
+    const pageNum = scaler.querySelectorAll(".a4-page").length + 1;
+    const newPageId = `page_${pageNum}`;
+
+    // Cloner la structure de la première page
+    const newPage = firstPage.cloneNode(true);
+    newPage.id = newPageId;
+
+    // Réinitialiser les éditeurs Tiptap
+    const editorElements = newPage.querySelectorAll(".tiptap-wrapper");
+    editorElements.forEach((el, idx) => {
+      el.innerHTML = "";
+      el.id = el.id
+        ? el.id.replace("ck-", `ck-page${pageNum}-`)
+        : `ed-page${pageNum}-${idx}`;
+    });
+
+    // Ajouter une bordure visuelle pour délimiter les pages
+    newPage.style.borderTop = "2px dashed #d0d0ca";
+    newPage.style.marginTop = "10px";
+    newPage.style.opacity = "0.95";
+
+    // Ajouter au conteneur
+    scaler.appendChild(newPage);
+
+    // Stocker la page
+    this.pages.push({ id: newPageId, element: newPage, editors: {} });
+
+    // Afficher un toast
+    toast(`Nouvelle page ${pageNum} créée`, "success");
+
+    return newPageId;
+  }
+
+  /**
+   * Obtenir le nombre de pages visibles
+   */
+  getPageCount() {
+    if (!this.containerId) return 0;
+    const scaler = document
+      .getElementById(this.containerId)
+      ?.querySelector("#zoomScaler");
+    return scaler?.querySelectorAll(".a4-page").length || 0;
+  }
+
+  /**
+   * Détruire l'intervalle de surveillance
+   */
+  destroy() {
+    if (this.watchInterval) {
+      clearInterval(this.watchInterval);
+    }
+  }
+}
+
+// Exporter globalement
+window.EditorPageManager = EditorPageManager;

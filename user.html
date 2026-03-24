@@ -1216,15 +1216,7 @@
         const person = DB.getPerson(selPersonId);
         if (!tpl || !person) return;
 
-        const hdrHtml = tpl.hasHeader
-          ? resolveVars(tpl.header || "", person)
-          : "";
-        const bHtml = resolveVars(tpl.body || "", person);
-        const ftrHtml = tpl.hasFooter
-          ? resolveVars(tpl.footer || "", person)
-          : "";
-
-        buildA4Canvas(hdrHtml, bHtml, ftrHtml, tpl);
+        buildA4Canvas(tpl, person);
 
         document.getElementById("zoomBar").style.display = "flex";
         const actions = document.getElementById("docActions");
@@ -1236,47 +1228,69 @@
           b.onclick = fn;
           actions.appendChild(b);
         };
-        mkBtn("🖨 Imprimer", "primary", () => printDoc(tpl, person));
+        mkBtn("👁 Aperçu final", "primary", () => previewDocument(tpl, person));
+        mkBtn("🖨 Imprimer", "primary", () => printDocPaginated(tpl, person));
         mkBtn("Nouveau", "ghost", resetAll);
 
         toast("Document généré !", "success");
       }
 
-      /* ── CANVAS A4 (une seule page) ── */
-      function buildA4Canvas(hdrHtml, bHtml, ftrHtml, tpl) {
+      /* ── CANVAS A4 (pages paginées avec variables bleues) ── */
+      function buildA4Canvas(tpl, person) {
         const wait = document.getElementById("docWait");
         const canvas = document.getElementById("a4Canvas");
         const scaler = document.getElementById("zoomScaler");
         wait.style.display = "none";
         canvas.style.display = "flex";
         scaler.innerHTML = "";
-        const page = makePage(hdrHtml, bHtml, ftrHtml, tpl);
-        scaler.appendChild(page);
-      }
 
-      function makePage(hdrHtml, bHtml, ftrHtml, tpl) {
-        const page = document.createElement("div");
-        page.className = "a4-page";
-        if (tpl.hasHeader && hdrHtml) {
-          const hdr = document.createElement("div");
-          hdr.className = "a4-header";
-          hdr.innerHTML = `<div class="a4-hf-label">EN-TÊTE</div><div class="doc-content">${hdrHtml}</div>`;
-          page.appendChild(hdr);
+        // Récupérer les pages paginées (avec variables en bleu)
+        const result = paginateWithVariablesBlue(tpl, person);
+        if (!result.pages.length) {
+          toast("Aucun contenu à afficher", "error");
+          return;
         }
-        const body = document.createElement("div");
-        body.className =
-          "a4-body doc-content" +
-          (!tpl.hasHeader ? " no-header" : "") +
-          (!tpl.hasFooter ? " no-footer" : "");
-        body.innerHTML = bHtml;
-        page.appendChild(body);
-        if (tpl.hasFooter && ftrHtml) {
-          const ftr = document.createElement("div");
-          ftr.className = "a4-footer";
-          ftr.innerHTML = `<div class="a4-hf-label">PIED DE PAGE</div><div class="doc-content">${ftrHtml}</div>`;
-          page.appendChild(ftr);
-        }
-        return page;
+
+        // Créer un conteneur pour toutes les pages
+        const allPages = document.createElement("div");
+        allPages.style.display = "flex";
+        allPages.style.flexDirection = "column";
+        allPages.style.gap = "20px";
+        allPages.style.alignItems = "center";
+
+        result.pages.forEach((page, idx) => {
+          const pageEl = document.createElement("div");
+          pageEl.className = "a4-page";
+          let pageHTML = "";
+
+          // En-tête
+          if (result.hasHeader && page.header) {
+            pageHTML += `<div class="a4-header"><div class="a4-hf-label">EN-TÊTE</div><div class="doc-content">${page.header}</div></div>`;
+          }
+
+          // Corps
+          const noHeaderClass = !result.hasHeader ? " no-header" : "";
+          const noFooterClass = !result.hasFooter ? " no-footer" : "";
+          pageHTML += `<div class="a4-body doc-content${noHeaderClass}${noFooterClass}">${page.content}</div>`;
+
+          // Pied de page
+          if (result.hasFooter && page.footer) {
+            pageHTML += `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE</div><div class="doc-content">${page.footer}</div></div>`;
+          }
+
+          pageEl.innerHTML = pageHTML;
+
+          // Ajouter un numéro de page
+          const pageNum = document.createElement("div");
+          pageNum.style.cssText =
+            "text-align:center;color:#999;font-size:10px;margin-top:8px";
+          pageNum.textContent = `Page ${idx + 1}`;
+
+          allPages.appendChild(pageEl);
+          allPages.appendChild(pageNum);
+        });
+
+        scaler.appendChild(allPages);
       }
 
       /* ── ZOOM ── */

@@ -777,12 +777,39 @@
         letter-spacing: 0.05em;
         pointer-events: none;
       }
+
+      /* ── DÉLIMITEURS VISUELS DES PAGES ── */
+      .editor-page-break {
+        position: relative;
+        width: 100%;
+        margin: 8px 0;
+      }
+
+      /* ── PAGES MULTIPLES ── */
+      .a4-page {
+        position: relative;
+        background: white;
+      }
+
+      .a4-page::before {
+        content: attr(data-page-num);
+        position: absolute;
+        bottom: 5px;
+        right: 10px;
+        font-size: 10px;
+        color: #ddd;
+        pointer-events: none;
+        z-index: 0;
+      }
+
       #sec-body {
         display: flex;
         flex-direction: column;
         flex: 1;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
         padding: 5mm var(--page-mr) 5mm var(--page-ml);
+        position: relative;
       }
       #sec-body.no-header {
         padding-top: var(--page-mt);
@@ -794,11 +821,11 @@
       /* ── DOC CONTENT (Tiptap) ── */
       .tiptap-wrapper {
         width: 100%;
-        height: 100%;
+        min-height: 100px;
       }
       .tiptap-wrapper .ProseMirror {
         width: 100%;
-        height: 100%;
+        height: auto;
         min-height: 40px;
         outline: none;
         caret-color: var(--accent);
@@ -2904,6 +2931,13 @@
             "
           ></select>
           <button
+            id="prevPreviewBtn"
+            class="btn sm"
+            onclick="doPreviewFromPreview()"
+          >
+            👁 Aperçu
+          </button>
+          <button
             id="prevPrintBtn"
             class="btn sm primary"
             onclick="doPrintFromPreview()"
@@ -4680,7 +4714,32 @@
         } catch (_) {}
       }
 
-      // ── Impression ──
+      // ── Aperçu et Impression ──
+      window.doPreviewFromPreview = function () {
+        const pId = document.getElementById("prevPerson")?.value;
+        const person = pId ? DB.getPerson(pId) : null;
+        const tpl = curTplId ? DB.getTemplate(curTplId) : null;
+        if (!tpl) {
+          toast("Aucun template actif", "error");
+          return;
+        }
+        const liveTpl = {
+          ...tpl,
+          header:
+            headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "",
+          body: getEditorHTML(editorBody),
+          footer:
+            footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "",
+          hasHeader: headerEnabled,
+          hasFooter: footerEnabled,
+        };
+        if (!person) {
+          toast("Sélectionnez un bénéficiaire pour afficher l'aperçu", "error");
+          return;
+        }
+        previewDocument(liveTpl, person);
+      };
+
       window.doPrintFromPreview = function () {
         const pId = document.getElementById("prevPerson")?.value;
         const person = pId ? DB.getPerson(pId) : null;
@@ -4703,7 +4762,7 @@
           toast("Sélectionnez un bénéficiaire pour imprimer", "error");
           return;
         }
-        printDoc(liveTpl, person);
+        printDocPaginated(liveTpl, person);
       };
 
       // ── Save state ──
@@ -4775,6 +4834,13 @@
           } catch (_) {}
         });
         editorHeader = editorBody = editorFooter = null;
+
+        // Détruire aussi le visualizer de pages
+        if (window.pageVisualizer) {
+          try {
+            window.pageVisualizer.destroy();
+          } catch (_) {}
+        }
       }
       function openTemplate(tplId) {
         const tpl = DB.getTemplate(tplId);
@@ -4823,7 +4889,36 @@
         updateSectionVisibility();
         switchSection("body");
         updateWordCount();
+
+        // ── Initialiser la visualisation des pages multiples ──
+        if (!window.pageVisualizer) {
+          window.pageVisualizer = new EditorPageVisualizer({
+            marginTop: 20,
+            marginBottom: 20,
+            marginLeft: 25,
+            marginRight: 25,
+          });
+        } else {
+          window.pageVisualizer.destroy();
+          window.pageVisualizer = new EditorPageVisualizer({
+            marginTop: 20,
+            marginBottom: 20,
+            marginLeft: 25,
+            marginRight: 25,
+          });
+        }
+
+        // Initialiser après 100ms
         setTimeout(() => {
+          if (window.pageVisualizer) {
+            const secHeader = document.querySelector("#sec-header");
+            const secFooter = document.querySelector("#sec-footer");
+            const headerH =
+              headerEnabled && secHeader ? secHeader.offsetHeight : 0;
+            const footerH =
+              footerEnabled && secFooter ? secFooter.offsetHeight : 0;
+            window.pageVisualizer.init("#sec-body", headerH, footerH);
+          }
           [editorBody, editorHeader, editorFooter].forEach((ed) => {
             if (ed) activateImageResizers(ed);
           });
@@ -4940,6 +5035,20 @@
         const body = document.getElementById("sec-body");
         body.classList.toggle("no-header", !headerEnabled);
         body.classList.toggle("no-footer", !footerEnabled);
+
+        // Recalculer les délimiteurs des pages
+        setTimeout(() => {
+          if (window.pageVisualizer) {
+            const secHeader = document.querySelector("#sec-header");
+            const secFooter = document.querySelector("#sec-footer");
+            const headerH =
+              headerEnabled && secHeader ? secHeader.offsetHeight : 0;
+            const footerH =
+              footerEnabled && secFooter ? secFooter.offsetHeight : 0;
+            window.pageVisualizer.destroy();
+            window.pageVisualizer.init("#sec-body", headerH, footerH);
+          }
+        }, 50);
       }
 
       window.confirmDelTpl = function (id) {
