@@ -834,9 +834,36 @@ function _resolveScalars(html, person, preview) {
   });
 }
 
+function _normalizeEditorSpacingHtml(html) {
+  if (!html) return "";
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
+  const root = doc.body.firstElementChild;
+  if (!root) return html;
+
+  root.querySelectorAll("p").forEach((p) => {
+    const probe = p.cloneNode(true);
+    probe.querySelectorAll("br.ProseMirror-trailingBreak").forEach((br) =>
+      br.remove(),
+    );
+
+    const hasVisualContent =
+      !!probe.textContent.replace(/\u00a0/g, " ").trim() ||
+      !!probe.querySelector("img, table, hr, ul, ol, iframe, svg");
+
+    if (!hasVisualContent) {
+      p.innerHTML = "&nbsp;";
+    }
+  });
+
+  return root.innerHTML;
+}
+
 // ── Résolution principale (ordre : table → cell-expand → ul/inline → scalaires) ──
 function _resolveAll(html, person, preview) {
   if (!html) return "";
+  html = _normalizeEditorSpacingHtml(html);
   html = _resolveObjectTables(html, person, preview); // 0 - NOUVEAU
   html = _resolveCellExpand(html, person, preview); // 1
   html = _resolveListTags(html, person, preview); // 2
@@ -1102,6 +1129,88 @@ class PagePaginator {
     this.footerHeight = 0;
   }
 
+  _applyMeasureStyles(el) {
+    if (!el) return;
+    el.style.fontFamily = '"Times New Roman", Times, serif';
+    el.style.fontSize = "12pt";
+    el.style.lineHeight = "1.6";
+    el.style.color = "#111";
+  }
+
+  _applyMeasureContentStyles(root) {
+    if (!root) return;
+
+    root.querySelectorAll("p").forEach((p) => {
+      p.style.margin = "0 0 0.4em";
+      if (
+        !p.textContent.trim() &&
+        !p.querySelector("img, table, hr, ul, ol, iframe, svg")
+      ) {
+        p.style.minHeight = "1.6em";
+      }
+    });
+
+    const lastParagraph = root.querySelector("p:last-child");
+    if (lastParagraph) lastParagraph.style.marginBottom = "0";
+
+    root.querySelectorAll("h1").forEach((el) => {
+      el.style.fontSize = "22pt";
+      el.style.fontWeight = "700";
+      el.style.margin = "0.8em 0 0.4em";
+    });
+    root.querySelectorAll("h2").forEach((el) => {
+      el.style.fontSize = "18pt";
+      el.style.fontWeight = "700";
+      el.style.margin = "0.7em 0 0.3em";
+    });
+    root.querySelectorAll("h3").forEach((el) => {
+      el.style.fontSize = "14pt";
+      el.style.fontWeight = "700";
+      el.style.margin = "0.6em 0 0.3em";
+    });
+    root.querySelectorAll("h4").forEach((el) => {
+      el.style.fontSize = "12pt";
+      el.style.fontWeight = "700";
+      el.style.margin = "0.5em 0 0.2em";
+    });
+
+    root.querySelectorAll("ul").forEach((el) => {
+      el.style.paddingLeft = "2em";
+      el.style.margin = "0.4em 0";
+      el.style.listStyleType = "disc";
+    });
+    root.querySelectorAll("ol").forEach((el) => {
+      el.style.paddingLeft = "2em";
+      el.style.margin = "0.4em 0";
+      el.style.listStyleType = "decimal";
+    });
+    root.querySelectorAll("li").forEach((el) => {
+      el.style.display = "list-item";
+    });
+
+    root.querySelectorAll("table").forEach((el) => {
+      el.style.borderCollapse = "collapse";
+      el.style.width = "100%";
+      el.style.margin = "6px 0";
+    });
+    root.querySelectorAll("td, th").forEach((el) => {
+      el.style.border = "1px solid #c8cdd8";
+      el.style.padding = "6px 10px";
+    });
+    root.querySelectorAll("th:not([style])").forEach((el) => {
+      el.style.background = "#f2f2f2";
+      el.style.color = "#111";
+      el.style.fontWeight = "700";
+      el.style.textAlign = "left";
+    });
+
+    root.querySelectorAll("hr").forEach((el) => {
+      el.style.border = "none";
+      el.style.borderTop = "1.5px solid #c8cdd8";
+      el.style.margin = "10px 0";
+    });
+  }
+
   /**
    * Pagine le contenu HTML en divisant intelligemment
    * @param {string} contentHtml - HTML du contenu principal
@@ -1117,16 +1226,16 @@ class PagePaginator {
     tempContainer.style.position = "absolute";
     tempContainer.style.visibility = "hidden";
     tempContainer.style.width = this.pageWidthPx + "px";
-    tempContainer.style.fontFamily = '"Times New Roman", Times, serif';
-    tempContainer.style.fontSize = "12pt";
-    tempContainer.style.lineHeight = "1.6";
-    tempContainer.style.color = "#111";
+    tempContainer.style.left = "-99999px";
+    tempContainer.style.top = "0";
+    this._applyMeasureStyles(tempContainer);
 
     // Mesurer hauteur du header
     if (headerHtml) {
       const hdrEl = document.createElement("div");
       hdrEl.innerHTML = headerHtml;
       hdrEl.style.padding = "5mm 25mm 3mm 25mm";
+      this._applyMeasureContentStyles(hdrEl);
       tempContainer.appendChild(hdrEl);
       document.body.appendChild(tempContainer);
       this.headerHeight = hdrEl.offsetHeight;
@@ -1138,6 +1247,7 @@ class PagePaginator {
       const ftrEl = document.createElement("div");
       ftrEl.innerHTML = footerHtml;
       ftrEl.style.padding = "3mm 25mm 5mm 25mm";
+      this._applyMeasureContentStyles(ftrEl);
       tempContainer.appendChild(ftrEl);
       document.body.appendChild(tempContainer);
       this.footerHeight = ftrEl.offsetHeight;
@@ -1182,12 +1292,11 @@ class PagePaginator {
     const tempMeasure = document.createElement("div");
     tempMeasure.style.position = "absolute";
     tempMeasure.style.visibility = "hidden";
+    tempMeasure.style.left = "-99999px";
+    tempMeasure.style.top = "0";
     tempMeasure.style.width =
       this.pageWidthPx - this.marginLeftPx - this.marginRightPx + "px";
-    tempMeasure.style.fontFamily = '"Times New Roman", Times, serif';
-    tempMeasure.style.fontSize = "12pt";
-    tempMeasure.style.lineHeight = "1.6";
-    tempMeasure.style.color = "#111";
+    this._applyMeasureStyles(tempMeasure);
     document.body.appendChild(tempMeasure);
 
     for (let i = 0; i < elements.length; i++) {
@@ -1197,9 +1306,18 @@ class PagePaginator {
       // Cloner l'élément pour mesurer
       const clone = el.cloneNode(true);
       tempMeasure.innerHTML = "";
-      tempMeasure.appendChild(clone);
+      const wrapper = document.createElement("div");
+      wrapper.style.display = "flow-root";
+      wrapper.appendChild(clone);
+      this._applyMeasureContentStyles(wrapper);
+      tempMeasure.appendChild(wrapper);
 
-      const elHeight = tempMeasure.offsetHeight;
+      const elHeight = Math.max(
+        wrapper.offsetHeight,
+        wrapper.scrollHeight,
+        clone.offsetHeight,
+        clone.scrollHeight,
+      );
 
       // Si l'élément est une table ou très grand, garder son intégrité
       const isLargeElement =

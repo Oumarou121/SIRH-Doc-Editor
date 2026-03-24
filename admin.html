@@ -731,6 +731,24 @@
         flex-direction: column;
         align-items: center;
         padding: 24px 20px 40px;
+        position: relative;
+      }
+      .page-live-badge {
+        position: sticky;
+        top: 12px;
+        align-self: flex-end;
+        margin: 0 12px 10px 0;
+        z-index: 25;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(37, 99, 235, 0.18);
+        color: var(--accent2);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        backdrop-filter: blur(8px);
       }
       .zoom-scaler {
         transition: transform 0.1s;
@@ -810,6 +828,7 @@
         overflow-x: hidden;
         padding: 5mm var(--page-mr) 5mm var(--page-ml);
         position: relative;
+        isolation: isolate;
       }
       #sec-body.no-header {
         padding-top: var(--page-mt);
@@ -817,11 +836,52 @@
       #sec-body.no-footer {
         padding-bottom: var(--page-mb);
       }
+      .editor-page-guides {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .editor-page-line {
+        position: absolute;
+        left: 10px;
+        right: 10px;
+        height: 0;
+        border-top: 2px dashed rgba(148, 153, 176, 0.45);
+        transition:
+          border-color 0.12s ease,
+          opacity 0.12s ease;
+        opacity: 0.9;
+      }
+      .editor-page-line::before {
+        content: attr(data-label);
+        position: absolute;
+        right: 0;
+        top: -12px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        color: #667085;
+        background: rgba(240, 242, 245, 0.96);
+        border: 1px solid rgba(148, 153, 176, 0.28);
+      }
+      .editor-page-line.active {
+        border-top-color: rgba(37, 99, 235, 0.75);
+      }
+      .editor-page-line.active::before {
+        color: var(--accent2);
+        background: rgba(239, 246, 255, 0.98);
+        border-color: rgba(37, 99, 235, 0.24);
+      }
 
       /* ── DOC CONTENT (Tiptap) ── */
       .tiptap-wrapper {
         width: 100%;
         min-height: 100px;
+        position: relative;
+        z-index: 1;
       }
       .tiptap-wrapper .ProseMirror {
         width: 100%;
@@ -2577,6 +2637,7 @@
             </div>
 
             <div class="pcanvas" id="pCanvas">
+              <div class="page-live-badge" id="pageLiveBadge">Page 1 / 1</div>
               <div class="zoom-scaler" id="zoomScaler">
                 <div class="a4-page" id="mainPage">
                   <div
@@ -3738,6 +3799,7 @@
         footerEnabled = false;
       let _activeResizeImg = null,
         _activeResizeImgEl = null;
+      let pageGuideRaf = 0;
 
       window.insertVar = function (tech) {
         const ed = activeEditor || editorBody;
@@ -4028,15 +4090,18 @@
           onUpdate: () => {
             if (onUpdate) onUpdate();
             setTimeout(() => activateImageResizers(editor), 60);
+            scheduleEditorPaginationRefresh();
           },
           onFocus: () => {
             if (onFocus) onFocus(editor);
+            scheduleEditorPaginationRefresh();
           },
           onSelectionUpdate: () => {
             if (activeEditor === editor) {
               syncToolbar();
               positionTblToolbar();
             }
+            scheduleEditorPaginationRefresh();
           },
         });
         div.addEventListener("contextmenu", (e) => {
@@ -4051,6 +4116,117 @@
       }
       function setEditorHTML(ed, html) {
         if (ed && html) ed.commands.setContent(html, false);
+      }
+
+      function getEditorBodyMetrics() {
+        const secBody = document.getElementById("sec-body");
+        if (!secBody) return null;
+        const styles = getComputedStyle(secBody);
+        const padTop = parseFloat(styles.paddingTop) || 0;
+        const padBottom = parseFloat(styles.paddingBottom) || 0;
+        const pageHeight = Math.max(1, secBody.clientHeight - padTop - padBottom);
+        return { secBody, padTop, padBottom, pageHeight };
+      }
+
+      function ensureEditorPageGuides() {
+        const secBody = document.getElementById("sec-body");
+        if (!secBody) return null;
+        let guides = document.getElementById("editorPageGuides");
+        if (!guides) {
+          guides = document.createElement("div");
+          guides.id = "editorPageGuides";
+          guides.className = "editor-page-guides";
+          secBody.appendChild(guides);
+        }
+        return guides;
+      }
+
+      function getBodyContentHeight() {
+        const bodyPm = document.querySelector("#ck-body .ProseMirror");
+        if (!bodyPm) return 0;
+        return Math.max(bodyPm.scrollHeight, bodyPm.offsetHeight, 1);
+      }
+
+      function getCurrentBodyPage(totalPages = 1) {
+        const metrics = getEditorBodyMetrics();
+        if (!metrics) return 1;
+
+        const { secBody, padTop, pageHeight } = metrics;
+
+        if (activeEditor && activeEditor !== editorBody) {
+          return 1;
+        }
+
+        let y = secBody.scrollTop;
+        try {
+          if (editorBody) {
+            const pos = editorBody.state.selection.from;
+            const coords = editorBody.view.coordsAtPos(pos);
+            const rect = secBody.getBoundingClientRect();
+            y = secBody.scrollTop + (coords.top - rect.top) - padTop;
+          }
+        } catch (_) {}
+
+        return Math.max(1, Math.min(totalPages, Math.floor(Math.max(0, y) / pageHeight) + 1));
+      }
+
+      function updatePageLiveBadge(currentPage, totalPages) {
+        const badge = document.getElementById("pageLiveBadge");
+        if (!badge) return;
+
+        if (activeEditor === editorHeader) {
+          badge.textContent = "En-tête · Page 1";
+          return;
+        }
+        if (activeEditor === editorFooter) {
+          badge.textContent = "Pied de page · Page 1";
+          return;
+        }
+
+        badge.textContent = `Page ${currentPage} / ${totalPages}`;
+      }
+
+      function refreshEditorPaginationVisuals() {
+        pageGuideRaf = 0;
+
+        const metrics = getEditorBodyMetrics();
+        const guides = ensureEditorPageGuides();
+        if (!metrics || !guides) return;
+
+        const { secBody, pageHeight } = metrics;
+        const contentHeight = Math.max(getBodyContentHeight(), pageHeight);
+        const totalPages = Math.max(1, Math.ceil(contentHeight / pageHeight));
+        const currentPage = getCurrentBodyPage(totalPages);
+
+        guides.innerHTML = "";
+        guides.style.height = `${contentHeight}px`;
+
+        for (let page = 2; page <= totalPages; page++) {
+          const line = document.createElement("div");
+          line.className =
+            "editor-page-line" + (page === currentPage ? " active" : "");
+          line.style.top = `${(page - 1) * pageHeight}px`;
+          line.dataset.label = `Page ${page}`;
+          guides.appendChild(line);
+        }
+
+        secBody.dataset.pageCount = String(totalPages);
+        updatePageLiveBadge(currentPage, totalPages);
+      }
+
+      function scheduleEditorPaginationRefresh() {
+        if (pageGuideRaf) cancelAnimationFrame(pageGuideRaf);
+        pageGuideRaf = requestAnimationFrame(refreshEditorPaginationVisuals);
+      }
+
+      function bindEditorPaginationVisuals() {
+        const secBody = document.getElementById("sec-body");
+        if (!secBody || secBody.dataset.pageGuideBound === "1") return;
+
+        secBody.addEventListener("scroll", () => {
+          scheduleEditorPaginationRefresh();
+        });
+        secBody.dataset.pageGuideBound = "1";
       }
 
       function syncToolbar() {
@@ -4901,6 +5077,7 @@
         updateSectionVisibility();
         switchSection("body");
         updateWordCount();
+        bindEditorPaginationVisuals();
 
         // ── Initialiser la visualisation des pages multiples ──
         if (!window.pageVisualizer) {
@@ -4931,6 +5108,7 @@
               footerEnabled && secFooter ? secFooter.offsetHeight : 0;
             window.pageVisualizer.init("#sec-body", headerH, footerH);
           }
+          scheduleEditorPaginationRefresh();
           [editorBody, editorHeader, editorFooter].forEach((ed) => {
             if (ed) activateImageResizers(ed);
           });
@@ -5047,6 +5225,7 @@
         const body = document.getElementById("sec-body");
         body.classList.toggle("no-header", !headerEnabled);
         body.classList.toggle("no-footer", !footerEnabled);
+        scheduleEditorPaginationRefresh();
 
         // Recalculer les délimiteurs des pages
         setTimeout(() => {
@@ -5060,6 +5239,7 @@
             window.pageVisualizer.destroy();
             window.pageVisualizer.init("#sec-body", headerH, footerH);
           }
+          scheduleEditorPaginationRefresh();
         }, 50);
       }
 
@@ -5217,6 +5397,7 @@
           zoomLv < 100 ? ((100 - zoomLv) / 100) * -500 + "px" : "0";
         document.getElementById("zoomLbl").textContent = zoomLv + "%";
         document.getElementById("sbZoom").textContent = zoomLv + "%";
+        scheduleEditorPaginationRefresh();
       };
 
       // ── Search & replace ──
@@ -5435,6 +5616,9 @@
           !e.target.closest(".tbl-toolbar")
         )
           document.getElementById("tblToolbar").classList.remove("on");
+      });
+      window.addEventListener("resize", () => {
+        scheduleEditorPaginationRefresh();
       });
 
       // ── BOOT ──
