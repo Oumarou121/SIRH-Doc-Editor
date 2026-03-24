@@ -1197,12 +1197,6 @@
         padding: 20px;
         border-radius: var(--r);
       }
-      .preview-pages {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 18px;
-      }
       .preview-page {
         background: #fff;
         border-radius: 2px;
@@ -1263,12 +1257,6 @@
         border-radius: 2px;
         font-size: 0.9em;
         font-style: italic;
-      }
-      .preview-page-num {
-        text-align: center;
-        color: #999;
-        font-size: 10px;
-        margin-top: 8px;
       }
       .page-margin-viz {
         display: grid;
@@ -2969,7 +2957,7 @@
           >
         </div>
         <div class="preview-a4-wrap" id="previewA4Wrap">
-          <div id="prevContent"></div>
+          <div class="preview-page" id="prevContent"></div>
         </div>
       </div>
     </div>
@@ -5151,60 +5139,37 @@
         window.refreshPrev();
         openModal("modalPreview");
       };
-      function buildLivePreviewTemplate() {
-        const tpl = curTplId ? DB.getTemplate(curTplId) : null;
-        if (!tpl || !editorBody) return null;
-        return {
-          ...tpl,
-          header:
-            headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "",
-          body: getEditorHTML(editorBody),
-          footer:
-            footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "",
-          hasHeader: headerEnabled,
-          hasFooter: footerEnabled,
-        };
-      }
       window.refreshPrev = function () {
         const p = DB.getPerson(document.getElementById("prevPerson").value);
-        const liveTpl = buildLivePreviewTemplate();
-        if (!p || !liveTpl) return;
+        if (!p || !editorBody) return;
+        const hH =
+          headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "";
+        const bH = getEditorHTML(editorBody);
+        const fH =
+          footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "";
         const prevPage = document.getElementById("prevContent");
         prevPage.innerHTML = "";
-        prevPage.className = "preview-pages";
-
-        const result = paginateWithVariablesBlue(liveTpl, p);
-        if (!result.pages.length) {
-          prevPage.innerHTML =
-            '<div style="font-size:12px;color:var(--text3);text-align:center;padding:30px 20px">Aucun contenu à afficher</div>';
-          return;
+        prevPage.style.cssText =
+          "background:#fff;border-radius:2px;width:210mm;min-height:297mm;margin:0 auto;box-shadow:0 2px 12px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden";
+        if (headerEnabled && hH) {
+          const hdrDiv = document.createElement("div");
+          hdrDiv.className = "prev-header";
+          hdrDiv.innerHTML = resolveVars(hH, p);
+          prevPage.appendChild(hdrDiv);
         }
-
-        result.pages.forEach((page, idx) => {
-          const pageEl = document.createElement("div");
-          pageEl.className = "preview-page";
-          const noHeaderClass = !result.hasHeader ? " no-header" : "";
-          const noFooterClass = !result.hasFooter ? " no-footer" : "";
-          let pageHtml = "";
-
-          if (result.hasHeader && page.header) {
-            pageHtml += `<div class="prev-header">${page.header}</div>`;
-          }
-
-          pageHtml += `<div class="prev-body${noHeaderClass}${noFooterClass}">${page.content}</div>`;
-
-          if (result.hasFooter && page.footer) {
-            pageHtml += `<div class="prev-footer">${page.footer}</div>`;
-          }
-
-          pageEl.innerHTML = pageHtml;
-          prevPage.appendChild(pageEl);
-
-          const pageNum = document.createElement("div");
-          pageNum.className = "preview-page-num";
-          pageNum.textContent = `Page ${idx + 1}`;
-          prevPage.appendChild(pageNum);
-        });
+        const bodyDiv = document.createElement("div");
+        bodyDiv.className =
+          "prev-body" +
+          (!headerEnabled ? " no-header" : "") +
+          (!footerEnabled ? " no-footer" : "");
+        bodyDiv.innerHTML = resolveVars(bH, p);
+        prevPage.appendChild(bodyDiv);
+        if (footerEnabled && fH) {
+          const ftrDiv = document.createElement("div");
+          ftrDiv.className = "prev-footer";
+          ftrDiv.innerHTML = resolveVars(fH, p);
+          prevPage.appendChild(ftrDiv);
+        }
       };
 
       // ── Zoom ──
@@ -5449,3 +5414,3285 @@
     </script>
   </body>
 </html>
+
+
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>SIRH-Doc — Génération de Documents</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Cairo:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #f6f6f3;
+        --surface: #fff;
+        --surface2: #f8f8f5;
+        --surface3: #f0f0ec;
+        --border: #e2e2dc;
+        --border2: #d0d0ca;
+        --text: #1a1a18;
+        --text2: #5a5a55;
+        --text3: #9a9a93;
+        --accent: #2563eb;
+        --accent-bg: #eff6ff;
+        --accent-bdr: #bfdbfe;
+        --green: #16a34a;
+        --green-bg: #f0fdf4;
+        --green-bdr: #bbf7d0;
+        --amber: #d97706;
+        --amber-bg: #fffbeb;
+        --amber-bdr: #fde68a;
+        --red: #dc2626;
+        --red-bg: #fef2f2;
+        --r: 8px;
+        --rlg: 12px;
+        --rxl: 16px;
+        --sh: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 20px rgba(0, 0, 0, 0.06);
+        --shlg: 0 12px 40px rgba(0, 0, 0, 0.12);
+        --font: "Inter", sans-serif;
+        --page-w: 210mm;
+        --page-h: 297mm;
+        --page-mt: 20mm;
+        --page-mb: 20mm;
+        --page-ml: 25mm;
+        --page-mr: 25mm;
+      }
+      html,
+      body {
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 13px;
+        min-height: 100%;
+        overflow-x: hidden;
+      }
+      ::-webkit-scrollbar {
+        width: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border2);
+        border-radius: 3px;
+      }
+
+      /* ── LOADING ── */
+      #loading {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+      }
+      #loading.done {
+        display: none;
+      }
+      .ll {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.4px;
+      }
+      .ll span {
+        color: var(--amber);
+      }
+      .lb {
+        width: 180px;
+        height: 3px;
+        background: var(--border);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .lbf {
+        height: 100%;
+        background: var(--amber);
+        animation: lf 0.8s ease forwards;
+      }
+      @keyframes lf {
+        from {
+          width: 0;
+        }
+        to {
+          width: 100%;
+        }
+      }
+
+      /* ── TOP NAV ── */
+      .topnav {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 0 24px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+      .nav-logo {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+      }
+      .nav-logo span {
+        color: var(--amber);
+      }
+      .nav-sep {
+        width: 1px;
+        height: 22px;
+        background: var(--border);
+      }
+      .nav-chip {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        background: var(--amber-bg);
+        color: var(--amber);
+        border: 1px solid var(--amber-bdr);
+      }
+      .nav-right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: var(--r);
+        font-size: 11px;
+        color: var(--text3);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        text-decoration: none;
+        transition: all 0.12s;
+      }
+      .nav-link:hover {
+        border-color: var(--border2);
+        color: var(--text);
+      }
+
+      /* ── HERO ── */
+      .hero {
+        background: linear-gradient(
+          135deg,
+          #1d4ed8 0%,
+          #2563eb 60%,
+          #3b82f6 100%
+        );
+        padding: 20px 24px;
+        margin: 20px auto;
+        border-radius: var(--rxl);
+        max-width: 1200px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .hero-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+      .hero h1 {
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 2px;
+      }
+      .hero p {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.75);
+      }
+      .hero-badge {
+        margin-left: auto;
+        padding: 4px 12px;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 20px;
+        font-size: 11px;
+        color: #fff;
+        white-space: nowrap;
+      }
+
+      /* ── LAYOUT ── */
+      .main-wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px 40px;
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 20px;
+        align-items: start;
+      }
+
+      /* ── STEPPER ── */
+      .stepper {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rxl);
+        overflow: hidden;
+        position: sticky;
+        top: 68px;
+      }
+      .stepper-hdr {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .stepper-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .step-dots {
+        display: flex;
+        gap: 4px;
+      }
+      .step-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--border2);
+        transition: all 0.2s;
+      }
+      .step-dot.done {
+        background: var(--green);
+      }
+      .step-dot.cur {
+        background: var(--accent);
+        transform: scale(1.3);
+      }
+      .step-block {
+        border-bottom: 1px solid var(--border);
+      }
+      .step-block:last-child {
+        border-bottom: none;
+      }
+      .step-hdr {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 14px;
+        cursor: pointer;
+        transition: background 0.1s;
+        user-select: none;
+      }
+      .step-hdr:hover {
+        background: var(--surface2);
+      }
+      .step-num {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 2px solid var(--border2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text3);
+        flex-shrink: 0;
+        transition: all 0.2s;
+      }
+      .step-num.done {
+        border-color: var(--green);
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .step-num.cur {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+        color: var(--accent);
+      }
+      .step-lbl {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text2);
+        flex: 1;
+      }
+      .step-lbl.cur {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .step-val {
+        font-size: 10px;
+        color: var(--text3);
+        max-width: 110px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .step-val.ok {
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .step-chev {
+        color: var(--text3);
+        transition: transform 0.2s;
+        flex-shrink: 0;
+      }
+      .step-body {
+        display: none;
+        padding: 0 12px 12px;
+        border-top: 1px solid var(--border);
+        background: var(--surface2);
+      }
+      .step-body.open {
+        display: block;
+      }
+
+      /* ── CARDS ── */
+      .fam-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+        padding-top: 10px;
+      }
+      .fam-card {
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 10px;
+        cursor: pointer;
+        transition: all 0.12s;
+        background: var(--surface);
+      }
+      .fam-card:hover {
+        border-color: var(--border2);
+        background: var(--surface2);
+      }
+      .fam-card.sel {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+      }
+      .fam-icon {
+        font-size: 20px;
+        margin-bottom: 4px;
+      }
+      .fam-name {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text);
+        line-height: 1.3;
+      }
+      .fam-meta {
+        font-size: 10px;
+        color: var(--text3);
+        margin-top: 2px;
+      }
+      .tpl-list {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        padding-top: 10px;
+      }
+      .tpl-card {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 9px 11px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        cursor: pointer;
+        background: var(--surface);
+        transition: all 0.12s;
+      }
+      .tpl-card:hover {
+        border-color: var(--border2);
+        background: var(--surface2);
+      }
+      .tpl-card.sel {
+        border-color: var(--green);
+        background: var(--green-bg);
+      }
+      .tpl-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text);
+        flex: 1;
+      }
+      .tpl-meta {
+        font-size: 10px;
+        color: var(--text3);
+      }
+      .tpl-chk {
+        width: 17px;
+        height: 17px;
+        border-radius: 50%;
+        border: 2px solid var(--border2);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        transition: all 0.12s;
+      }
+      .tpl-card.sel .tpl-chk {
+        border-color: var(--green);
+        background: var(--green);
+        color: #fff;
+      }
+      .person-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-top: 10px;
+      }
+      .person-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        cursor: pointer;
+        background: var(--surface);
+        transition: all 0.12s;
+      }
+      .person-item:hover {
+        border-color: var(--border2);
+        background: var(--surface2);
+      }
+      .person-item.sel {
+        border-color: var(--amber);
+        background: var(--amber-bg);
+      }
+      .p-av {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--accent-bg);
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .p-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text);
+      }
+      .p-meta {
+        font-size: 10px;
+        color: var(--text3);
+        margin-top: 1px;
+      }
+
+      /* ── DOC PANEL ── */
+      .doc-panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--rxl);
+        overflow: hidden;
+      }
+      .doc-ph {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .doc-pt {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .doc-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .doc-pb {
+        padding: 0;
+        min-height: 400px;
+      }
+      .pbar {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 12px 16px 8px;
+        flex-wrap: wrap;
+      }
+      .pb-step {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 10px;
+        color: var(--text3);
+        padding: 3px 9px;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        background: var(--surface2);
+      }
+      .pb-step.done {
+        background: var(--green-bg);
+        border-color: var(--green-bdr);
+        color: var(--green);
+      }
+      .pb-step.cur {
+        background: var(--accent-bg);
+        border-color: var(--accent-bdr);
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .pb-arr {
+        color: var(--border2);
+        font-size: 10px;
+      }
+
+      /* ── A4 CANVAS ── */
+      .a4-canvas {
+        background: #c8cdd8;
+        overflow-y: auto;
+        padding: 20px 16px 32px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        min-height: 500px;
+        max-height: 80vh;
+      }
+      .zoom-scaler {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transform-origin: top center;
+        transition: transform 0.1s;
+      }
+      .a4-page {
+        width: var(--page-w);
+        height: var(--page-h);
+        background: #fff;
+        box-shadow:
+          0 2px 12px rgba(0, 0, 0, 0.18),
+          0 0 0 1px rgba(0, 0, 0, 0.08);
+        position: relative;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .a4-header {
+        padding: 5mm var(--page-mr) 3mm var(--page-ml);
+        border-bottom: 1px dashed #c8cdd8;
+        flex-shrink: 0;
+        min-height: 20mm;
+        position: relative;
+      }
+      .a4-footer {
+        padding: 3mm var(--page-mr) 5mm var(--page-ml);
+        border-top: 1px dashed #c8cdd8;
+        flex-shrink: 0;
+        min-height: 14mm;
+        position: relative;
+        margin-top: auto;
+      }
+      .a4-hf-label {
+        position: absolute;
+        right: 4px;
+        top: 4px;
+        font-size: 8px;
+        color: #bbb;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        pointer-events: none;
+      }
+      .a4-body {
+        flex: 1;
+        padding: 5mm var(--page-mr) 5mm var(--page-ml);
+        overflow: hidden;
+        position: relative;
+      }
+      .a4-body.no-header {
+        padding-top: var(--page-mt);
+      }
+      .a4-body.no-footer {
+        padding-bottom: var(--page-mb);
+      }
+
+      /* ── ZOOM BAR ── */
+      .zoom-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface2);
+      }
+      .zoom-lbl {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text2);
+        min-width: 38px;
+        text-align: center;
+      }
+
+      /* ── CONTENU DOC ── */
+      .doc-content {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 12pt;
+        line-height: 1.6;
+        color: #111;
+      }
+      .doc-content p {
+        margin: 0 0 0.4em;
+      }
+      .doc-content p:last-child {
+        margin-bottom: 0;
+      }
+      .doc-content h1 {
+        font-size: 22pt;
+        font-weight: 700;
+        margin: 0.8em 0 0.4em;
+      }
+      .doc-content h2 {
+        font-size: 18pt;
+        font-weight: 700;
+        margin: 0.7em 0 0.3em;
+      }
+      .doc-content h3 {
+        font-size: 14pt;
+        font-weight: 700;
+        margin: 0.6em 0 0.3em;
+      }
+      .doc-content ul {
+        padding-left: 2em;
+        list-style-type: disc;
+        margin: 0.4em 0;
+      }
+      .doc-content ol {
+        padding-left: 2em;
+        list-style-type: decimal;
+        margin: 0.4em 0;
+      }
+      .doc-content li {
+        display: list-item;
+      }
+      .doc-content hr {
+        border: none;
+        border-top: 1.5px solid #c8cdd8;
+        margin: 10px 0;
+      }
+      .doc-content table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      .doc-content td,
+      .doc-content th {
+        border: 1px solid #c8cdd8;
+        padding: 7px 10px;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .doc-content th:not([style]) {
+        background: #f2f2f2;
+        color: #111;
+        font-weight: 700;
+        text-align: left;
+      }
+      .doc-content th {
+        font-weight: 700;
+      }
+      .doc-content td p,
+      .doc-content th p {
+        color: inherit !important;
+      }
+      .var-resolved {
+        color: #2563eb;
+        font-weight: 500;
+        background: #eff6ff;
+        padding: 0 2px;
+        border-radius: 2px;
+      }
+      .var-missing {
+        color: #dc2626;
+        background: #fef2f2;
+        padding: 0 3px;
+        border-radius: 2px;
+        font-style: italic;
+        font-size: 0.9em;
+      }
+
+      /* ── DOC WAIT ── */
+      .doc-wait {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 60px 20px;
+        text-align: center;
+        color: var(--text3);
+      }
+      .doc-wait svg {
+        width: 44px;
+        height: 44px;
+      }
+      .doc-wait h3 {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text2);
+      }
+      .doc-wait p {
+        font-size: 11px;
+        max-width: 220px;
+        line-height: 1.6;
+      }
+
+      /* ── BUTTONS ── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        border-radius: var(--r);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text2);
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        transition: all 0.12s;
+        white-space: nowrap;
+      }
+      .btn:hover {
+        border-color: var(--border2);
+        background: var(--surface3);
+        color: var(--text);
+      }
+      .btn svg {
+        width: 13px;
+        height: 13px;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .btn.primary:hover {
+        background: #1d4ed8;
+      }
+      .btn.ghost {
+        border-color: transparent;
+        background: transparent;
+      }
+      .btn.ghost:hover {
+        background: var(--surface2);
+      }
+      .btn.sm {
+        padding: 4px 9px;
+        font-size: 11px;
+      }
+      .btn.xs {
+        padding: 2px 6px;
+        font-size: 10px;
+      }
+
+      /* ── TOAST ── */
+      .toast-stack {
+        position: fixed;
+        bottom: 24px;
+        right: 20px;
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 15px;
+        background: var(--text);
+        color: #fff;
+        border-radius: var(--rlg);
+        font-size: 12px;
+        box-shadow: var(--shlg);
+        animation: ti 0.18s ease;
+        min-width: 200px;
+      }
+      .toast.success {
+        background: #166534;
+      }
+      .toast.error {
+        background: #b91c1c;
+      }
+      @keyframes ti {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">
+      <div class="ll">SIRH-<span>Doc</span></div>
+      <div style="font-size: 11px; color: #888">Chargement...</div>
+      <div class="lb"><div class="lbf"></div></div>
+    </div>
+
+    <div
+      id="mainApp"
+      style="opacity: 0; transition: opacity 0.3s; min-height: 100vh"
+    >
+      <nav class="topnav">
+        <div class="nav-logo">SIRH-<span>Doc</span></div>
+        <div class="nav-sep"></div>
+        <span class="nav-chip">UTILISATEUR FINAL</span>
+        <span id="navEtab" style="font-size: 12px; color: var(--text2)"></span>
+        <div class="nav-right">
+          <a class="nav-link" href="superAdmin.html">Super Admin</a>
+          <a class="nav-link" href="admin.html">Admin Étab.</a>
+        </div>
+      </nav>
+
+      <div style="padding: 0 24px">
+        <div class="hero">
+          <div class="hero-icon">📄</div>
+          <div>
+            <h1>Génération de documents</h1>
+            <p>Sélectionnez une famille, un modèle et une personne</p>
+          </div>
+          <div class="hero-badge" id="heroBadge">—</div>
+        </div>
+      </div>
+
+      <div class="main-wrap">
+        <!-- ── STEPPER gauche ── -->
+        <div class="stepper">
+          <div class="stepper-hdr">
+            <span class="stepper-title">Étapes de génération</span>
+            <div class="step-dots">
+              <div class="step-dot cur" id="dot1"></div>
+              <div class="step-dot" id="dot2"></div>
+              <div class="step-dot" id="dot3"></div>
+            </div>
+          </div>
+
+          <div class="step-block">
+            <div class="step-hdr" onclick="toggleStep(1)">
+              <div class="step-num cur" id="sn1">1</div>
+              <span class="step-lbl cur" id="sl1">Famille de documents</span>
+              <span class="step-val" id="sv1">Non sélectionné</span>
+              <svg
+                class="step-chev"
+                id="sc1"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+            <div class="step-body open" id="sb1">
+              <div class="fam-grid" id="famGrid"></div>
+            </div>
+          </div>
+
+          <div class="step-block">
+            <div class="step-hdr" onclick="toggleStep(2)">
+              <div class="step-num" id="sn2">2</div>
+              <span class="step-lbl" id="sl2">Modèle de document</span>
+              <span class="step-val" id="sv2">En attente</span>
+              <svg
+                class="step-chev"
+                id="sc2"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+            <div class="step-body" id="sb2">
+              <div class="tpl-list" id="tplList"></div>
+            </div>
+          </div>
+
+          <div class="step-block">
+            <div class="step-hdr" onclick="toggleStep(3)">
+              <div class="step-num" id="sn3">3</div>
+              <span class="step-lbl" id="sl3">Personne concernée</span>
+              <span class="step-val" id="sv3">En attente</span>
+              <svg
+                class="step-chev"
+                id="sc3"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+            <div class="step-body" id="sb3">
+              <div class="person-list" id="personList"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── DOC PANEL droit ── -->
+        <div class="doc-panel">
+          <div class="doc-ph">
+            <span class="doc-pt">Aperçu A4</span>
+            <div class="doc-actions" id="docActions"></div>
+          </div>
+
+          <div class="zoom-bar" id="zoomBar" style="display: none">
+            <span style="font-size: 11px; color: var(--text3); font-weight: 600"
+              >ZOOM</span
+            >
+            <button
+              class="btn xs ghost"
+              onclick="setZoom(-10)"
+              style="font-size: 14px; width: 22px; padding: 0"
+            >
+              −
+            </button>
+            <span class="zoom-lbl" id="zoomLbl">100%</span>
+            <button
+              class="btn xs ghost"
+              onclick="setZoom(10)"
+              style="font-size: 14px; width: 22px; padding: 0"
+            >
+              +
+            </button>
+            <button class="btn xs ghost" onclick="setZoom(0)">↺</button>
+          </div>
+
+          <div class="pbar" id="pbar">
+            <div class="pb-step cur" id="ps1">Famille</div>
+            <div class="pb-arr">›</div>
+            <div class="pb-step" id="ps2">Template</div>
+            <div class="pb-arr">›</div>
+            <div class="pb-step" id="ps3">Personne</div>
+          </div>
+
+          <div class="doc-pb" id="docPb">
+            <div class="doc-wait" id="docWait">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path
+                  d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <h3>Document en attente</h3>
+              <p>Complétez les 3 étapes pour générer votre document</p>
+            </div>
+            <div class="a4-canvas" id="a4Canvas" style="display: none">
+              <div class="zoom-scaler" id="zoomScaler"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-stack" id="toastStack"></div>
+
+    <script src="shared.js"></script>
+
+    <script>
+      const ETAB_ID = "etab_1";
+      let selFamId = null,
+        selTplId = null,
+        selPersonId = null;
+      let openSteps = { 1: true, 2: false, 3: false };
+      let zoomLv = 100;
+
+      window.addEventListener("DOMContentLoaded", () => {
+        if (!localStorage.getItem(STORE_KEY)) DB.seed();
+        const etab = DB.getEtablissement(ETAB_ID);
+        if (etab) {
+          document.getElementById("navEtab").textContent = etab.nom;
+          document.getElementById("heroBadge").textContent = etab.nom;
+        }
+        buildFamGrid();
+        setTimeout(() => {
+          document.getElementById("loading").classList.add("done");
+          document.getElementById("mainApp").style.opacity = "1";
+        }, 500);
+      });
+
+      /* ── STEPPER ── */
+      function toggleStep(n) {
+        openSteps[n] = !openSteps[n];
+        syncStepBodies();
+      }
+      function openStep(n) {
+        openSteps[n] = true;
+        syncStepBodies();
+      }
+      function closeStep(n) {
+        openSteps[n] = false;
+        syncStepBodies();
+      }
+      function syncStepBodies() {
+        for (let i = 1; i <= 3; i++) {
+          document
+            .getElementById("sb" + i)
+            ?.classList.toggle("open", !!openSteps[i]);
+          const sc = document.getElementById("sc" + i);
+          if (sc) sc.style.transform = openSteps[i] ? "rotate(180deg)" : "";
+        }
+      }
+      function setStepState(n, state) {
+        const num = document.getElementById("sn" + n),
+          lbl = document.getElementById("sl" + n),
+          dot = document.getElementById("dot" + n);
+        if (!num) return;
+        num.className =
+          "step-num" +
+          (state === "done" ? " done" : state === "cur" ? " cur" : "");
+        num.textContent = state === "done" ? "✓" : String(n);
+        if (lbl) lbl.className = "step-lbl" + (state === "cur" ? " cur" : "");
+        if (dot)
+          dot.className =
+            "step-dot" +
+            (state === "done" ? " done" : state === "cur" ? " cur" : "");
+      }
+      function updatePbar() {
+        const fam = selFamId ? DB.getFamily(selFamId) : null;
+        const tpl = selTplId ? DB.getTemplate(selTplId) : null;
+        const pers = selPersonId ? DB.getPerson(selPersonId) : null;
+        const ps1 = document.getElementById("ps1"),
+          ps2 = document.getElementById("ps2"),
+          ps3 = document.getElementById("ps3");
+        ps1.className = "pb-step" + (selFamId ? " done" : " cur");
+        ps1.textContent = fam
+          ? fam.icon + " " + fam.nom.substring(0, 16)
+          : "Famille";
+        ps2.className =
+          "pb-step" + (selTplId ? " done" : selFamId ? " cur" : "");
+        ps2.textContent = tpl ? tpl.nom.substring(0, 16) : "Template";
+        ps3.className =
+          "pb-step" + (selPersonId ? " done" : selTplId ? " cur" : "");
+        ps3.textContent = pers ? pers.nom_prenom.substring(0, 14) : "Personne";
+      }
+
+      /* ── ÉTAPE 1 ── */
+      function buildFamGrid() {
+        const grid = document.getElementById("famGrid");
+        grid.innerHTML = "";
+        DB.getFamilies().forEach((fam) => {
+          const tplCount = DB.getTemplates(fam.id, ETAB_ID).length;
+          const card = document.createElement("div");
+          card.className = "fam-card" + (selFamId === fam.id ? " sel" : "");
+          if (!tplCount) {
+            card.style.opacity = ".4";
+            card.style.pointerEvents = "none";
+          }
+          card.innerHTML = `<div class="fam-icon">${fam.icon || "📋"}</div><div class="fam-name">${fam.nom}</div><div class="fam-meta">${tplCount} modèle(s)</div>`;
+          card.onclick = () => selectFamily(fam.id);
+          grid.appendChild(card);
+        });
+      }
+      function selectFamily(famId) {
+        selFamId = famId;
+        selTplId = null;
+        selPersonId = null;
+        buildFamGrid();
+        const fam = DB.getFamily(famId);
+        const sv1 = document.getElementById("sv1");
+        sv1.textContent = fam.icon + " " + fam.nom;
+        sv1.className = "step-val ok";
+        setStepState(1, "done");
+        setStepState(2, "cur");
+        setStepState(3, "idle");
+        buildTplList(famId);
+        openStep(2);
+        closeStep(1);
+        updatePbar();
+        showWait("Sélectionnez un modèle de document");
+      }
+
+      /* ── ÉTAPE 2 ── */
+      function buildTplList(famId) {
+        const c = document.getElementById("tplList");
+        c.innerHTML = "";
+        const tpls = DB.getTemplates(famId, ETAB_ID);
+        if (!tpls.length) {
+          c.innerHTML =
+            '<div style="font-size:11px;color:#aaa;text-align:center;padding:14px">Aucun modèle</div>';
+          return;
+        }
+        tpls.forEach((tpl) => {
+          const card = document.createElement("div");
+          card.className = "tpl-card" + (selTplId === tpl.id ? " sel" : "");
+          card.innerHTML = `<span style="font-size:16px">📄</span><div style="flex:1"><div class="tpl-name">${tpl.nom}</div><div class="tpl-meta">${new Date(tpl.updatedAt).toLocaleDateString("fr-FR")}${tpl.hasHeader ? " · 📋" : ""}${tpl.hasFooter ? " · 📑" : ""}</div></div><div class="tpl-chk">${selTplId === tpl.id ? "✓" : ""}</div>`;
+          card.onclick = () => selectTemplate(tpl.id);
+          c.appendChild(card);
+        });
+      }
+      function selectTemplate(tplId) {
+        selTplId = tplId;
+        selPersonId = null;
+        buildTplList(selFamId);
+        const tpl = DB.getTemplate(tplId);
+        const sv2 = document.getElementById("sv2");
+        sv2.textContent = tpl.nom;
+        sv2.className = "step-val ok";
+        setStepState(2, "done");
+        setStepState(3, "cur");
+        buildPersonList();
+        openStep(3);
+        closeStep(2);
+        updatePbar();
+        showWait("Sélectionnez la personne concernée");
+      }
+
+      /* ── ÉTAPE 3 ── */
+      function buildPersonList() {
+        const c = document.getElementById("personList");
+        c.innerHTML = "";
+        const persons = DB.getPersonnel(ETAB_ID);
+        if (!persons.length) {
+          c.innerHTML =
+            '<div style="font-size:11px;color:#aaa;text-align:center;padding:14px">Aucune personne</div>';
+          return;
+        }
+        persons.forEach((p) => {
+          const initials = p.nom_prenom
+            .split(" ")
+            .map((n) => n[0] || "")
+            .join("")
+            .substring(0, 2)
+            .toUpperCase();
+          const item = document.createElement("div");
+          item.className = "person-item" + (selPersonId === p.id ? " sel" : "");
+          item.innerHTML = `<div class="p-av">${initials}</div><div><div class="p-name">${p.nom_prenom}</div><div class="p-meta">${p.poste} · ${p.departement}</div></div>`;
+          item.onclick = () => selectPerson(p.id);
+          c.appendChild(item);
+        });
+      }
+      function selectPerson(personId) {
+        selPersonId = personId;
+        buildPersonList();
+        const pers = DB.getPerson(personId);
+        const sv3 = document.getElementById("sv3");
+        sv3.textContent = pers.nom_prenom;
+        sv3.className = "step-val ok";
+        setStepState(3, "done");
+        closeStep(3);
+        updatePbar();
+        generateDocument();
+      }
+
+      /* ── GÉNÉRATION ── */
+      function generateDocument() {
+        const tpl = DB.getTemplate(selTplId);
+        const person = DB.getPerson(selPersonId);
+        if (!tpl || !person) return;
+
+        buildA4Canvas(tpl, person);
+
+        document.getElementById("zoomBar").style.display = "flex";
+        const actions = document.getElementById("docActions");
+        actions.innerHTML = "";
+        const mkBtn = (label, cls, fn) => {
+          const b = document.createElement("button");
+          b.className = "btn " + cls;
+          b.textContent = label;
+          b.onclick = fn;
+          actions.appendChild(b);
+        };
+        mkBtn("👁 Aperçu final", "primary", () => previewDocument(tpl, person));
+        mkBtn("🖨 Imprimer", "primary", () => printDocPaginated(tpl, person));
+        mkBtn("Nouveau", "ghost", resetAll);
+
+        toast("Document généré !", "success");
+      }
+
+      /* ── CANVAS A4 (pages paginées avec variables bleues) ── */
+      function buildA4Canvas(tpl, person) {
+        const wait = document.getElementById("docWait");
+        const canvas = document.getElementById("a4Canvas");
+        const scaler = document.getElementById("zoomScaler");
+        wait.style.display = "none";
+        canvas.style.display = "flex";
+        scaler.innerHTML = "";
+
+        // Récupérer les pages paginées (avec variables en bleu)
+        const result = paginateWithVariablesBlue(tpl, person);
+        if (!result.pages.length) {
+          toast("Aucun contenu à afficher", "error");
+          return;
+        }
+
+        // Créer un conteneur pour toutes les pages
+        const allPages = document.createElement("div");
+        allPages.style.display = "flex";
+        allPages.style.flexDirection = "column";
+        allPages.style.gap = "20px";
+        allPages.style.alignItems = "center";
+
+        result.pages.forEach((page, idx) => {
+          const pageEl = document.createElement("div");
+          pageEl.className = "a4-page";
+          let pageHTML = "";
+
+          // En-tête
+          if (result.hasHeader && page.header) {
+            pageHTML += `<div class="a4-header"><div class="a4-hf-label">EN-TÊTE</div><div class="doc-content">${page.header}</div></div>`;
+          }
+
+          // Corps
+          const noHeaderClass = !result.hasHeader ? " no-header" : "";
+          const noFooterClass = !result.hasFooter ? " no-footer" : "";
+          pageHTML += `<div class="a4-body doc-content${noHeaderClass}${noFooterClass}">${page.content}</div>`;
+
+          // Pied de page
+          if (result.hasFooter && page.footer) {
+            pageHTML += `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE</div><div class="doc-content">${page.footer}</div></div>`;
+          }
+
+          pageEl.innerHTML = pageHTML;
+
+          // Ajouter un numéro de page
+          const pageNum = document.createElement("div");
+          pageNum.style.cssText =
+            "text-align:center;color:#999;font-size:10px;margin-top:8px";
+          pageNum.textContent = `Page ${idx + 1}`;
+
+          allPages.appendChild(pageEl);
+          allPages.appendChild(pageNum);
+        });
+
+        scaler.appendChild(allPages);
+      }
+
+      /* ── ZOOM ── */
+      function setZoom(delta) {
+        if (delta === 0) zoomLv = 100;
+        else zoomLv = Math.max(40, Math.min(200, zoomLv + delta));
+        const sc = document.getElementById("zoomScaler");
+        sc.style.transform = `scale(${zoomLv / 100})`;
+        sc.style.marginBottom =
+          zoomLv < 100 ? ((100 - zoomLv) / 100) * -500 + "px" : "0";
+        document.getElementById("zoomLbl").textContent = zoomLv + "%";
+      }
+
+      /* ── HELPERS ── */
+      function showWait(msg) {
+        document.getElementById("docWait").innerHTML =
+          `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><h3>${msg}</h3>`;
+        document.getElementById("docWait").style.display = "flex";
+        document.getElementById("a4Canvas").style.display = "none";
+        document.getElementById("zoomBar").style.display = "none";
+        document.getElementById("docActions").innerHTML = "";
+      }
+      function resetAll() {
+        selFamId = null;
+        selTplId = null;
+        selPersonId = null;
+        openSteps = { 1: true, 2: false, 3: false };
+        buildFamGrid();
+        document.getElementById("tplList").innerHTML = "";
+        document.getElementById("personList").innerHTML = "";
+        ["sv1", "sv2", "sv3"].forEach((id, i) => {
+          const el = document.getElementById(id);
+          el.textContent = ["Non sélectionné", "En attente", "En attente"][i];
+          el.className = "step-val";
+        });
+        setStepState(1, "cur");
+        setStepState(2, "idle");
+        setStepState(3, "idle");
+        showWait("Complétez les 3 étapes pour générer votre document");
+        updatePbar();
+        syncStepBodies();
+      }
+    </script>
+  </body>
+</html>
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SIRH-Doc  shared.js  v7
+//  Nouveauté : type "list-object" + syntaxe {{#tech:table}}
+//  → génère un <table> automatique dont les colonnes sont les
+//    clés du premier objet et les lignes les valeurs.
+//  Toutes les syntaxes antérieures restent inchangées.
+// ═══════════════════════════════════════════════════════════════
+
+const STORE_KEY = "sirhdoc_v7";
+
+// ── Migration automatique des anciennes clés ──────────────────
+(function migrate() {
+  try {
+    if (!localStorage.getItem(STORE_KEY)) {
+      const old =
+        localStorage.getItem("sirhdoc_v6") ||
+        localStorage.getItem("sirhdoc_v5") ||
+        localStorage.getItem("sirhdoc_v4");
+      if (old) {
+        // Migrer les données et ajouter le nouveau type
+        localStorage.setItem(STORE_KEY, old);
+      }
+    }
+  } catch (_) {}
+})();
+
+// ═══════════════════════════════════════════════════════════════
+//  DB
+// ═══════════════════════════════════════════════════════════════
+const DB = {
+  get() {
+    try {
+      return JSON.parse(localStorage.getItem(STORE_KEY)) || DB.seed();
+    } catch (_) {
+      return DB.seed();
+    }
+  },
+  save(d) {
+    localStorage.setItem(STORE_KEY, JSON.stringify(d));
+    return d;
+  },
+
+  seed() {
+    const now = new Date().toISOString();
+    const today = new Date().toLocaleDateString("fr-FR");
+    const data = {
+      etablissements: [
+        {
+          id: "etab_1",
+          nom: "ISET Tunis",
+          ville: "Tunis",
+          adresse: "Mont-Fleury, 1008 Tunis",
+          tel: "+216 71 800 100",
+        },
+        {
+          id: "etab_2",
+          nom: "ISET Sousse",
+          ville: "Sousse",
+          adresse: "Route de Ceinture, 4000 Sousse",
+          tel: "+216 73 200 200",
+        },
+      ],
+      admins: [
+        {
+          id: "admin_1",
+          nom: "Hedi Mejri",
+          email: "h.mejri@iset-tunis.tn",
+          etablissementId: "etab_1",
+        },
+        {
+          id: "admin_2",
+          nom: "Amira Khelil",
+          email: "a.khelil@iset-sousse.tn",
+          etablissementId: "etab_2",
+        },
+      ],
+      families: [
+        {
+          id: "fam_1",
+          nom: "Attestation de travail",
+          icon: "📋",
+          description: "Certifie qu'un membre du personnel est bien employé",
+          sql: "SELECT * FROM personnel WHERE id = :id",
+          createdAt: now,
+          classes: [
+            {
+              nom: "Personnel",
+              couleur: "#2d5be3",
+              vars: [
+                { tech: "nom_prenom", label: "Nom et prénom", type: "scalar" },
+                {
+                  tech: "date_naissance",
+                  label: "Date de naissance",
+                  type: "scalar",
+                },
+                { tech: "poste", label: "Poste occupé", type: "scalar" },
+                { tech: "departement", label: "Département", type: "scalar" },
+                {
+                  tech: "date_embauche",
+                  label: "Date d'embauche",
+                  type: "scalar",
+                },
+                { tech: "num_cin", label: "N° CIN", type: "scalar" },
+                { tech: "matricule", label: "Matricule", type: "scalar" },
+              ],
+            },
+            {
+              nom: "Enseignant",
+              couleur: "#1e8a4a",
+              vars: [
+                { tech: "grade", label: "Grade académique", type: "scalar" },
+                { tech: "specialite", label: "Spécialité", type: "scalar" },
+                {
+                  tech: "liste_matieres",
+                  label: "Liste des matières",
+                  type: "list",
+                },
+                // ── NOUVEAU : list-object ───────────────────────────
+                {
+                  tech: "liste_notes",
+                  label: "Relevé de notes",
+                  type: "list-object",
+                  // Les colonnes à afficher (ordre + libellé affiché)
+                  columns: [
+                    { key: "matiere", label: "Matière" },
+                    { key: "note", label: "Note /20" },
+                    { key: "coef", label: "Coeff." },
+                  ],
+                },
+              ],
+            },
+            {
+              nom: "Établissement",
+              couleur: "#7c3aed",
+              vars: [
+                { tech: "nom_etab", label: "Établissement", type: "scalar" },
+                { tech: "ville", label: "Ville", type: "scalar" },
+                { tech: "directeur", label: "Directeur", type: "scalar" },
+                {
+                  tech: "secretaire_general",
+                  label: "Secrétaire général",
+                  type: "scalar",
+                },
+                { tech: "adresse_etab", label: "Adresse", type: "scalar" },
+                { tech: "tel_etab", label: "Téléphone", type: "scalar" },
+              ],
+            },
+            {
+              nom: "Paramètres",
+              couleur: "#b45309",
+              vars: [
+                { tech: "date_jour", label: "Date du jour", type: "scalar" },
+                {
+                  tech: "annee_univ",
+                  label: "Année universitaire",
+                  type: "scalar",
+                },
+                { tech: "num_doc", label: "N° de document", type: "scalar" },
+              ],
+            },
+          ],
+        },
+        {
+          id: "fam_2",
+          nom: "Contrat vacataire",
+          icon: "📝",
+          description: "Contrat de prestation pour enseignants vacataires",
+          sql: "SELECT * FROM personnel WHERE id = :id",
+          createdAt: now,
+          classes: [
+            {
+              nom: "Personnel",
+              couleur: "#2d5be3",
+              vars: [
+                { tech: "nom_prenom", label: "Nom et prénom", type: "scalar" },
+                {
+                  tech: "date_naissance",
+                  label: "Date de naissance",
+                  type: "scalar",
+                },
+                { tech: "num_cin", label: "N° CIN", type: "scalar" },
+                { tech: "adresse", label: "Adresse", type: "scalar" },
+              ],
+            },
+            {
+              nom: "Contrat",
+              couleur: "#d63b3b",
+              vars: [
+                { tech: "date_debut", label: "Date de début", type: "scalar" },
+                { tech: "date_fin", label: "Date de fin", type: "scalar" },
+                {
+                  tech: "montant_total",
+                  label: "Montant total",
+                  type: "scalar",
+                },
+                {
+                  tech: "liste_clauses",
+                  label: "Clauses du contrat",
+                  type: "list",
+                },
+              ],
+            },
+            {
+              nom: "Établissement",
+              couleur: "#7c3aed",
+              vars: [
+                { tech: "nom_etab", label: "Établissement", type: "scalar" },
+                { tech: "directeur", label: "Directeur", type: "scalar" },
+                { tech: "ville", label: "Ville", type: "scalar" },
+              ],
+            },
+            {
+              nom: "Paramètres",
+              couleur: "#b45309",
+              vars: [
+                { tech: "date_jour", label: "Date du jour", type: "scalar" },
+                { tech: "num_contrat", label: "N° Contrat", type: "scalar" },
+              ],
+            },
+          ],
+        },
+      ],
+      templates: [
+        {
+          id: "tpl_1",
+          familyId: "fam_1",
+          etablissementId: "etab_1",
+          nom: "Attestation de travail (Français)",
+          updatedAt: now,
+          hasHeader: true,
+          hasFooter: true,
+          pageMargins: { mt: 20, mb: 20, ml: 25, mr: 25 },
+          header: `<p style="text-align:center"><strong>{{nom_etab}}</strong></p><p style="text-align:center;font-size:10pt;color:#888">{{adresse_etab}} — Tél : {{tel_etab}}</p><p style="text-align:center;font-size:10pt;color:#aaa">Réf : {{num_doc}} — {{annee_univ}}</p>`,
+          body: `<p>Nous soussignés, <strong>{{directeur}}</strong>, Directeur de <strong>{{nom_etab}}</strong>, certifions que :</p><p><br></p><p style="text-align:center"><strong>M./Mme {{nom_prenom}}</strong></p><p style="text-align:center">Né(e) le {{date_naissance}} — CIN : {{num_cin}} — Matricule : {{matricule}}</p><p><br></p><p>est employé(e) en qualité de <strong>{{poste}}</strong>, au département <strong>{{departement}}</strong>, depuis le <strong>{{date_embauche}}</strong>.</p><p><br></p><p>Matières enseignées :</p>{{#liste_matieres:ul}}<p><br></p><p>Relevé de notes :</p>{{#liste_notes:table}}<p><br></p><p>Délivrée pour servir et valoir ce que de droit.</p><p>Fait à {{ville}}, le {{date_jour}}</p><p style="text-align:right"><strong>Le Directeur</strong><br>{{directeur}}</p>`,
+          footer: `<p style="text-align:center;font-size:10pt;color:#aaa">Document officiel — {{nom_etab}} — {{annee_univ}}</p>`,
+        },
+      ],
+      personnel: [
+        {
+          id: "pers_1",
+          etablissementId: "etab_1",
+          nom_prenom: "Anis Kricha",
+          date_naissance: "15/03/1985",
+          poste: "Enseignant vacataire",
+          departement: "Informatique",
+          date_embauche: "01/09/2020",
+          num_cin: "08456321",
+          matricule: "ENS-2020-047",
+          grade: "Assistant",
+          specialite: "Génie logiciel",
+          adresse: "12 Rue Alain Savary, Tunis",
+          date_debut: "01/09/2025",
+          date_fin: "31/08/2026",
+          montant_total: "4 800,000 TND",
+          num_contrat: "VAC-2025-012",
+          nom_etab: "ISET Tunis",
+          ville: "Tunis",
+          directeur: "Prof. Mohamed Ben Ali",
+          secretaire_general: "Mme. Fatma Trabelsi",
+          adresse_etab: "Mont-Fleury, 1008 Tunis",
+          tel_etab: "+216 71 800 100",
+          date_jour: today,
+          annee_univ: "2025/2026",
+          num_doc: "ATT-2025-0047",
+          liste_matieres: [
+            "Programmation Web",
+            "Base de données",
+            "Réseaux informatiques",
+          ],
+          liste_clauses: [
+            "Article 1 : Durée du contrat fixée à 1 an",
+            "Article 2 : Rémunération horaire selon grille",
+            "Article 3 : Respect du règlement intérieur",
+          ],
+          // ── NOUVEAU : list-object ──────────────────────────────
+          liste_notes: [
+            { matiere: "Programmation Web", note: 16, coef: 2 },
+            { matiere: "Base de données", note: 14, coef: 2 },
+            { matiere: "Réseaux", note: 15, coef: 1.5 },
+            { matiere: "Algorithmique", note: 12, coef: 2 },
+          ],
+        },
+        {
+          id: "pers_2",
+          etablissementId: "etab_1",
+          nom_prenom: "Sonia Hamdi",
+          date_naissance: "22/07/1979",
+          poste: "Secrétaire générale",
+          departement: "Administration",
+          date_embauche: "15/04/2005",
+          num_cin: "03829416",
+          matricule: "ADM-2005-008",
+          grade: "Administrateur principal",
+          specialite: "Gestion",
+          adresse: "45 Av. Bourguiba, Tunis",
+          date_debut: "01/01/2025",
+          date_fin: "31/12/2025",
+          montant_total: "N/A",
+          num_contrat: "N/A",
+          nom_etab: "ISET Tunis",
+          ville: "Tunis",
+          directeur: "Prof. Mohamed Ben Ali",
+          secretaire_general: "Mme. Sonia Hamdi",
+          adresse_etab: "Mont-Fleury, 1008 Tunis",
+          tel_etab: "+216 71 800 100",
+          date_jour: today,
+          annee_univ: "2025/2026",
+          num_doc: "ATT-2025-0048",
+          liste_matieres: [
+            "Gestion administrative",
+            "Communication institutionnelle",
+          ],
+          liste_clauses: [
+            "Article 1 : Poste permanent",
+            "Article 2 : Régime de retraite CNRPS",
+          ],
+          liste_notes: [
+            { matiere: "Gestion RH", note: 17, coef: 2 },
+            { matiere: "Comptabilité", note: 15, coef: 1.5 },
+          ],
+        },
+        {
+          id: "pers_3",
+          etablissementId: "etab_1",
+          nom_prenom: "Maher Bouaziz",
+          date_naissance: "08/11/1975",
+          poste: "Maître de conférences",
+          departement: "Électronique",
+          date_embauche: "01/09/2003",
+          num_cin: "02156789",
+          matricule: "ENS-2003-003",
+          grade: "Maître de conférences",
+          specialite: "Électronique embarquée",
+          adresse: "22 Rue Ibn Khaldoun, Tunis",
+          date_debut: "01/09/2025",
+          date_fin: "31/08/2026",
+          montant_total: "8 640,000 TND",
+          num_contrat: "N/A",
+          nom_etab: "ISET Tunis",
+          ville: "Tunis",
+          directeur: "Prof. Mohamed Ben Ali",
+          secretaire_general: "Mme. Fatma Trabelsi",
+          adresse_etab: "Mont-Fleury, 1008 Tunis",
+          tel_etab: "+216 71 800 100",
+          date_jour: today,
+          annee_univ: "2025/2026",
+          num_doc: "ATT-2025-0049",
+          liste_matieres: [
+            "Microcontrôleurs",
+            "Électronique de puissance",
+            "Automatique industrielle",
+          ],
+          liste_clauses: [
+            "Article 1 : Enseignement 192h/an",
+            "Article 2 : Recherche et publications",
+            "Article 3 : Encadrement des PFE",
+          ],
+          liste_notes: [
+            { matiere: "Microcontrôleurs", note: 15, coef: 3 },
+            { matiere: "Électronique de puissance", note: 13, coef: 2 },
+            { matiere: "Automatique", note: 14, coef: 2 },
+            { matiere: "Traitement du signal", note: 12, coef: 1.5 },
+          ],
+        },
+      ],
+    };
+    DB.save(data);
+    return data;
+  },
+
+  // ── Accesseurs ──────────────────────────────────────────────
+  getFamilies: () => DB.get().families,
+  getFamily: (id) => DB.get().families.find((f) => f.id === id),
+  getTemplates: (fId, eId) => {
+    let t = DB.get().templates;
+    if (fId) t = t.filter((x) => x.familyId === fId);
+    if (eId) t = t.filter((x) => x.etablissementId === eId);
+    return t;
+  },
+  getTemplate: (id) => DB.get().templates.find((t) => t.id === id),
+  getPersonnel: (eId) => {
+    let l = DB.get().personnel;
+    return eId ? l.filter((p) => p.etablissementId === eId) : l;
+  },
+  getPerson: (id) => DB.get().personnel.find((p) => p.id === id),
+  getEtablissements: () => DB.get().etablissements,
+  getEtablissement: (id) => DB.get().etablissements.find((e) => e.id === id),
+  getAdmins: () => DB.get().admins,
+  getAdmin: (id) => DB.get().admins.find((a) => a.id === id),
+
+  // ── Mutateurs ───────────────────────────────────────────────
+  saveFamily(fam) {
+    const s = DB.get();
+    const i = s.families.findIndex((f) => f.id === fam.id);
+    i >= 0 ? (s.families[i] = fam) : s.families.push(fam);
+    DB.save(s);
+    return fam;
+  },
+  deleteFamily(id) {
+    const s = DB.get();
+    s.families = s.families.filter((f) => f.id !== id);
+    s.templates = s.templates.filter((t) => t.familyId !== id);
+    DB.save(s);
+  },
+  saveTemplate(t) {
+    const s = DB.get();
+    const i = s.templates.findIndex((x) => x.id === t.id);
+    i >= 0 ? (s.templates[i] = t) : s.templates.push(t);
+    DB.save(s);
+    return t;
+  },
+  deleteTemplate(id) {
+    const s = DB.get();
+    s.templates = s.templates.filter((t) => t.id !== id);
+    DB.save(s);
+  },
+  saveEtablissement(e) {
+    const s = DB.get();
+    const i = s.etablissements.findIndex((x) => x.id === e.id);
+    i >= 0 ? (s.etablissements[i] = e) : s.etablissements.push(e);
+    DB.save(s);
+    return e;
+  },
+  deleteEtablissement(id) {
+    const s = DB.get();
+    s.etablissements = s.etablissements.filter((e) => e.id !== id);
+    s.admins = s.admins.filter((a) => a.etablissementId !== id);
+    DB.save(s);
+  },
+  saveAdmin(a) {
+    const s = DB.get();
+    const i = s.admins.findIndex((x) => x.id === a.id);
+    i >= 0 ? (s.admins[i] = a) : s.admins.push(a);
+    DB.save(s);
+    return a;
+  },
+  deleteAdmin(id) {
+    const s = DB.get();
+    s.admins = s.admins.filter((a) => a.id !== id);
+    DB.save(s);
+  },
+  savePerson(p) {
+    const s = DB.get();
+    const i = s.personnel.findIndex((x) => x.id === p.id);
+    i >= 0 ? (s.personnel[i] = p) : s.personnel.push(p);
+    DB.save(s);
+    return p;
+  },
+  deletePerson(id) {
+    const s = DB.get();
+    s.personnel = s.personnel.filter((p) => p.id !== id);
+    DB.save(s);
+  },
+
+  // ── Résolution des colonnes d'une variable list-object ───────
+  // Cherche dans toutes les familles les colonnes définies pour tech
+  getListObjectColumns(tech) {
+    const fams = DB.getFamilies();
+    for (const fam of fams) {
+      for (const cls of fam.classes || []) {
+        for (const v of cls.vars || []) {
+          if (v.tech === tech && v.type === "list-object" && v.columns) {
+            return v.columns;
+          }
+        }
+      }
+    }
+    return null;
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  MOTEUR DE RÉSOLUTION DES VARIABLES
+//
+//  Syntaxes supportées :
+//    {{tech}}              → scalaire
+//    {{#tech:ul}}          → list (string[]) → <ul><li>…</li></ul>
+//    {{#tech:inline}}      → list (string[]) → "el1, el2, el3"
+//    {{#tech:table}}       → list-object     → <table> automatique
+//    {{#tech:cell-expand}} → list (string[]) dans tableau :
+//                            une <tr> par élément
+// ═══════════════════════════════════════════════════════════════
+
+// ── Helper : construire un <table> HTML depuis un list-object ──
+// columns  = [{key, label, align?, width?, bold?}] ou null → auto
+// thStyle  = styles inline appliqués aux <th> (peut venir du template Tiptap)
+// preview  = true → on colore les valeurs résolues
+function _buildObjectTable(
+  items,
+  columns,
+  tech,
+  preview,
+  customThStyle,
+  customTdStyle,
+) {
+  if (!items || !items.length) {
+    return preview
+      ? `<span style="color:#aaa;font-style:italic">(liste vide)</span>`
+      : "";
+  }
+
+  // Colonnes : schéma DB > auto-détection depuis le premier objet
+  const cols =
+    columns && columns.length
+      ? columns
+      : Object.keys(items[0]).map((k) => ({ key: k, label: k }));
+
+  // ── Styles par défaut : texte NOIR GRAS pour les en-têtes ────
+  const defaultThStyle = `font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px;text-align:left`;
+  const defaultTdStyle = `color:#111;border:1px solid #c8cdd8;padding:6px 10px`;
+
+  const thBase = customThStyle || defaultThStyle;
+  const tdBase = customTdStyle || defaultTdStyle;
+
+  const thead = `<thead><tr>${cols
+    .map((c) => {
+      // Alignement optionnel par colonne
+      const alignExtra = c.align ? `;text-align:${c.align}` : "";
+      const widthExtra = c.width ? `;width:${c.width}` : "";
+      const boldExtra = c.bold === false ? `;font-weight:400` : "";
+      return `<th style="${thBase}${alignExtra}${widthExtra}${boldExtra}">${_esc(c.label)}</th>`;
+    })
+    .join("")}</tr></thead>`;
+
+  const rows = items.map((obj, ri) => {
+    // Légère alternance de fond pour la lisibilité
+    const rowBg = ri % 2 === 1 ? `background:#f9f9f9` : `background:#fff`;
+    const cells = cols.map((c) => {
+      const raw = obj[c.key] !== undefined ? String(obj[c.key]) : "";
+      const alignExtra = c.align ? `;text-align:${c.align}` : "";
+      const cell = preview
+        ? `<span class="var-resolved">${_esc(raw)}</span>`
+        : _esc(raw);
+      return `<td style="${tdBase}${alignExtra}">${cell}</td>`;
+    });
+    return `<tr style="${rowBg}">${cells.join("")}</tr>`;
+  });
+
+  const tableStyle = `border-collapse:collapse;width:100%;margin:6px 0`;
+  return `<table style="${tableStyle}">${thead}<tbody>${rows.join("")}</tbody></table>`;
+}
+
+// ── 0. list-object :table ─────────────────────────────────────
+//
+//  Deux cas :
+//  A) Marqueur texte brut  {{#tech:table}}
+//     → on génère le tableau complet avec les styles par défaut
+//
+//  B) Marqueur dans un vrai tableau Tiptap  <table>…<td>{{#tech:table}}</td>…</table>
+//     → on REMPLACE la ligne modèle par autant de <tr> que d'objets,
+//       en héritant des styles de la ligne modèle (couleur, gras, alignement…)
+//       Les autres cellules de la ligne deviennent les libellés de colonnes
+//       (en-têtes) ou restent vides.
+//
+//  Marqueur spécial :  {{#tech:table:header}}  dans une cellule <th>/<td>
+//  signale que cette ligne EST la ligne d'en-tête Tiptap à conserver telle quelle.
+//  Le marqueur  {{#tech:table:data}}  dans une <td> signale la cellule à répéter.
+//
+//  Syntaxe simplifiée maintenue :
+//    {{#tech:table}}  hors tableau → tableau autonome (comportement précédent)
+//    {{#tech:table}}  dans une cellule Tiptap → cell-expand objet (1 ligne / objet)
+// ─────────────────────────────────────────────────────────────
+
+function _resolveObjectTables(html, person, preview) {
+  if (!html) return html;
+
+  // ── Cas B : marqueur dans un <td> d'un vrai tableau Tiptap ───
+  // Cherche les <tr> qui contiennent {{#tech:table}} dans une cellule.
+  // On les remplace par une ligne par objet, en distribuant les valeurs
+  // de l'objet dans chaque cellule selon l'ordre des colonnes définies.
+  let guard = 0;
+  while (guard++ < 20) {
+    const m =
+      /<tr([^>]*)>((?:(?!<\/tr>)[\s\S])*?\{\{#([\w]+):table\}\}(?:(?!<\/tr>)[\s\S])*?)<\/tr>/i.exec(
+        html,
+      );
+    if (!m) break;
+
+    const [fullTr, trAttrs, trInner, tech] = m;
+
+    // Aperçu sans personne → placeholder coloré dans la cellule
+    if (!person) {
+      if (preview) {
+        const ph = `<span style="color:#7c3aed;font-style:italic;background:#f3e8ff;padding:1px 5px;border-radius:3px;font-size:11px">▣ TABLE ${tech}</span>`;
+        html = html.replace(fullTr, fullTr.replace(`{{#${tech}:table}}`, ph));
+      }
+      break;
+    }
+
+    // Extraire les cellules de la ligne modèle
+    const cellRe = /<(td|th)((?:\s[^>]*)?|)>([\s\S]*?)<\/\1>/gi;
+    const cells = [];
+    let cm;
+    while ((cm = cellRe.exec(trInner)) !== null)
+      cells.push({ tag: cm[1], attrs: cm[2], content: cm[3] });
+
+    if (!cells.length) {
+      html = html.replace(fullTr, "");
+      break;
+    }
+
+    const markerIdx = cells.findIndex((c) =>
+      /\{\{#[\w]+:table\}\}/.test(c.content),
+    );
+    if (markerIdx === -1) {
+      html = html.replace(fullTr, "");
+      break;
+    }
+
+    const items = Array.isArray(person[tech]) ? person[tech] : [];
+    const columns =
+      DB.getListObjectColumns(tech) ||
+      (items[0]
+        ? Object.keys(items[0]).map((k) => ({ key: k, label: k }))
+        : []);
+
+    if (!items.length) {
+      // Ligne vide
+      let row = `<tr${trAttrs}>`;
+      cells.forEach((c, i) => {
+        const content =
+          i === markerIdx
+            ? `<em style="color:#aaa">—</em>`
+            : _resolveScalars(c.content, person, preview);
+        row += `<${c.tag}${c.attrs}>${content}</${c.tag}>`;
+      });
+      row += "</tr>";
+      html = html.replace(fullTr, row);
+      continue;
+    }
+
+    // Une ligne par objet — les valeurs sont réparties selon
+    // l'ordre des colonnes dans la définition du schéma.
+    // Si le nombre de cellules ≠ nombre de colonnes, on utilise
+    // markerIdx comme cellule principale et on ignore le reste.
+    let rows = "";
+    items.forEach((obj) => {
+      rows += `<tr${trAttrs}>`;
+      cells.forEach((c, i) => {
+        let content;
+        if (columns.length === cells.length) {
+          // Correspondance 1-1 cellule ↔ colonne
+          const col = columns[i];
+          const raw =
+            col && obj[col.key] !== undefined ? String(obj[col.key]) : "";
+          content = preview
+            ? `<span class="var-resolved">${_esc(raw)}</span>`
+            : _esc(raw);
+        } else if (i === markerIdx) {
+          // Fallback : on met toutes les valeurs dans la cellule marquée
+          const raw = Object.values(obj).join(" | ");
+          content = preview
+            ? `<span class="var-resolved">${_esc(raw)}</span>`
+            : _esc(raw);
+        } else {
+          content = _resolveScalars(c.content, person, preview);
+        }
+        rows += `<${c.tag}${c.attrs}>${content}</${c.tag}>`;
+      });
+      rows += "</tr>";
+    });
+
+    html = html.replace(fullTr, rows);
+  }
+
+  // ── Cas A : marqueur texte brut (hors tableau Tiptap) ────────
+  html = html.replace(/\{\{#([\w]+):table\}\}/g, (match, tech) => {
+    if (!person) {
+      if (!preview) return match;
+      // Placeholder éditeur : tableau avec th NOIR GRAS
+      const cols = DB.getListObjectColumns(tech) || [];
+      const headers = cols.length
+        ? cols
+            .map(
+              (c) =>
+                `<th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">${_esc(c.label)}</th>`,
+            )
+            .join("")
+        : `<th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">Colonne 1</th>
+           <th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">Colonne 2</th>
+           <th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">…</th>`;
+      const dataCells = cols.length
+        ? cols
+            .map(
+              (c, i) =>
+                `<td style="border:1px solid #c8cdd8;padding:6px 10px;color:#7c3aed;font-style:italic">${i === 0 ? `{{#${tech}:table}}` : ""}</td>`,
+            )
+            .join("")
+        : `<td style="border:1px solid #c8cdd8;padding:6px 10px;color:#7c3aed;font-style:italic">{{#${tech}:table}}</td>
+           <td style="border:1px solid #c8cdd8;padding:6px 10px"></td>
+           <td style="border:1px solid #c8cdd8;padding:6px 10px"></td>`;
+      return `<table style="border-collapse:collapse;width:100%;margin:6px 0;opacity:.6">
+        <thead><tr>${headers}</tr></thead>
+        <tbody><tr>${dataCells}</tr></tbody></table>`;
+    }
+
+    const items = Array.isArray(person[tech]) ? person[tech] : [];
+    const columns = DB.getListObjectColumns(tech);
+    return _buildObjectTable(items, columns, tech, preview);
+  });
+
+  return html;
+}
+
+// ── 1. cell-expand ────────────────────────────────────────────
+function _resolveCellExpand(html, person, preview) {
+  if (!html) return html;
+  let guard = 0;
+  while (guard++ < 20) {
+    const m =
+      /<tr([^>]*)>((?:(?!<\/tr>)[\s\S])*?\{\{#([\w]+):cell-expand\}\}(?:(?!<\/tr>)[\s\S])*?)<\/tr>/i.exec(
+        html,
+      );
+    if (!m) break;
+    const [fullTr, trAttrs, trInner, tech] = m;
+    if (!person) {
+      if (preview) {
+        const ph = `<span style="color:#7c3aed;font-style:italic;background:#f3e8ff;padding:1px 5px;border-radius:3px;font-size:11px">▣ ${tech}</span>`;
+        html = html.replace(
+          fullTr,
+          fullTr.replace(/\{\{#[\w]+:cell-expand\}\}/, ph),
+        );
+      }
+      break;
+    }
+    const cellRe = /<(td|th)((?:\s[^>]*)?|)>([\s\S]*?)<\/\1>/gi;
+    const cells = [];
+    let cm;
+    while ((cm = cellRe.exec(trInner)) !== null)
+      cells.push({ tag: cm[1], attrs: cm[2], content: cm[3] });
+    if (!cells.length) {
+      html = html.replace(fullTr, "");
+      break;
+    }
+    const markerIdx = cells.findIndex((c) =>
+      /\{\{#[\w]+:cell-expand\}\}/.test(c.content),
+    );
+    if (markerIdx === -1) {
+      html = html.replace(fullTr, "");
+      break;
+    }
+    const raw = person[tech];
+    // Gère string[] et object[] (prend la première valeur de l'objet)
+    const items = Array.isArray(raw)
+      ? raw.map((item) => {
+          if (typeof item === "object" && item !== null)
+            return Object.values(item).join(" | ");
+          return String(item);
+        })
+      : [];
+    if (!items.length) {
+      let row = `<tr${trAttrs}>`;
+      cells.forEach((c, i) => {
+        const content =
+          i === markerIdx
+            ? `<em style="color:#aaa">—</em>`
+            : _resolveScalars(c.content, person, preview);
+        row += `<${c.tag}${c.attrs}>${content}</${c.tag}>`;
+      });
+      row += "</tr>";
+      html = html.replace(fullTr, row);
+      continue;
+    }
+    let rows = "";
+    items.forEach((item) => {
+      rows += `<tr${trAttrs}>`;
+      cells.forEach((c, i) => {
+        if (i === markerIdx) {
+          const val = preview
+            ? `<span class="var-resolved">${_esc(item)}</span>`
+            : _esc(item);
+          rows += `<${c.tag}${c.attrs}>${val}</${c.tag}>`;
+        } else {
+          rows += `<${c.tag}${c.attrs}>${_resolveScalars(c.content, person, preview)}</${c.tag}>`;
+        }
+      });
+      rows += "</tr>";
+    });
+    html = html.replace(fullTr, rows);
+  }
+  return html;
+}
+
+// ── 2. ul / inline (string[]) ────────────────────────────────
+function _resolveListTags(html, person, preview) {
+  if (!html) return html;
+  return html.replace(/\{\{#([\w]+):(ul|inline)\}\}/g, (match, tech, mode) => {
+    if (!person) {
+      if (!preview) return match;
+      if (mode === "inline")
+        return `<span style="color:#7c3aed;font-style:italic;background:#f3e8ff;padding:0 3px;border-radius:3px">[${tech}]</span>`;
+      return `<ul style="opacity:.5;color:#7c3aed;margin:4px 0;padding-left:1.4em"><li style="font-style:italic">${tech} — élément 1</li><li style="font-style:italic">${tech} — élément 2</li></ul>`;
+    }
+    const raw = person[tech];
+    const items = Array.isArray(raw)
+      ? raw.map((item) => {
+          if (typeof item === "object" && item !== null)
+            return Object.values(item).join(" | ");
+          return String(item);
+        })
+      : [];
+    if (!items.length)
+      return preview
+        ? `<span style="color:#aaa;font-style:italic">(liste vide)</span>`
+        : "";
+    if (mode === "inline") {
+      const joined = items.map(_esc).join(", ");
+      return preview ? `<span class="var-resolved">${joined}</span>` : joined;
+    }
+    const lis = items
+      .map((item) => {
+        const val = _esc(item);
+        return `<li>${preview ? `<span class="var-resolved">${val}</span>` : val}</li>`;
+      })
+      .join("");
+    return `<ul style="margin:4px 0;padding-left:1.4em">${lis}</ul>`;
+  });
+}
+
+// ── 3. Scalaires ──────────────────────────────────────────────
+function _resolveScalars(html, person, preview) {
+  if (!html) return html;
+  return html.replace(/\{\{(\w+)\}\}/g, (match, k) => {
+    if (!person)
+      return preview
+        ? `<span style="color:#2563eb;background:#eff6ff;padding:0 3px;border-radius:3px;font-style:italic">{{${k}}}</span>`
+        : match;
+    const val = person[k];
+    if (val !== undefined && !Array.isArray(val))
+      return preview
+        ? `<span class="var-resolved">${_esc(String(val))}</span>`
+        : _esc(String(val));
+    return preview ? `<span class="var-missing">{{${k}}}</span>` : match;
+  });
+}
+
+// ── Résolution principale (ordre : table → cell-expand → ul/inline → scalaires) ──
+function _resolveAll(html, person, preview) {
+  if (!html) return "";
+  html = _resolveObjectTables(html, person, preview); // 0 - NOUVEAU
+  html = _resolveCellExpand(html, person, preview); // 1
+  html = _resolveListTags(html, person, preview); // 2
+  html = _resolveScalars(html, person, preview); // 3
+  return html;
+}
+
+/** Aperçu (variables colorées) */
+function resolveVars(html, person) {
+  return _resolveAll(html, person, true);
+}
+/** Export / impression (texte pur) */
+function resolveVarsRaw(html, person) {
+  return _resolveAll(html, person, false);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INSERTION INTELLIGENTE dans Tiptap (admin.html)
+//  Gère scalar, list, list-object
+// ═══════════════════════════════════════════════════════════════
+async function insertListVar(editor, varDef) {
+  if (!editor || !varDef) return;
+
+  // ── list-object → toujours :table (ou :cell-expand si dans tableau) ──
+  if (varDef.type === "list-object") {
+    const inCell =
+      editor.isActive("tableCell") || editor.isActive("tableHeader");
+    if (inCell) {
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "text",
+          text: `{{#${varDef.tech}:cell-expand}}`,
+          marks: [{ type: "textStyle", attrs: { color: "#7c3aed" } }],
+        })
+        .run();
+      toast("Tableau objet inséré — cell-expand dans le tableau", "success");
+    } else {
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "text",
+          text: `{{#${varDef.tech}:table}}`,
+          marks: [{ type: "textStyle", attrs: { color: "#7c3aed" } }],
+        })
+        .run();
+      toast(
+        `Tableau généré automatiquement pour « ${varDef.label} »`,
+        "success",
+      );
+    }
+    return;
+  }
+
+  // ── list (string[]) → comportement d'origine ──────────────────
+  const inCell = editor.isActive("tableCell") || editor.isActive("tableHeader");
+  if (inCell) {
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "text",
+        text: `{{#${varDef.tech}:cell-expand}}`,
+        marks: [{ type: "textStyle", attrs: { color: "#7c3aed" } }],
+      })
+      .run();
+    toast("Liste insérée — 1 ligne par élément dans le tableau", "success");
+  } else {
+    const mode = await _promptListMode(varDef.tech, varDef.label);
+    if (!mode) return;
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "text",
+        text: `{{#${varDef.tech}:${mode}}}`,
+        marks: [{ type: "textStyle", attrs: { color: "#7c3aed" } }],
+      })
+      .run();
+    toast(`Liste insérée en mode « ${mode} »`, "success");
+  }
+}
+
+function _promptListMode(tech, label) {
+  return new Promise((resolve) => {
+    const old = document.getElementById("_sirh_listModal");
+    if (old) old.remove();
+    const ov = document.createElement("div");
+    ov.id = "_sirh_listModal";
+    ov.style.cssText =
+      "position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);font-family:'IBM Plex Sans','Inter',sans-serif";
+    ov.innerHTML = `
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:26px;width:90%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.22)">
+        <div style="font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:4px">Rendu de la liste</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:20px;line-height:1.55">
+          <strong style="color:#7c3aed;font-family:monospace">{{#${tech}}}</strong> est hors tableau.<br>
+          Comment afficher les éléments de <em>${label}</em> ?
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+          <button data-mode="ul" style="border:2px solid #bbf7d0;border-radius:10px;padding:16px 12px;cursor:pointer;background:#f0fdf4;display:flex;flex-direction:column;align-items:center;gap:8px;color:#15803d;font-family:inherit;font-size:12px;transition:all .14s">
+            <span style="font-size:22px">≡</span><strong>Liste à puces</strong>
+            <span style="font-size:10px;color:#64748b;text-align:center;line-height:1.4">• élément 1<br>• élément 2</span>
+          </button>
+          <button data-mode="inline" style="border:2px solid #fde68a;border-radius:10px;padding:16px 12px;cursor:pointer;background:#fffbeb;display:flex;flex-direction:column;align-items:center;gap:8px;color:#92400e;font-family:inherit;font-size:12px;transition:all .14s">
+            <span style="font-size:22px">…</span><strong>Inline (virgules)</strong>
+            <span style="font-size:10px;color:#64748b;text-align:center;line-height:1.4">él1, él2, él3</span>
+          </button>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 13px;font-size:11px;color:#1d4ed8;margin-bottom:16px;line-height:1.5">
+          💡 Pour <strong>une ligne par élément dans un tableau</strong>, placez d'abord le curseur dans une cellule, puis insérez la variable.
+        </div>
+        <button id="_sirh_cancel" style="width:100%;padding:9px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:12px;color:#64748b;font-family:inherit">Annuler</button>
+      </div>`;
+    ov.querySelectorAll("button[data-mode]").forEach((btn) => {
+      btn.addEventListener("mouseenter", () => {
+        btn.style.transform = "translateY(-2px)";
+        btn.style.boxShadow = "0 4px 14px rgba(0,0,0,.12)";
+      });
+      btn.addEventListener("mouseleave", () => {
+        btn.style.transform = "";
+        btn.style.boxShadow = "";
+      });
+      btn.onclick = () => {
+        ov.remove();
+        resolve(btn.dataset.mode);
+      };
+    });
+    ov.querySelector("#_sirh_cancel").onclick = () => {
+      ov.remove();
+      resolve(null);
+    };
+    document.body.appendChild(ov);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CSS IMPRESSION A4
+// ═══════════════════════════════════════════════════════════════
+const PRINT_PAGE_CSS = `
+@page { size: A4 portrait; margin: 0; }
+body  { margin: 0; background: #fff; }
+.a4-page {
+  width: 210mm; min-height: 297mm;
+  background: #fff; margin: 0 auto;
+  display: flex; flex-direction: column;
+  page-break-after: always; break-after: page;
+}
+.a4-page:last-child { page-break-after: auto; break-after: auto; }
+.a4-header {
+  flex-shrink: 0;
+  padding: 5mm var(--page-mr, 25mm) 3mm var(--page-ml, 25mm);
+  border-bottom: 1px solid #e2e8f0;
+}
+.a4-footer {
+  flex-shrink: 0; margin-top: auto;
+  padding: 3mm var(--page-mr, 25mm) 5mm var(--page-ml, 25mm);
+  border-top: 1px solid #e2e8f0;
+}
+.a4-body {
+  flex: 1;
+  padding: 5mm var(--page-mr, 25mm) 5mm var(--page-ml, 25mm);
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 12pt; line-height: 1.6; color: #111;
+}
+.a4-body.no-header { padding-top: var(--page-mt, 20mm); }
+.a4-body.no-footer  { padding-bottom: var(--page-mb, 20mm); }
+table { border-collapse: collapse; width: 100%; }
+td, th {
+  border: 1px solid #c8cdd8; padding: 6px 10px;
+  print-color-adjust: exact; -webkit-print-color-adjust: exact;
+}
+td p, th p { color: inherit; }
+th:not([style]) { background: #f2f2f2; color: #111; font-weight: 700; text-align: left; }
+th { font-weight: 700; }
+ul, ol { padding-left: 2em !important; list-style: revert !important; }
+li { display: list-item !important; }
+.var-resolved { color: #111 !important; font-weight: inherit !important; background: none !important; padding: 0 !important; }
+.var-missing  { color: #dc2626 !important; }
+.a4-hf-label, .a4-page-num, .a4-watermark { display: none !important; }
+`;
+
+// ═══════════════════════════════════════════════════════════════
+//  UTILITAIRES COMMUNS
+// ═══════════════════════════════════════════════════════════════
+function _esc(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function genId(prefix) {
+  return (
+    prefix + "_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6)
+  );
+}
+
+function toast(msg, type = "") {
+  let stack = document.getElementById("toastStack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.id = "toastStack";
+    stack.className = "toast-stack";
+    document.body.appendChild(stack);
+  }
+  const el = document.createElement("div");
+  el.className = "toast" + (type ? " " + type : "");
+  el.innerHTML = `<span>${{ success: "✓", error: "✕", info: "ℹ" }[type] || "●"}</span> ${msg}`;
+  stack.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = "0";
+    el.style.transition = "opacity .3s";
+    setTimeout(() => el.remove(), 300);
+  }, 2800);
+}
+
+function openModal(id) {
+  document.getElementById(id)?.classList.add("open");
+}
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove("open");
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PAGINATION PROFESSIONNEL — Moteur complet Word-like
+//  Gestion des pages A4, aperçu avec navigation, impression
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Classe PagePaginator
+ * Divise le contenu HTML intelligemment en pages A4
+ * Tient compte de la hauteur des headers/footers et du contenu
+ */
+class PagePaginator {
+  constructor(opts = {}) {
+    // Configuration A4 (en mm → pixels à 96 DPI)
+    this.pageWidthMm = 210;
+    this.pageHeightMm = 297;
+    this.marginTopMm = opts.marginTop || 20;
+    this.marginBottomMm = opts.marginBottom || 20;
+    this.marginLeftMm = opts.marginLeft || 25;
+    this.marginRightMm = opts.marginRight || 25;
+
+    // Conversion mm → px (96 DPI standard)
+    this.mmToPx = (mm) => (mm * 96) / 25.4;
+
+    this.pageWidthPx = this.mmToPx(this.pageWidthMm);
+    this.pageHeightPx = this.mmToPx(this.pageHeightMm);
+    this.marginTopPx = this.mmToPx(this.marginTopMm);
+    this.marginBottomPx = this.mmToPx(this.marginBottomMm);
+    this.marginLeftPx = this.mmToPx(this.marginLeftMm);
+    this.marginRightPx = this.mmToPx(this.marginRightMm);
+
+    // Hauteur disponible pour le contenu (sans headers/footers)
+    this.contentHeightPx =
+      this.pageHeightPx - this.marginTopPx - this.marginBottomPx;
+
+    this.pages = [];
+    this.headerHeight = 0;
+    this.footerHeight = 0;
+  }
+
+  /**
+   * Pagine le contenu HTML en divisant intelligemment
+   * @param {string} contentHtml - HTML du contenu principal
+   * @param {string} headerHtml - HTML du header (optionnel)
+   * @param {string} footerHtml - HTML du footer (optionnel)
+   * @returns {Array} Array d'objects {header, content, footer}
+   */
+  paginate(contentHtml, headerHtml = "", footerHtml = "") {
+    this.pages = [];
+
+    // Créer un conteneur invisible pour mesurer les hauteurs
+    const tempContainer = document.createElement("div");
+    tempContainer.style.position = "absolute";
+    tempContainer.style.visibility = "hidden";
+    tempContainer.style.width = this.pageWidthPx + "px";
+    tempContainer.style.fontFamily = '"Times New Roman", Times, serif';
+    tempContainer.style.fontSize = "12pt";
+    tempContainer.style.lineHeight = "1.6";
+    tempContainer.style.color = "#111";
+
+    // Mesurer hauteur du header
+    if (headerHtml) {
+      const hdrEl = document.createElement("div");
+      hdrEl.innerHTML = headerHtml;
+      hdrEl.style.padding = "5mm 25mm 3mm 25mm";
+      tempContainer.appendChild(hdrEl);
+      document.body.appendChild(tempContainer);
+      this.headerHeight = hdrEl.offsetHeight;
+      tempContainer.removeChild(hdrEl);
+    }
+
+    // Mesurer hauteur du footer
+    if (footerHtml) {
+      const ftrEl = document.createElement("div");
+      ftrEl.innerHTML = footerHtml;
+      ftrEl.style.padding = "3mm 25mm 5mm 25mm";
+      tempContainer.appendChild(ftrEl);
+      document.body.appendChild(tempContainer);
+      this.footerHeight = ftrEl.offsetHeight;
+      tempContainer.removeChild(ftrEl);
+    }
+
+    document.body.removeChild(tempContainer);
+
+    // Hauteur disponible pour le contenu = hauteur page - headers/footers
+    const availableHeightPx =
+      this.contentHeightPx - this.headerHeight - this.footerHeight;
+
+    // Parser le contenu en éléments
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(
+      `<div>${contentHtml}</div>`,
+      "text/html",
+    );
+    const content = doc.body.firstChild;
+
+    // Diviser les éléments enfants entre les pages
+    this._distributeContent(content.children, availableHeightPx);
+
+    // Construire les pages finales
+    this.pages = this.pages.map((pageContent) => ({
+      header: headerHtml,
+      content: pageContent,
+      footer: footerHtml,
+    }));
+
+    return this.pages;
+  }
+
+  /**
+   * Distribue les éléments enfants entre les pages
+   * @private
+   */
+  _distributeContent(elements, availableHeight) {
+    let currentPageHTML = "";
+    let currentPageHeight = 0;
+
+    const tempMeasure = document.createElement("div");
+    tempMeasure.style.position = "absolute";
+    tempMeasure.style.visibility = "hidden";
+    tempMeasure.style.width =
+      this.pageWidthPx - this.marginLeftPx - this.marginRightPx + "px";
+    tempMeasure.style.fontFamily = '"Times New Roman", Times, serif';
+    tempMeasure.style.fontSize = "12pt";
+    tempMeasure.style.lineHeight = "1.6";
+    tempMeasure.style.color = "#111";
+    document.body.appendChild(tempMeasure);
+
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i];
+      if (!el) continue;
+
+      // Cloner l'élément pour mesurer
+      const clone = el.cloneNode(true);
+      tempMeasure.innerHTML = "";
+      tempMeasure.appendChild(clone);
+
+      const elHeight = tempMeasure.offsetHeight;
+
+      // Si l'élément est une table ou très grand, garder son intégrité
+      const isLargeElement =
+        el.tagName === "TABLE" || elHeight > availableHeight * 0.75;
+
+      // Si ça déborde ET la page n'est pas vide, créer une nouvelle page
+      if (
+        currentPageHeight + elHeight > availableHeight &&
+        currentPageHTML.trim() !== ""
+      ) {
+        this.pages.push(currentPageHTML);
+        currentPageHTML = "";
+        currentPageHeight = 0;
+      }
+
+      // Ajouter l'élément à la page actuelle
+      currentPageHTML += el.outerHTML;
+      currentPageHeight += elHeight;
+    }
+
+    // Ajouter la dernière page s'il y a du contenu
+    if (currentPageHTML.trim() !== "") {
+      this.pages.push(currentPageHTML);
+    }
+
+    document.body.removeChild(tempMeasure);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  paginateWithVariablesBlue(tpl, person)
+//  Pagine le contenu avec variables en bleu (pas résolues)
+//  Retourne: { pages: [...], hasHeader, hasFooter }
+// ═══════════════════════════════════════════════════════════════
+function paginateWithVariablesBlue(tpl, person) {
+  if (!tpl || !person) return { pages: [], hasHeader: false, hasFooter: false };
+
+  // Résoudre les variables (avec classes .var-resolved pour le bleu)
+  const hdrHtml = tpl.hasHeader ? resolveVars(tpl.header || "", person) : "";
+  const bHtml = resolveVars(tpl.body || "", person);
+  const ftrHtml = tpl.hasFooter ? resolveVars(tpl.footer || "", person) : "";
+
+  // Paginer le contenu
+  const paginator = new PagePaginator({
+    marginTop: 20,
+    marginBottom: 20,
+    marginLeft: 25,
+    marginRight: 25,
+  });
+
+  const pages = paginator.paginate(bHtml, hdrHtml, ftrHtml);
+
+  return {
+    pages: pages,
+    hasHeader: tpl.hasHeader,
+    hasFooter: tpl.hasFooter,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  previewDocument(tpl, person)
+//  Affiche un aperçu multi-pages complet avec navigation
+// ═══════════════════════════════════════════════════════════════
+function previewDocument(tpl, person) {
+  if (!tpl || !person) {
+    toast("Template ou personne manquant", "error");
+    return;
+  }
+
+  const hdrRaw = tpl.hasHeader ? resolveVars(tpl.header || "", person) : "";
+  const bRaw = resolveVars(tpl.body || "", person);
+  const ftrRaw = tpl.hasFooter ? resolveVars(tpl.footer || "", person) : "";
+
+  // Paginer le contenu
+  const paginator = new PagePaginator({
+    marginTop: 20,
+    marginBottom: 20,
+    marginLeft: 25,
+    marginRight: 25,
+  });
+
+  const pages = paginator.paginate(bRaw, hdrRaw, ftrRaw);
+
+  if (!pages.length) {
+    toast("Aucun contenu à afficher", "error");
+    return;
+  }
+
+  // Créer le modal d'aperçu
+  const modal = document.createElement("div");
+  modal.className = "preview-modal";
+  modal.id = "pagePreviewModal";
+
+  // CSS du modal
+  const styleEl = document.createElement("style");
+  styleEl.textContent = `
+    .preview-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    .preview-modal.hidden {
+      display: none;
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      padding: 12px 20px;
+      border-radius: 8px 8px 0 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .preview-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .preview-pageinfo {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .preview-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .preview-btn {
+      padding: 6px 12px;
+      border: 1px solid #ddd;
+      background: #f5f5f5;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: #333;
+    }
+
+    .preview-btn:hover {
+      background: #e8e8e8;
+      border-color: #bbb;
+    }
+
+    .preview-btn.primary {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+    }
+
+    .preview-btn.primary:hover {
+      background: #1d4ed8;
+    }
+
+    .preview-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .preview-container {
+      flex: 1;
+      background: #e8e8e8;
+      border-radius: 0 0 8px 8px;
+      overflow: auto;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .preview-page {
+      width: 210mm;
+      height: 297mm;
+      background: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .preview-page-header {
+      flex-shrink: 0;
+      padding: 5mm 25mm 3mm 25mm;
+      border-bottom: 1px solid #e2e8f0;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
+      overflow: hidden;
+    }
+
+    .preview-page-body {
+      flex: 1;
+      padding: 5mm 25mm;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
+      overflow: hidden;
+    }
+
+    .preview-page-body.no-header {
+      padding-top: 20mm;
+    }
+
+    .preview-page-body.no-footer {
+      padding-bottom: 20mm;
+    }
+
+    .preview-page-footer {
+      flex-shrink: 0;
+      padding: 3mm 25mm 5mm 25mm;
+      border-top: 1px solid #e2e8f0;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
+      overflow: hidden;
+    }
+
+    .preview-page p {
+      margin: 0 0 0.4em 0;
+    }
+
+    .preview-page ul, .preview-page ol {
+      padding-left: 2em;
+      list-style: revert;
+    }
+
+    .preview-page table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 6px 0;
+    }
+
+    .preview-page td, .preview-page th {
+      border: 1px solid #c8cdd8;
+      padding: 6px 10px;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+
+    .preview-page td p, .preview-page th p {
+      color: inherit;
+    }
+
+    .preview-page th:not([style]) {
+      background: #f2f2f2;
+      color: #111;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    .preview-page th {
+      font-weight: 700;
+    }
+
+    .var-resolved {
+      color: #111 !important;
+      font-weight: inherit !important;
+      background: none !important;
+      padding: 0 !important;
+    }
+
+    .var-missing {
+      color: #dc2626 !important;
+    }
+
+    .preview-close {
+      font-size: 20px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #666;
+      padding: 0;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .preview-close:hover {
+      background: #f0f0f0;
+      color: #333;
+    }
+  `;
+  document.head.appendChild(styleEl);
+
+  let currentPage = 0;
+
+  const render = () => {
+    const page = pages[currentPage];
+    const noHdr = !tpl.hasHeader ? " no-header" : "";
+    const noFtr = !tpl.hasFooter ? " no-footer" : "";
+
+    modal.innerHTML = `
+      <div class="preview-header">
+        <div class="preview-title">Aperçu du document</div>
+        <div class="preview-pageinfo">
+          Page <strong>${currentPage + 1}</strong> sur <strong>${pages.length}</strong>
+        </div>
+        <div class="preview-controls">
+          <button class="preview-btn" id="prevPageBtn" ${currentPage === 0 ? "disabled" : ""}>← Précédent</button>
+          <button class="preview-btn" id="nextPageBtn" ${currentPage === pages.length - 1 ? "disabled" : ""}>Suivant →</button>
+          <button class="preview-btn primary" id="printAllBtn">🖨 Imprimer</button>
+          <button class="preview-close" id="closePreviewBtn">✕</button>
+        </div>
+      </div>
+      <div class="preview-container">
+        <div class="preview-page">
+          ${page.header ? `<div class="preview-page-header">${page.header}</div>` : ""}
+          <div class="preview-page-body${noHdr}${noFtr}">${page.content}</div>
+          ${page.footer ? `<div class="preview-page-footer">${page.footer}</div>` : ""}
+        </div>
+      </div>
+    `;
+
+    // Attacher les événements
+    document.getElementById("prevPageBtn")?.addEventListener("click", () => {
+      if (currentPage > 0) {
+        currentPage--;
+        render();
+      }
+    });
+
+    document.getElementById("nextPageBtn")?.addEventListener("click", () => {
+      if (currentPage < pages.length - 1) {
+        currentPage++;
+        render();
+      }
+    });
+
+    document.getElementById("printAllBtn")?.addEventListener("click", () => {
+      printDocPaginated(tpl, person, pages);
+    });
+
+    document
+      .getElementById("closePreviewBtn")
+      ?.addEventListener("click", () => {
+        modal.remove();
+        styleEl.remove();
+      });
+  };
+
+  document.body.appendChild(modal);
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  printDocPaginated(tpl, person, pages)
+//  Impression avec pagination complète
+// ═══════════════════════════════════════════════════════════════
+function printDocPaginated(tpl, person, pages = null) {
+  if (!tpl || !person) {
+    toast("Template ou personne manquant", "error");
+    return;
+  }
+
+  // Utiliser les pages déjà paginées ou les générer
+  let pagesToPrint = pages;
+  if (!pages) {
+    const hdrRaw = tpl.hasHeader
+      ? resolveVarsRaw(tpl.header || "", person)
+      : "";
+    const bRaw = resolveVarsRaw(tpl.body || "", person);
+    const ftrRaw = tpl.hasFooter
+      ? resolveVarsRaw(tpl.footer || "", person)
+      : "";
+
+    const paginator = new PagePaginator();
+    pagesToPrint = paginator.paginate(bRaw, hdrRaw, ftrRaw);
+  }
+
+  const printCSS = `
+    @page { size: A4 portrait; margin: 0; }
+    * { margin: 0; padding: 0; }
+    body { margin: 0; padding: 0; background: #fff; }
+    #sirh-print-area { display: block; }
+
+    .sirh-print-page {
+      width: 210mm;
+      height: 297mm;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      page-break-after: always;
+      break-after: page;
+    }
+
+    .sirh-print-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+
+    .sirh-print-header {
+      flex-shrink: 0;
+      padding: 5mm 25mm 3mm 25mm;
+      border-bottom: 1px solid #e2e8f0;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
+    }
+
+    .sirh-print-body {
+      flex: 1;
+      padding: 5mm 25mm;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
+      overflow: visible;
+    }
+
+    .sirh-print-body.no-header {
+      padding-top: 20mm;
+    }
+
+    .sirh-print-body.no-footer {
+      padding-bottom: 20mm;
+    }
+
+    .sirh-print-footer {
+      flex-shrink: 0;
+      padding: 3mm 25mm 5mm 25mm;
+      border-top: 1px solid #e2e8f0;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.6;
+      color: #111;
+    }
+
+    .sirh-print-header p,
+    .sirh-print-body p,
+    .sirh-print-footer p {
+      margin: 0 0 0.4em;
+    }
+
+    .sirh-print-header ul,
+    .sirh-print-body ul,
+    .sirh-print-footer ul,
+    .sirh-print-header ol,
+    .sirh-print-body ol,
+    .sirh-print-footer ol {
+      padding-left: 2em;
+      list-style: revert;
+    }
+
+    li { display: list-item; }
+
+    table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+
+    td, th {
+      border: 1px solid #c8cdd8;
+      padding: 6px 10px;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+
+    td p, th p { color: inherit; }
+
+    th:not([style]) {
+      background: #f2f2f2;
+      color: #111;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    th { font-weight: 700; }
+
+    .var-resolved {
+      color: #111 !important;
+      font-weight: inherit !important;
+      background: none !important;
+      padding: 0 !important;
+    }
+
+    .var-missing { color: #dc2626 !important; }
+  `;
+
+  document.getElementById("sirh-print-area")?.remove();
+
+  const wrap = document.createElement("div");
+  wrap.id = "sirh-print-area";
+  wrap.style.display = "none";
+
+  const pagesHtml = pagesToPrint
+    .map((page) => {
+      const noHdr = !tpl.hasHeader ? " no-header" : "";
+      const noFtr = !tpl.hasFooter ? " no-footer" : "";
+
+      return `
+        <div class="sirh-print-page">
+          ${page.header ? `<div class="sirh-print-header">${page.header}</div>` : ""}
+          <div class="sirh-print-body${noHdr}${noFtr}">${page.content}</div>
+          ${page.footer ? `<div class="sirh-print-footer">${page.footer}</div>` : ""}
+        </div>
+      `;
+    })
+    .join("");
+
+  wrap.innerHTML = pagesHtml;
+
+  const style = document.createElement("style");
+  style.id = "sirh-print-css";
+  style.media = "print";
+  style.textContent = printCSS;
+
+  const hideStyle = document.createElement("style");
+  hideStyle.id = "sirh-hide-css";
+  hideStyle.media = "print";
+  hideStyle.textContent = `
+    body > *:not(#sirh-print-area):not(#sirh-print-css):not(#sirh-hide-css) { display: none !important; }
+    #sirh-print-area { display: block !important; }
+  `;
+
+  document.body.appendChild(style);
+  document.body.appendChild(hideStyle);
+  document.body.appendChild(wrap);
+
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      document.getElementById("sirh-print-area")?.remove();
+      document.getElementById("sirh-print-css")?.remove();
+      document.getElementById("sirh-hide-css")?.remove();
+    }, 500);
+  }, 80);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  printDoc(tpl, person) — Compatibilité rétroactive
+//  Utilise la nouvelle logique de pagination
+// ═══════════════════════════════════════════════════════════════
+function printDoc(tpl, person) {
+  printDocPaginated(tpl, person);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GESTIONNAIRE DE PAGES MULTIPLES POUR L'ÉDITEUR (admin.html)
+//  Gère la création automatique de pages quand le contenu dépasse A4
+// ═══════════════════════════════════════════════════════════════
+
+class EditorPageManager {
+  constructor(opts = {}) {
+    // Dimensions A4 (en mm)
+    this.pageHeightMm = 297;
+    this.pageWidthMm = 210;
+    this.marginTopMm = opts.marginTop || 20;
+    this.marginBottomMm = opts.marginBottom || 20;
+    this.marginLeftMm = opts.marginLeft || 25;
+    this.marginRightMm = opts.marginRight || 25;
+
+    // Conversion mm → px (96 DPI)
+    this.mmToPx = (mm) => (mm * 96) / 25.4;
+
+    this.pageHeightPx = this.mmToPx(this.pageHeightMm);
+    this.pageWidthPx = this.mmToPx(this.pageWidthMm);
+    this.marginTopPx = this.mmToPx(this.marginTopMm);
+    this.marginBottomPx = this.mmToPx(this.marginBottomMm);
+    this.marginLeftPx = this.mmToPx(this.marginLeftMm);
+    this.marginRightPx = this.mmToPx(this.marginRightMm);
+
+    this.pages = [];
+    this.containerWidth = 0;
+    this.headerHeightPx = 0;
+    this.footerHeightPx = 0;
+  }
+
+  /**
+   * Initialiser les pages multiples dans le conteneur
+   * @param {string} containerId - ID du div contenant le canvas
+   * @param {boolean} hasHeader - Si header affiché
+   * @param {boolean} hasFooter - Si footer affiché
+   */
+  init(containerId, hasHeader = false, hasFooter = false) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    this.containerId = containerId;
+    const scaler = container.querySelector("#zoomScaler");
+    const mainPage = container.querySelector("#mainPage");
+    const secHeader = container.querySelector("#sec-header");
+    const secBody = container.querySelector("#sec-body");
+    const secFooter = container.querySelector("#sec-footer");
+
+    if (!scaler || !mainPage) return;
+
+    // Mesurer les hauteurs
+    if (hasHeader && secHeader) {
+      secHeader.style.display = "block";
+      this.headerHeightPx = secHeader.offsetHeight;
+    }
+
+    if (hasFooter && secFooter) {
+      secFooter.style.display = "block";
+      this.footerHeightPx = secFooter.offsetHeight;
+    }
+
+    // Hauteur disponible pour le contenu sur une page
+    this.contentHeightPx =
+      this.pageHeightPx -
+      this.marginTopPx -
+      this.marginBottomPx -
+      this.headerHeightPx -
+      this.footerHeightPx;
+
+    // Initialiser avec la première page
+    this.pages = [{ id: "page_1", element: mainPage, editors: {} }];
+
+    // Surveiller les changements de contenu
+    this._watchPageOverflow();
+  }
+
+  /**
+   * Surveiller le débordement de contenu et créer des pages
+   * @private
+   */
+  _watchPageOverflow() {
+    if (!this.containerId) return;
+
+    // Surveillance tous les 500ms
+    this.watchInterval = setInterval(() => {
+      const scaler = document
+        .getElementById(this.containerId)
+        ?.querySelector("#zoomScaler");
+      if (!scaler) return;
+
+      const currentPages = scaler.querySelectorAll(".a4-page");
+      let needsNewPage = false;
+
+      // Vérifier chaque page existante
+      currentPages.forEach((page, idx) => {
+        const secBody = page.querySelector("#sec-body");
+        if (!secBody) return;
+
+        const contentHeight = secBody.scrollHeight;
+
+        // Si contenu dépasse la hauteur disponible, créer nouvelle page
+        if (
+          contentHeight > this.contentHeightPx * 1.1 &&
+          idx === currentPages.length - 1
+        ) {
+          needsNewPage = true;
+        }
+      });
+
+      if (needsNewPage) {
+        this._createNewPage();
+      }
+    }, 500);
+  }
+
+  /**
+   * Créer une nouvelle page éditable
+   * @private
+   */
+  _createNewPage() {
+    const scaler = document
+      .getElementById(this.containerId)
+      ?.querySelector("#zoomScaler");
+    const firstPage = scaler?.querySelector("#mainPage");
+    if (!scaler || !firstPage) return;
+
+    const pageNum = scaler.querySelectorAll(".a4-page").length + 1;
+    const newPageId = `page_${pageNum}`;
+
+    // Cloner la structure de la première page
+    const newPage = firstPage.cloneNode(true);
+    newPage.id = newPageId;
+
+    // Réinitialiser les éditeurs Tiptap
+    const editorElements = newPage.querySelectorAll(".tiptap-wrapper");
+    editorElements.forEach((el, idx) => {
+      el.innerHTML = "";
+      el.id = el.id
+        ? el.id.replace("ck-", `ck-page${pageNum}-`)
+        : `ed-page${pageNum}-${idx}`;
+    });
+
+    // Ajouter une bordure visuelle pour délimiter les pages
+    newPage.style.borderTop = "2px dashed #d0d0ca";
+    newPage.style.marginTop = "10px";
+    newPage.style.opacity = "0.95";
+
+    // Ajouter au conteneur
+    scaler.appendChild(newPage);
+
+    // Stocker la page
+    this.pages.push({ id: newPageId, element: newPage, editors: {} });
+
+    // Afficher un toast
+    toast(`Nouvelle page ${pageNum} créée`, "success");
+
+    return newPageId;
+  }
+
+  /**
+   * Obtenir le nombre de pages visibles
+   */
+  getPageCount() {
+    if (!this.containerId) return 0;
+    const scaler = document
+      .getElementById(this.containerId)
+      ?.querySelector("#zoomScaler");
+    return scaler?.querySelectorAll(".a4-page").length || 0;
+  }
+
+  /**
+   * Détruire l'intervalle de surveillance
+   */
+  destroy() {
+    if (this.watchInterval) {
+      clearInterval(this.watchInterval);
+    }
+  }
+}
+
+// Exporter globalement
+window.EditorPageManager = EditorPageManager;
