@@ -1276,7 +1276,7 @@
         overflow: hidden;
       }
       .preview-page .prev-header {
-        padding: 5mm 25mm 3mm 25mm;
+        padding: 5mm var(--page-mr) 3mm var(--page-ml);
         border-bottom: 1px solid #e2e8f0;
         flex-shrink: 0;
         font-family: "Times New Roman", Times, serif;
@@ -1286,7 +1286,7 @@
       }
       .preview-page .prev-body {
         flex: 1;
-        padding: 5mm 25mm;
+        padding: 5mm var(--page-mr) 5mm var(--page-ml);
         overflow: hidden;
         font-family: "Times New Roman", Times, serif;
         font-size: 12pt;
@@ -1294,13 +1294,13 @@
         color: #111;
       }
       .preview-page .prev-body.no-header {
-        padding-top: 20mm;
+        padding-top: var(--page-mt);
       }
       .preview-page .prev-body.no-footer {
-        padding-bottom: 20mm;
+        padding-bottom: var(--page-mb);
       }
       .preview-page .prev-footer {
-        padding: 3mm 25mm 5mm 25mm;
+        padding: 3mm var(--page-mr) 5mm var(--page-ml);
         border-top: 1px solid #e2e8f0;
         flex-shrink: 0;
         margin-top: auto;
@@ -4119,6 +4119,54 @@
         if (ed && html) ed.commands.setContent(html, false);
       }
 
+      function normalizePageMargins(pageMargins) {
+        const src = pageMargins || {};
+        const toNum = (value, fallback) => {
+          const n = Number(value);
+          return Number.isFinite(n) ? n : fallback;
+        };
+        return {
+          mt: toNum(src.mt, 20),
+          mb: toNum(src.mb, 20),
+          ml: toNum(src.ml, 25),
+          mr: toNum(src.mr, 25),
+        };
+      }
+
+      function applyPageMarginsToUI(pageMargins) {
+        const margins = normalizePageMargins(pageMargins);
+        document.documentElement.style.setProperty(
+          "--page-mt",
+          `${margins.mt}mm`,
+        );
+        document.documentElement.style.setProperty(
+          "--page-mb",
+          `${margins.mb}mm`,
+        );
+        document.documentElement.style.setProperty(
+          "--page-ml",
+          `${margins.ml}mm`,
+        );
+        document.documentElement.style.setProperty(
+          "--page-mr",
+          `${margins.mr}mm`,
+        );
+        document.getElementById("pg-mt").value = margins.mt;
+        document.getElementById("pg-mb").value = margins.mb;
+        document.getElementById("pg-ml").value = margins.ml;
+        document.getElementById("pg-mr").value = margins.mr;
+        return margins;
+      }
+
+      function getCurrentPageMargins() {
+        return normalizePageMargins({
+          mt: document.getElementById("pg-mt")?.value,
+          mb: document.getElementById("pg-mb")?.value,
+          ml: document.getElementById("pg-ml")?.value,
+          mr: document.getElementById("pg-mr")?.value,
+        });
+      }
+
       function getEditorBodyMetrics() {
         const secBody = document.getElementById("sec-body");
         if (!secBody) return null;
@@ -5064,6 +5112,7 @@
         if (editorBody && tpl.body) setEditorHTML(editorBody, tpl.body);
         if (editorHeader && tpl.header) setEditorHTML(editorHeader, tpl.header);
         if (editorFooter && tpl.footer) setEditorHTML(editorFooter, tpl.footer);
+        applyPageMarginsToUI(tpl.pageMargins);
         activeEditor = editorBody;
         headerEnabled = !!tpl.hasHeader;
         footerEnabled = !!tpl.hasFooter;
@@ -5123,6 +5172,7 @@
           updatedAt: new Date().toISOString(),
           hasHeader: false,
           hasFooter: false,
+          pageMargins: { mt: 20, mb: 20, ml: 25, mr: 25 },
           header:
             '<p style="text-align:center"><strong>{{nom_etab}}</strong></p><p style="text-align:center;font-size:10pt;color:#666">{{adresse_etab}} — Tél : {{tel_etab}}</p>',
           body: "<p>Rédigez le contenu du document ici.</p>",
@@ -5144,6 +5194,7 @@
         tpl.footer = editorFooter ? getEditorHTML(editorFooter) : "";
         tpl.hasHeader = headerEnabled;
         tpl.hasFooter = footerEnabled;
+        tpl.pageMargins = getCurrentPageMargins();
         tpl.updatedAt = new Date().toISOString();
         DB.saveTemplate(tpl);
         renderTplList(curFamId);
@@ -5285,25 +5336,19 @@
           toast("Ouvrez d'abord un template", "error");
           return;
         }
+        applyPageMarginsToUI(getCurrentPageMargins());
         openModal("modalPageSettings");
       };
       window.applyPageMargins = function () {
-        const mt = document.getElementById("pg-mt").value + "mm",
-          mb = document.getElementById("pg-mb").value + "mm",
-          ml = document.getElementById("pg-ml").value + "mm",
-          mr = document.getElementById("pg-mr").value + "mm";
-        document.documentElement.style.setProperty("--page-mt", mt);
-        document.documentElement.style.setProperty("--page-mb", mb);
-        document.documentElement.style.setProperty("--page-ml", ml);
-        document.documentElement.style.setProperty("--page-mr", mr);
+        const margins = applyPageMarginsToUI(getCurrentPageMargins());
         closeModal("modalPageSettings");
-        toast(`Marges : haut ${mt} · bas ${mb} · gauche ${ml} · droite ${mr}`);
+        scheduleEditorPaginationRefresh();
+        toast(
+          `Marges : haut ${margins.mt}mm · bas ${margins.mb}mm · gauche ${margins.ml}mm · droite ${margins.mr}mm`,
+        );
       };
       window.resetPageMargins = function () {
-        document.getElementById("pg-mt").value = 20;
-        document.getElementById("pg-mb").value = 20;
-        document.getElementById("pg-ml").value = 25;
-        document.getElementById("pg-mr").value = 25;
+        applyPageMarginsToUI({ mt: 20, mb: 20, ml: 25, mr: 25 });
         window.applyPageMargins();
       };
 
@@ -5336,6 +5381,7 @@
             footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "",
           hasHeader: headerEnabled,
           hasFooter: footerEnabled,
+          pageMargins: getCurrentPageMargins(),
         };
       }
       window.refreshPrev = function () {

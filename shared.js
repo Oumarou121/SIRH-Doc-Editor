@@ -880,6 +880,21 @@ function resolveVarsRaw(html, person) {
   return _resolveAll(html, person, false);
 }
 
+function getTemplatePageMargins(tpl) {
+  const src = tpl?.pageMargins || {};
+  const toNum = (value, fallback) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  return {
+    mt: toNum(src.mt, 20),
+    mb: toNum(src.mb, 20),
+    ml: toNum(src.ml, 25),
+    mr: toNum(src.mr, 25),
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  INSERTION INTELLIGENTE dans Tiptap (admin.html)
 //  Gère scalar, list, list-object
@@ -1352,6 +1367,7 @@ class PagePaginator {
 // ═══════════════════════════════════════════════════════════════
 function paginateWithVariablesBlue(tpl, person) {
   if (!tpl || !person) return { pages: [], hasHeader: false, hasFooter: false };
+  const margins = getTemplatePageMargins(tpl);
 
   // Résoudre les variables (avec classes .var-resolved pour le bleu)
   const hdrHtml = tpl.hasHeader ? resolveVars(tpl.header || "", person) : "";
@@ -1360,10 +1376,10 @@ function paginateWithVariablesBlue(tpl, person) {
 
   // Paginer le contenu
   const paginator = new PagePaginator({
-    marginTop: 20,
-    marginBottom: 20,
-    marginLeft: 25,
-    marginRight: 25,
+    marginTop: margins.mt,
+    marginBottom: margins.mb,
+    marginLeft: margins.ml,
+    marginRight: margins.mr,
   });
 
   const pages = paginator.paginate(bHtml, hdrHtml, ftrHtml);
@@ -1384,6 +1400,7 @@ function previewDocument(tpl, person) {
     toast("Template ou personne manquant", "error");
     return;
   }
+  const margins = getTemplatePageMargins(tpl);
 
   const hdrRaw = tpl.hasHeader ? resolveVars(tpl.header || "", person) : "";
   const bRaw = resolveVars(tpl.body || "", person);
@@ -1391,10 +1408,10 @@ function previewDocument(tpl, person) {
 
   // Paginer le contenu
   const paginator = new PagePaginator({
-    marginTop: 20,
-    marginBottom: 20,
-    marginLeft: 25,
-    marginRight: 25,
+    marginTop: margins.mt,
+    marginBottom: margins.mb,
+    marginLeft: margins.ml,
+    marginRight: margins.mr,
   });
 
   const pages = paginator.paginate(bRaw, hdrRaw, ftrRaw);
@@ -1511,7 +1528,7 @@ function previewDocument(tpl, person) {
 
     .preview-page-header {
       flex-shrink: 0;
-      padding: 5mm 25mm 3mm 25mm;
+      padding: 5mm ${margins.mr}mm 3mm ${margins.ml}mm;
       font-family: "Times New Roman", Times, serif;
       font-size: 12pt;
       line-height: 1.6;
@@ -1521,7 +1538,7 @@ function previewDocument(tpl, person) {
 
     .preview-page-body {
       flex: 1;
-      padding: 5mm 25mm;
+      padding: 5mm ${margins.mr}mm 5mm ${margins.ml}mm;
       font-family: "Times New Roman", Times, serif;
       font-size: 12pt;
       line-height: 1.6;
@@ -1530,16 +1547,16 @@ function previewDocument(tpl, person) {
     }
 
     .preview-page-body.no-header {
-      padding-top: 20mm;
+      padding-top: ${margins.mt}mm;
     }
 
     .preview-page-body.no-footer {
-      padding-bottom: 20mm;
+      padding-bottom: ${margins.mb}mm;
     }
 
     .preview-page-footer {
       flex-shrink: 0;
-      padding: 3mm 25mm 5mm 25mm;
+      padding: 3mm ${margins.mr}mm 5mm ${margins.ml}mm;
       font-family: "Times New Roman", Times, serif;
       font-size: 12pt;
       line-height: 1.6;
@@ -1687,6 +1704,7 @@ function printDocPaginated(tpl, person, pages = null) {
     toast("Template ou personne manquant", "error");
     return;
   }
+  const margins = getTemplatePageMargins(tpl);
 
   // Utiliser les pages déjà paginées ou les générer
   let pagesToPrint = pages;
@@ -1699,7 +1717,12 @@ function printDocPaginated(tpl, person, pages = null) {
       ? resolveVarsRaw(tpl.footer || "", person)
       : "";
 
-    const paginator = new PagePaginator();
+    const paginator = new PagePaginator({
+      marginTop: margins.mt,
+      marginBottom: margins.mb,
+      marginLeft: margins.ml,
+      marginRight: margins.mr,
+    });
     pagesToPrint = paginator.paginate(bRaw, hdrRaw, ftrRaw);
   }
 
@@ -1732,7 +1755,7 @@ function printDocPaginated(tpl, person, pages = null) {
 
     .sirh-print-header {
       flex-shrink: 0;
-      padding: 5mm 25mm 3mm 25mm;
+      padding: 5mm ${margins.mr}mm 3mm ${margins.ml}mm;
       font-family: "Times New Roman", Times, serif;
       font-size: 12pt;
       line-height: 1.6;
@@ -1741,7 +1764,7 @@ function printDocPaginated(tpl, person, pages = null) {
 
     .sirh-print-body {
       flex: 1;
-      padding: 5mm 25mm;
+      padding: 5mm ${margins.mr}mm 5mm ${margins.ml}mm;
       font-family: "Times New Roman", Times, serif;
       font-size: 12pt;
       line-height: 1.6;
@@ -1750,16 +1773,16 @@ function printDocPaginated(tpl, person, pages = null) {
     }
 
     .sirh-print-body.no-header {
-      padding-top: 20mm;
+      padding-top: ${margins.mt}mm;
     }
 
     .sirh-print-body.no-footer {
-      padding-bottom: 20mm;
+      padding-bottom: ${margins.mb}mm;
     }
 
     .sirh-print-footer {
       flex-shrink: 0;
-      padding: 3mm 25mm 5mm 25mm;
+      padding: 3mm ${margins.mr}mm 5mm ${margins.ml}mm;
       font-family: "Times New Roman", Times, serif;
       font-size: 12pt;
       line-height: 1.6;

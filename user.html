@@ -1240,9 +1240,26 @@
         const wait = document.getElementById("docWait");
         const canvas = document.getElementById("a4Canvas");
         const scaler = document.getElementById("zoomScaler");
+        const margins = tpl.pageMargins || { mt: 20, mb: 20, ml: 25, mr: 25 };
         wait.style.display = "none";
         canvas.style.display = "flex";
         scaler.innerHTML = "";
+        document.documentElement.style.setProperty(
+          "--page-mt",
+          margins.mt + "mm",
+        );
+        document.documentElement.style.setProperty(
+          "--page-mb",
+          margins.mb + "mm",
+        );
+        document.documentElement.style.setProperty(
+          "--page-ml",
+          margins.ml + "mm",
+        );
+        document.documentElement.style.setProperty(
+          "--page-mr",
+          margins.mr + "mm",
+        );
 
         // Récupérer les pages paginées (avec variables en bleu)
         const result = paginateWithVariablesBlue(tpl, person);
