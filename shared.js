@@ -844,9 +844,9 @@ function _normalizeEditorSpacingHtml(html) {
 
   root.querySelectorAll("p").forEach((p) => {
     const probe = p.cloneNode(true);
-    probe.querySelectorAll("br.ProseMirror-trailingBreak").forEach((br) =>
-      br.remove(),
-    );
+    probe
+      .querySelectorAll("br.ProseMirror-trailingBreak")
+      .forEach((br) => br.remove());
 
     const hasVisualContent =
       !!probe.textContent.replace(/\u00a0/g, " ").trim() ||
@@ -1017,12 +1017,10 @@ body  { margin: 0; background: #fff; }
 .a4-header {
   flex-shrink: 0;
   padding: 5mm var(--page-mr, 25mm) 3mm var(--page-ml, 25mm);
-  border-bottom: 1px solid #e2e8f0;
 }
 .a4-footer {
   flex-shrink: 0; margin-top: auto;
   padding: 3mm var(--page-mr, 25mm) 5mm var(--page-ml, 25mm);
-  border-top: 1px solid #e2e8f0;
 }
 .a4-body {
   flex: 1;
@@ -1437,7 +1435,6 @@ function previewDocument(tpl, person) {
       background: #fff;
       padding: 12px 20px;
       border-radius: 8px 8px 0 0;
-      border-bottom: 1px solid #e0e0e0;
     }
 
     .preview-title {
@@ -1515,7 +1512,6 @@ function previewDocument(tpl, person) {
     .preview-page-header {
       flex-shrink: 0;
       padding: 5mm 25mm 3mm 25mm;
-      border-bottom: 1px solid #e2e8f0;
       font-family: "Times New Roman", Times, serif;
       font-size: 12pt;
       line-height: 1.6;
@@ -1544,7 +1540,6 @@ function previewDocument(tpl, person) {
     .preview-page-footer {
       flex-shrink: 0;
       padding: 3mm 25mm 5mm 25mm;
-      border-top: 1px solid #e2e8f0;
       font-family: "Times New Roman", Times, serif;
       font-size: 12pt;
       line-height: 1.6;
@@ -1738,7 +1733,6 @@ function printDocPaginated(tpl, person, pages = null) {
     .sirh-print-header {
       flex-shrink: 0;
       padding: 5mm 25mm 3mm 25mm;
-      border-bottom: 1px solid #e2e8f0;
       font-family: "Times New Roman", Times, serif;
       font-size: 12pt;
       line-height: 1.6;
@@ -1766,7 +1760,6 @@ function printDocPaginated(tpl, person, pages = null) {
     .sirh-print-footer {
       flex-shrink: 0;
       padding: 3mm 25mm 5mm 25mm;
-      border-top: 1px solid #e2e8f0;
       font-family: "Times New Roman", Times, serif;
       font-size: 12pt;
       line-height: 1.6;
