@@ -7,365 +7,91 @@
 // ═══════════════════════════════════════════════════════════════
 
 const STORE_KEY = "sirhdoc_v7";
-
-// ── Migration automatique des anciennes clés ──────────────────
-(function migrate() {
-  try {
-    if (!localStorage.getItem(STORE_KEY)) {
-      const old =
-        localStorage.getItem("sirhdoc_v6") ||
-        localStorage.getItem("sirhdoc_v5") ||
-        localStorage.getItem("sirhdoc_v4");
-      if (old) {
-        // Migrer les données et ajouter le nouveau type
-        localStorage.setItem(STORE_KEY, old);
-      }
-    }
-  } catch (_) {}
+const API_BASE = (() => {
+  if (typeof window === "undefined") return "http://localhost:3000";
+  if (window.SIRHDOC_API_BASE)
+    return window.SIRHDOC_API_BASE.replace(/\/$/, "");
+  if (window.location?.protocol?.startsWith("http"))
+    return window.location.origin;
+  return "http://localhost:3000";
 })();
+const API_ROOT = `${API_BASE}/api`;
 
-// ═══════════════════════════════════════════════════════════════
-//  DB
-// ═══════════════════════════════════════════════════════════════
+function cloneData(data) {
+  return JSON.parse(JSON.stringify(data));
+}
+
+function normalizeState(state) {
+  const next = state && typeof state === "object" ? state : {};
+  return {
+    etablissements: Array.isArray(next.etablissements)
+      ? cloneData(next.etablissements)
+      : [],
+    admins: Array.isArray(next.admins) ? cloneData(next.admins) : [],
+    families: Array.isArray(next.families) ? cloneData(next.families) : [],
+    templates: Array.isArray(next.templates) ? cloneData(next.templates) : [],
+    personnel: Array.isArray(next.personnel) ? cloneData(next.personnel) : [],
+  };
+}
+
+function notifySyncError(message, error) {
+  console.error(message, error);
+  if (typeof window !== "undefined" && typeof window.toast === "function") {
+    window.toast(message, "error");
+  }
+}
+
 const DB = {
-  get() {
-    try {
-      return JSON.parse(localStorage.getItem(STORE_KEY)) || DB.seed();
-    } catch (_) {
-      return DB.seed();
-    }
+  _cache: normalizeState(),
+  _readyPromise: null,
+
+  async init(force = false) {
+    if (this._readyPromise && !force) return this._readyPromise;
+    this._readyPromise = (async () => {
+      try {
+        const res = await fetch(`${API_ROOT}/bootstrap`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        if (!res.ok) {
+          throw new Error(`Bootstrap failed with status ${res.status}`);
+        }
+        const payload = await res.json();
+        this._cache = normalizeState(payload.state);
+        return this.get();
+      } catch (error) {
+        this._cache = normalizeState();
+        notifySyncError("Connexion MySQL indisponible.", error);
+        return this.get();
+      }
+    })();
+    return this._readyPromise;
   },
+
+  get() {
+    return normalizeState(this._cache);
+  },
+
   save(d) {
-    localStorage.setItem(STORE_KEY, JSON.stringify(d));
-    return d;
+    this._cache = normalizeState(d);
+    fetch(`${API_ROOT}/state`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state: this._cache }),
+    }).catch((error) => {
+      notifySyncError(
+        "Impossible de synchroniser les donnees avec MySQL.",
+        error,
+      );
+      this.init(true).catch(() => {});
+    });
+    return this.get();
   },
 
   seed() {
-    const now = new Date().toISOString();
-    const today = new Date().toLocaleDateString("fr-FR");
-    const data = {
-      etablissements: [
-        {
-          id: "etab_1",
-          nom: "ISET Tunis",
-          ville: "Tunis",
-          adresse: "Mont-Fleury, 1008 Tunis",
-          tel: "+216 71 800 100",
-        },
-        {
-          id: "etab_2",
-          nom: "ISET Sousse",
-          ville: "Sousse",
-          adresse: "Route de Ceinture, 4000 Sousse",
-          tel: "+216 73 200 200",
-        },
-      ],
-      admins: [
-        {
-          id: "admin_1",
-          nom: "Hedi Mejri",
-          email: "h.mejri@iset-tunis.tn",
-          etablissementId: "etab_1",
-        },
-        {
-          id: "admin_2",
-          nom: "Amira Khelil",
-          email: "a.khelil@iset-sousse.tn",
-          etablissementId: "etab_2",
-        },
-      ],
-      families: [
-        {
-          id: "fam_1",
-          nom: "Attestation de travail",
-          icon: "📋",
-          description: "Certifie qu'un membre du personnel est bien employé",
-          sql: "SELECT * FROM personnel WHERE id = :id",
-          createdAt: now,
-          classes: [
-            {
-              nom: "Personnel",
-              couleur: "#2d5be3",
-              vars: [
-                { tech: "nom_prenom", label: "Nom et prénom", type: "scalar" },
-                {
-                  tech: "date_naissance",
-                  label: "Date de naissance",
-                  type: "scalar",
-                },
-                { tech: "poste", label: "Poste occupé", type: "scalar" },
-                { tech: "departement", label: "Département", type: "scalar" },
-                {
-                  tech: "date_embauche",
-                  label: "Date d'embauche",
-                  type: "scalar",
-                },
-                { tech: "num_cin", label: "N° CIN", type: "scalar" },
-                { tech: "matricule", label: "Matricule", type: "scalar" },
-              ],
-            },
-            {
-              nom: "Enseignant",
-              couleur: "#1e8a4a",
-              vars: [
-                { tech: "grade", label: "Grade académique", type: "scalar" },
-                { tech: "specialite", label: "Spécialité", type: "scalar" },
-                {
-                  tech: "liste_matieres",
-                  label: "Liste des matières",
-                  type: "list",
-                },
-                // ── NOUVEAU : list-object ───────────────────────────
-                {
-                  tech: "liste_notes",
-                  label: "Relevé de notes",
-                  type: "list-object",
-                  // Les colonnes à afficher (ordre + libellé affiché)
-                  columns: [
-                    { key: "matiere", label: "Matière" },
-                    { key: "note", label: "Note /20" },
-                    { key: "coef", label: "Coeff." },
-                  ],
-                },
-              ],
-            },
-            {
-              nom: "Établissement",
-              couleur: "#7c3aed",
-              vars: [
-                { tech: "nom_etab", label: "Établissement", type: "scalar" },
-                { tech: "ville", label: "Ville", type: "scalar" },
-                { tech: "directeur", label: "Directeur", type: "scalar" },
-                {
-                  tech: "secretaire_general",
-                  label: "Secrétaire général",
-                  type: "scalar",
-                },
-                { tech: "adresse_etab", label: "Adresse", type: "scalar" },
-                { tech: "tel_etab", label: "Téléphone", type: "scalar" },
-              ],
-            },
-            {
-              nom: "Paramètres",
-              couleur: "#b45309",
-              vars: [
-                { tech: "date_jour", label: "Date du jour", type: "scalar" },
-                {
-                  tech: "annee_univ",
-                  label: "Année universitaire",
-                  type: "scalar",
-                },
-                { tech: "num_doc", label: "N° de document", type: "scalar" },
-              ],
-            },
-          ],
-        },
-        {
-          id: "fam_2",
-          nom: "Contrat vacataire",
-          icon: "📝",
-          description: "Contrat de prestation pour enseignants vacataires",
-          sql: "SELECT * FROM personnel WHERE id = :id",
-          createdAt: now,
-          classes: [
-            {
-              nom: "Personnel",
-              couleur: "#2d5be3",
-              vars: [
-                { tech: "nom_prenom", label: "Nom et prénom", type: "scalar" },
-                {
-                  tech: "date_naissance",
-                  label: "Date de naissance",
-                  type: "scalar",
-                },
-                { tech: "num_cin", label: "N° CIN", type: "scalar" },
-                { tech: "adresse", label: "Adresse", type: "scalar" },
-              ],
-            },
-            {
-              nom: "Contrat",
-              couleur: "#d63b3b",
-              vars: [
-                { tech: "date_debut", label: "Date de début", type: "scalar" },
-                { tech: "date_fin", label: "Date de fin", type: "scalar" },
-                {
-                  tech: "montant_total",
-                  label: "Montant total",
-                  type: "scalar",
-                },
-                {
-                  tech: "liste_clauses",
-                  label: "Clauses du contrat",
-                  type: "list",
-                },
-              ],
-            },
-            {
-              nom: "Établissement",
-              couleur: "#7c3aed",
-              vars: [
-                { tech: "nom_etab", label: "Établissement", type: "scalar" },
-                { tech: "directeur", label: "Directeur", type: "scalar" },
-                { tech: "ville", label: "Ville", type: "scalar" },
-              ],
-            },
-            {
-              nom: "Paramètres",
-              couleur: "#b45309",
-              vars: [
-                { tech: "date_jour", label: "Date du jour", type: "scalar" },
-                { tech: "num_contrat", label: "N° Contrat", type: "scalar" },
-              ],
-            },
-          ],
-        },
-      ],
-      templates: [
-        {
-          id: "tpl_1",
-          familyId: "fam_1",
-          etablissementId: "etab_1",
-          nom: "Attestation de travail (Français)",
-          updatedAt: now,
-          hasHeader: true,
-          hasFooter: true,
-          pageMargins: { mt: 20, mb: 20, ml: 25, mr: 25 },
-          header: `<p style="text-align:center"><strong>{{nom_etab}}</strong></p><p style="text-align:center;font-size:10pt;color:#888">{{adresse_etab}} — Tél : {{tel_etab}}</p><p style="text-align:center;font-size:10pt;color:#aaa">Réf : {{num_doc}} — {{annee_univ}}</p>`,
-          body: `<p>Nous soussignés, <strong>{{directeur}}</strong>, Directeur de <strong>{{nom_etab}}</strong>, certifions que :</p><p><br></p><p style="text-align:center"><strong>M./Mme {{nom_prenom}}</strong></p><p style="text-align:center">Né(e) le {{date_naissance}} — CIN : {{num_cin}} — Matricule : {{matricule}}</p><p><br></p><p>est employé(e) en qualité de <strong>{{poste}}</strong>, au département <strong>{{departement}}</strong>, depuis le <strong>{{date_embauche}}</strong>.</p><p><br></p><p>Matières enseignées :</p>{{#liste_matieres:ul}}<p><br></p><p>Relevé de notes :</p>{{#liste_notes:table}}<p><br></p><p>Délivrée pour servir et valoir ce que de droit.</p><p>Fait à {{ville}}, le {{date_jour}}</p><p style="text-align:right"><strong>Le Directeur</strong><br>{{directeur}}</p>`,
-          footer: `<p style="text-align:center;font-size:10pt;color:#aaa">Document officiel — {{nom_etab}} — {{annee_univ}}</p>`,
-        },
-      ],
-      personnel: [
-        {
-          id: "pers_1",
-          etablissementId: "etab_1",
-          nom_prenom: "Anis Kricha",
-          date_naissance: "15/03/1985",
-          poste: "Enseignant vacataire",
-          departement: "Informatique",
-          date_embauche: "01/09/2020",
-          num_cin: "08456321",
-          matricule: "ENS-2020-047",
-          grade: "Assistant",
-          specialite: "Génie logiciel",
-          adresse: "12 Rue Alain Savary, Tunis",
-          date_debut: "01/09/2025",
-          date_fin: "31/08/2026",
-          montant_total: "4 800,000 TND",
-          num_contrat: "VAC-2025-012",
-          nom_etab: "ISET Tunis",
-          ville: "Tunis",
-          directeur: "Prof. Mohamed Ben Ali",
-          secretaire_general: "Mme. Fatma Trabelsi",
-          adresse_etab: "Mont-Fleury, 1008 Tunis",
-          tel_etab: "+216 71 800 100",
-          date_jour: today,
-          annee_univ: "2025/2026",
-          num_doc: "ATT-2025-0047",
-          liste_matieres: [
-            "Programmation Web",
-            "Base de données",
-            "Réseaux informatiques",
-          ],
-          liste_clauses: [
-            "Article 1 : Durée du contrat fixée à 1 an",
-            "Article 2 : Rémunération horaire selon grille",
-            "Article 3 : Respect du règlement intérieur",
-          ],
-          // ── NOUVEAU : list-object ──────────────────────────────
-          liste_notes: [
-            { matiere: "Programmation Web", note: 16, coef: 2 },
-            { matiere: "Base de données", note: 14, coef: 2 },
-            { matiere: "Réseaux", note: 15, coef: 1.5 },
-            { matiere: "Algorithmique", note: 12, coef: 2 },
-          ],
-        },
-        {
-          id: "pers_2",
-          etablissementId: "etab_1",
-          nom_prenom: "Sonia Hamdi",
-          date_naissance: "22/07/1979",
-          poste: "Secrétaire générale",
-          departement: "Administration",
-          date_embauche: "15/04/2005",
-          num_cin: "03829416",
-          matricule: "ADM-2005-008",
-          grade: "Administrateur principal",
-          specialite: "Gestion",
-          adresse: "45 Av. Bourguiba, Tunis",
-          date_debut: "01/01/2025",
-          date_fin: "31/12/2025",
-          montant_total: "N/A",
-          num_contrat: "N/A",
-          nom_etab: "ISET Tunis",
-          ville: "Tunis",
-          directeur: "Prof. Mohamed Ben Ali",
-          secretaire_general: "Mme. Sonia Hamdi",
-          adresse_etab: "Mont-Fleury, 1008 Tunis",
-          tel_etab: "+216 71 800 100",
-          date_jour: today,
-          annee_univ: "2025/2026",
-          num_doc: "ATT-2025-0048",
-          liste_matieres: [
-            "Gestion administrative",
-            "Communication institutionnelle",
-          ],
-          liste_clauses: [
-            "Article 1 : Poste permanent",
-            "Article 2 : Régime de retraite CNRPS",
-          ],
-          liste_notes: [
-            { matiere: "Gestion RH", note: 17, coef: 2 },
-            { matiere: "Comptabilité", note: 15, coef: 1.5 },
-          ],
-        },
-        {
-          id: "pers_3",
-          etablissementId: "etab_1",
-          nom_prenom: "Maher Bouaziz",
-          date_naissance: "08/11/1975",
-          poste: "Maître de conférences",
-          departement: "Électronique",
-          date_embauche: "01/09/2003",
-          num_cin: "02156789",
-          matricule: "ENS-2003-003",
-          grade: "Maître de conférences",
-          specialite: "Électronique embarquée",
-          adresse: "22 Rue Ibn Khaldoun, Tunis",
-          date_debut: "01/09/2025",
-          date_fin: "31/08/2026",
-          montant_total: "8 640,000 TND",
-          num_contrat: "N/A",
-          nom_etab: "ISET Tunis",
-          ville: "Tunis",
-          directeur: "Prof. Mohamed Ben Ali",
-          secretaire_general: "Mme. Fatma Trabelsi",
-          adresse_etab: "Mont-Fleury, 1008 Tunis",
-          tel_etab: "+216 71 800 100",
-          date_jour: today,
-          annee_univ: "2025/2026",
-          num_doc: "ATT-2025-0049",
-          liste_matieres: [
-            "Microcontrôleurs",
-            "Électronique de puissance",
-            "Automatique industrielle",
-          ],
-          liste_clauses: [
-            "Article 1 : Enseignement 192h/an",
-            "Article 2 : Recherche et publications",
-            "Article 3 : Encadrement des PFE",
-          ],
-          liste_notes: [
-            { matiere: "Microcontrôleurs", note: 15, coef: 3 },
-            { matiere: "Électronique de puissance", note: 13, coef: 2 },
-            { matiere: "Automatique", note: 14, coef: 2 },
-            { matiere: "Traitement du signal", note: 12, coef: 1.5 },
-          ],
-        },
-      ],
-    };
-    DB.save(data);
-    return data;
+    this._cache = normalizeState();
+    return this.get();
   },
 
   // ── Accesseurs ──────────────────────────────────────────────

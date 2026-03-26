@@ -5672,10 +5672,12 @@
       buildSwatches("sw-bg", BG_COLORS, (c) => window.applyHighlight(c));
       buildTableGrid();
       buildTblColorSwatches();
-      populateFamilySelect();
-      if (!localStorage.getItem(STORE_KEY)) DB.seed();
-      document.getElementById("loading").classList.add("done");
-      document.getElementById("app").style.opacity = "1";
+      (async () => {
+        await DB.init();
+        populateFamilySelect();
+        document.getElementById("loading").classList.add("done");
+        document.getElementById("app").style.opacity = "1";
+      })();
     </script>
   </body>
 </html>

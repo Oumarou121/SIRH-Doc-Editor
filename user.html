@@ -1032,8 +1032,8 @@
       let openSteps = { 1: true, 2: false, 3: false };
       let zoomLv = 100;
 
-      window.addEventListener("DOMContentLoaded", () => {
-        if (!localStorage.getItem(STORE_KEY)) DB.seed();
+      window.addEventListener("DOMContentLoaded", async () => {
+        await DB.init();
         const etab = DB.getEtablissement(ETAB_ID);
         if (etab) {
           document.getElementById("navEtab").textContent = etab.nom;

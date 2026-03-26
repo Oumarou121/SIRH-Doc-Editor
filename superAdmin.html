@@ -2158,8 +2158,8 @@
       // ═══════════════════════════════════════════
       //  INIT
       // ═══════════════════════════════════════════
-      window.addEventListener("DOMContentLoaded", () => {
-        if (!localStorage.getItem(STORE_KEY)) DB.seed();
+      window.addEventListener("DOMContentLoaded", async () => {
+        await DB.init();
         renderLeftPanel();
         setTimeout(() => {
           document.getElementById("loading").classList.add("done");
