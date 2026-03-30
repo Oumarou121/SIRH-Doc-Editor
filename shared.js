@@ -44,6 +44,7 @@ function notifySyncError(message, error) {
 const DB = {
   _cache: normalizeState(),
   _readyPromise: null,
+  _schemaPromise: null,
 
   async init(force = false) {
     if (this._readyPromise && !force) return this._readyPromise;
@@ -71,6 +72,47 @@ const DB = {
 
   get() {
     return normalizeState(this._cache);
+  },
+
+  async getSchema(force = false) {
+    if (this._schemaPromise && !force) return this._schemaPromise;
+    this._schemaPromise = fetch(`${API_ROOT}/schema`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Schema failed with status ${res.status}`);
+        return res.json();
+      })
+      .then((payload) => payload.schema);
+    return this._schemaPromise;
+  },
+
+  async runSelect(sql, params = {}) {
+    const res = await fetch(`${API_ROOT}/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sql, params }),
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(
+        payload.error || `Query failed with status ${res.status}`,
+      );
+    }
+    const payload = await res.json();
+    return payload.rows || [];
+  },
+
+  async getPersonDataForFamily(familyId, personId) {
+    const basePerson = this.getPerson(personId);
+    const family = this.getFamily(familyId);
+    if (!family?.sql || !personId) return basePerson;
+    try {
+      const rows = await this.runSelect(family.sql, { id: personId, personId });
+      const row = rows?.[0];
+      return row ? { ...(basePerson || {}), ...row } : basePerson;
+    } catch (error) {
+      notifySyncError("La requete SELECT de la famille a echoue.", error);
+      return basePerson;
+    }
   },
 
   save(d) {

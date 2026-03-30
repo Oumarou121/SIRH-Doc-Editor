@@ -4958,9 +4958,11 @@
       }
 
       // ── Aperçu et Impression ──
-      window.doPreviewFromPreview = function () {
+      window.doPreviewFromPreview = async function () {
         const pId = document.getElementById("prevPerson")?.value;
-        const person = pId ? DB.getPerson(pId) : null;
+        const person = pId
+          ? await DB.getPersonDataForFamily(curFamId, pId)
+          : null;
         const liveTpl = buildLivePreviewTemplate();
         if (!liveTpl) {
           toast("Aucun template actif", "error");
@@ -4973,9 +4975,11 @@
         previewDocument(liveTpl, person);
       };
 
-      window.doPrintFromPreview = function () {
+      window.doPrintFromPreview = async function () {
         const pId = document.getElementById("prevPerson")?.value;
-        const person = pId ? DB.getPerson(pId) : null;
+        const person = pId
+          ? await DB.getPersonDataForFamily(curFamId, pId)
+          : null;
         const liveTpl = buildLivePreviewTemplate();
         if (!liveTpl) {
           toast("Aucun template actif", "error");

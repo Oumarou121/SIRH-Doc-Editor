@@ -1197,7 +1197,7 @@
           c.appendChild(item);
         });
       }
-      function selectPerson(personId) {
+      async function selectPerson(personId) {
         selPersonId = personId;
         buildPersonList();
         const pers = DB.getPerson(personId);
@@ -1207,13 +1207,13 @@
         setStepState(3, "done");
         closeStep(3);
         updatePbar();
-        generateDocument();
+        await generateDocument();
       }
 
       /* ── GÉNÉRATION ── */
-      function generateDocument() {
+      async function generateDocument() {
         const tpl = DB.getTemplate(selTplId);
-        const person = DB.getPerson(selPersonId);
+        const person = await DB.getPersonDataForFamily(selFamId, selPersonId);
         if (!tpl || !person) return;
 
         buildA4Canvas(tpl, person);

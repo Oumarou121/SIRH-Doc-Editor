@@ -27,6 +27,58 @@ function normalizeState(state) {
   };
 }
 
+function parseNamedSql(sql, params = {}) {
+  const values = [];
+  const compiled = sql.replace(/:([a-zA-Z_]\w*)/g, (_, key) => {
+    values.push(params[key] ?? null);
+    return "?";
+  });
+  return { sql: compiled, values };
+}
+
+function parseMaybeJsonValue(value) {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  if (
+    !trimmed.startsWith("[") &&
+    !trimmed.startsWith("{") &&
+    trimmed !== "null" &&
+    trimmed !== "true" &&
+    trimmed !== "false"
+  ) {
+    return value;
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch (_) {
+    return value;
+  }
+}
+
+function cleanQueryRow(row) {
+  const next = {};
+  for (const [key, rawValue] of Object.entries(row)) {
+    let value = parseMaybeJsonValue(rawValue);
+    if (Array.isArray(value)) {
+      value = value
+        .filter((item) => item !== null)
+        .map((item) => {
+          if (item && typeof item === "object" && !Array.isArray(item)) {
+            const cleaned = Object.fromEntries(
+              Object.entries(item).filter(([, v]) => v !== null),
+            );
+            return Object.keys(cleaned).length ? cleaned : null;
+          }
+          return item;
+        })
+        .filter((item) => item !== null);
+    }
+    next[key] = value;
+  }
+  return next;
+}
+
 async function tableExists(tableName) {
   const [rows] = await pool.query("SHOW TABLES LIKE ?", [tableName]);
   return rows.length > 0;
@@ -107,6 +159,60 @@ async function loadState() {
     templates: await loadTemplates(),
     personnel: await loadPersonnel(),
   });
+}
+
+async function loadSchema() {
+  const [tables] = await pool.query(
+    `SELECT table_name, table_comment
+     FROM information_schema.tables
+     WHERE table_schema = DATABASE()
+     ORDER BY table_name`,
+  );
+  const [columns] = await pool.query(
+    `SELECT table_name, column_name, data_type, column_comment, is_nullable, column_key
+     FROM information_schema.columns
+     WHERE table_schema = DATABASE()
+     ORDER BY table_name, ordinal_position`,
+  );
+  const [relations] = await pool.query(
+    `SELECT table_name, column_name, referenced_table_name, referenced_column_name
+     FROM information_schema.key_column_usage
+     WHERE table_schema = DATABASE() AND referenced_table_name IS NOT NULL
+     ORDER BY table_name, ordinal_position`,
+  );
+
+  return {
+    tables: tables.map((row) => ({
+      name: row.table_name || row.TABLE_NAME,
+      comment: row.table_comment || row.TABLE_COMMENT || "",
+    })),
+    columns: columns.map((row) => ({
+      table: row.table_name || row.TABLE_NAME,
+      name: row.column_name || row.COLUMN_NAME,
+      type: row.data_type || row.DATA_TYPE,
+      comment: row.column_comment || row.COLUMN_COMMENT || "",
+      nullable: (row.is_nullable || row.IS_NULLABLE) === "YES",
+      key: row.column_key || row.COLUMN_KEY || "",
+    })),
+    relations: relations.map((row) => ({
+      table: row.table_name || row.TABLE_NAME,
+      column: row.column_name || row.COLUMN_NAME,
+      referencedTable:
+        row.referenced_table_name || row.REFERENCED_TABLE_NAME,
+      referencedColumn:
+        row.referenced_column_name || row.REFERENCED_COLUMN_NAME,
+    })),
+  };
+}
+
+async function runSelectQuery(sql, params = {}) {
+  const cleanedSql = String(sql || "").trim().replace(/;+\s*$/, "");
+  if (!/^\s*select\b/i.test(cleanedSql)) {
+    throw new Error("Seules les requetes SELECT sont autorisees.");
+  }
+  const { sql: compiledSql, values } = parseNamedSql(cleanedSql, params);
+  const [rows] = await pool.query(compiledSql, values);
+  return rows.map(cleanQueryRow);
 }
 
 async function replaceState(state) {
@@ -241,6 +347,12 @@ async function handleApi(req, res, url) {
     return true;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/schema") {
+    const schema = await loadSchema();
+    sendJson(res, 200, { ok: true, schema });
+    return true;
+  }
+
   if (req.method === "PUT" && url.pathname === "/api/state") {
     const raw = await readBody(req);
     const body = raw ? JSON.parse(raw) : {};
@@ -250,6 +362,14 @@ async function handleApi(req, res, url) {
     }
     await replaceState(body.state);
     sendJson(res, 200, { ok: true });
+    return true;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/query") {
+    const raw = await readBody(req);
+    const body = raw ? JSON.parse(raw) : {};
+    const rows = await runSelectQuery(body.sql, body.params || {});
+    sendJson(res, 200, { ok: true, rows });
     return true;
   }
 

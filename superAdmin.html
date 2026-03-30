@@ -1595,8 +1595,8 @@
           nom: "Nouvelle famille",
           icon: "📄",
           description: "",
-          classes: [{ nom: "Personnel", couleur: "#6c63ff", vars: [] }],
-          sql: "SELECT * FROM table WHERE id = :id",
+          classes: [],
+          sql: "",
           createdAt: new Date().toISOString(),
         });
         selectedFamId = id;
@@ -1640,6 +1640,22 @@
 <div class="card">
   <div class="card-header">
     <div class="card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+      Assistant schéma MySQL
+    </div>
+    <span class="chip chip-teal">Variables pilotées par la base</span>
+  </div>
+  <div class="card-body">
+    <div class="text-muted" style="margin-bottom:12px">
+      Choisissez une table source, récupérez ses descriptions et générez automatiquement les variables ainsi que la requête <strong>SELECT</strong>.
+    </div>
+    <div id="schemaBuilderWrap"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       Informations générales
     </div>
@@ -1664,10 +1680,6 @@
   </div>
   <div class="card-body">
     <div id="classesContainer"></div>
-    <button class="btn" style="margin-top:6px" onclick="addClassBlock('${famId}')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Ajouter une classe
-    </button>
   </div>
 </div>
 
@@ -1710,6 +1722,7 @@
   </div>
 </div>`;
         renderClassesContainer(famId);
+        renderSchemaAssistant(famId);
       }
 
       // ── Render classes container ──────────────────────────────────
@@ -1738,34 +1751,470 @@
   ${cls.vars.map((v, vi) => _renderVarPill(v, vi, ci, famId, cls.couleur)).join("")}
 </div>
 
-<div class="var-add-row">
-  <input class="var-input-sm" id="vt_${ci}" placeholder="nom_technique">
-  <input class="var-input-sm label" id="vl_${ci}" placeholder="Nom lisible">
-  <select class="type-select" id="vtype_${ci}" onchange="onVarTypeChange(${ci})">
-    <option value="scalar">Scalaire</option>
-    <option value="list">Liste (textes)</option>
-    <option value="list-object">Tableau d'objets</option>
-  </select>
-  <button class="btn sm primary" onclick="addVar('${famId}',${ci})">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    Ajouter
-  </button>
+<div style="margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;background:#fafbfd;font-size:11px;color:var(--text2)">
+  Variables pilotées par le schéma MySQL. Utilisez l'assistant ci-dessus pour ajouter des champs, listes et tableaux d'objets.
 </div>
 
-<!-- Zone colonnes (visible uniquement si type=list-object) -->
-<div class="cols-area" id="cols_area_${ci}">
-  <span class="cols-area-label">Colonnes du tableau (clé → libellé)</span>
-  <div id="cols_pills_${ci}" style="display:flex;flex-wrap:wrap;gap:4px"></div>
-</div>
-<div class="col-add-row" id="col_add_${ci}">
-  <input class="var-input-sm" id="ck_${ci}" placeholder="clé (ex: note)" style="width:120px">
-  <input class="var-input-sm label" id="cl_${ci}" placeholder="libellé (ex: Note /20)" style="width:160px">
-  <button class="btn sm" onclick="addTempCol(${ci})" style="border-color:var(--orange);color:var(--orange)">
-    + Colonne
-  </button>
 </div>`;
           container.appendChild(block);
         });
+      }
+
+      const schemaBuilderState = {};
+      let schemaMetaCache = null;
+
+      function humanizeSchemaName(value) {
+        return String(value || "")
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+
+      function slugTech(value) {
+        return String(value || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9_]+/g, "_")
+          .replace(/^_+|_+$/g, "")
+          .replace(/_{2,}/g, "_");
+      }
+
+      function getSchemaColor(tableName) {
+        const palette = [
+          "#6c63ff",
+          "#48bb78",
+          "#9f7aea",
+          "#f6ad55",
+          "#fc5c5c",
+          "#63b3ed",
+          "#4fd1c5",
+          "#ed8936",
+          "#f97316",
+        ];
+        const hash = String(tableName || "")
+          .split("")
+          .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+        return palette[hash % palette.length];
+      }
+
+      function escAttr(v) {
+        return String(v || "")
+          .replace(/&/g, "&amp;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function escHtml(v) {
+        return String(v || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      async function ensureSchemaMeta() {
+        if (schemaMetaCache) return schemaMetaCache;
+        schemaMetaCache = await DB.getSchema();
+        return schemaMetaCache;
+      }
+
+      function getTableMeta(schema, tableName) {
+        return schema.tables.find((t) => t.name === tableName) || null;
+      }
+
+      function getColumnsForTable(schema, tableName) {
+        return schema.columns.filter((c) => c.table === tableName);
+      }
+
+      function getPrimaryColumn(schema, tableName) {
+        return (
+          getColumnsForTable(schema, tableName).find((c) => c.key === "PRI")
+            ?.name || "id"
+        );
+      }
+
+      function inferBaseTable(fam, schema) {
+        const fromMatch = /\bfrom\s+([a-zA-Z0-9_]+)/i.exec(fam.sql || "");
+        if (fromMatch) return fromMatch[1];
+        const generatedVar = (fam.classes || [])
+          .flatMap((c) => c.vars || [])
+          .find((v) => v.sourceTable);
+        return (
+          generatedVar?.baseTable ||
+          generatedVar?.sourceTable ||
+          schema.tables.find((t) => !["family", "template"].includes(t.name))
+            ?.name ||
+          schema.tables[0]?.name ||
+          ""
+        );
+      }
+
+      function getBuilderState(famId, fam, schema) {
+        if (!schemaBuilderState[famId]) {
+          schemaBuilderState[famId] = {
+            baseTable: inferBaseTable(fam, schema),
+            selectedColumns: {},
+          };
+        }
+        return schemaBuilderState[famId];
+      }
+
+      function getDirectRelations(schema, baseTable) {
+        return schema.relations.filter(
+          (rel) => rel.table === baseTable || rel.referencedTable === baseTable,
+        );
+      }
+
+      function getReachableTables(schema, baseTable) {
+        const direct = getDirectRelations(schema, baseTable);
+        return [
+          baseTable,
+          ...new Set(
+            direct.map((rel) =>
+              rel.table === baseTable ? rel.referencedTable : rel.table,
+            ),
+          ),
+        ].filter(Boolean);
+      }
+
+      function ensureClassForTable(fam, schema, tableName) {
+        const tableMeta = getTableMeta(schema, tableName);
+        const className = tableMeta?.comment || humanizeSchemaName(tableName);
+        let cls = (fam.classes || []).find(
+          (item) => item.sourceTable === tableName || item.nom === className,
+        );
+        if (!cls) {
+          cls = {
+            nom: className,
+            couleur: getSchemaColor(tableName),
+            vars: [],
+            sourceTable: tableName,
+          };
+          fam.classes.push(cls);
+        }
+        cls.sourceTable = tableName;
+        return cls;
+      }
+
+      function uniqueTech(fam, tech) {
+        const existing = new Set(
+          (fam.classes || []).flatMap((c) => c.vars || []).map((v) => v.tech),
+        );
+        if (!existing.has(tech)) return tech;
+        let i = 2;
+        while (existing.has(`${tech}_${i}`)) i += 1;
+        return `${tech}_${i}`;
+      }
+
+      function upsertGeneratedVar(famId, tableName, varDef) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        ensureClassForTable(fam, schemaMetaCache, tableName);
+        const cls = ensureClassForTable(fam, schemaMetaCache, tableName);
+        const idx = cls.vars.findIndex((item) => item.tech === varDef.tech);
+        if (idx >= 0) cls.vars[idx] = varDef;
+        else cls.vars.push(varDef);
+        DB.saveFamily(fam);
+        renderFamilyEditor(famId);
+        regenerateFamilySql(famId, true);
+      }
+
+      function getJoinPlan(schema, baseTable, tableName) {
+        if (tableName === baseTable) return null;
+        const direct = schema.relations.find(
+          (rel) =>
+            (rel.table === tableName && rel.referencedTable === baseTable) ||
+            (rel.table === baseTable && rel.referencedTable === tableName),
+        );
+        return direct || null;
+      }
+
+      function sqlId(name) {
+        return `\`${String(name || "").replace(/`/g, "``")}\``;
+      }
+
+      function buildSqlFromFamily(famId) {
+        const fam = DB.getFamily(famId);
+        if (!fam || !schemaMetaCache) return fam?.sql || "";
+
+        const builder = getBuilderState(famId, fam, schemaMetaCache);
+        const generatedVars = (fam.classes || [])
+          .flatMap((c) => c.vars || [])
+          .filter((v) => v.sourceTable);
+        if (!generatedVars.length || !builder.baseTable) return fam.sql || "";
+
+        const baseTable = builder.baseTable;
+        const baseAlias = "b";
+        const aliasByTable = { [baseTable]: baseAlias };
+        const joins = [];
+        let aliasIndex = 1;
+        const basePk = getPrimaryColumn(schemaMetaCache, baseTable);
+
+        [...new Set(generatedVars.map((v) => v.sourceTable))]
+          .filter((table) => table !== baseTable)
+          .forEach((table) => {
+            const rel = getJoinPlan(schemaMetaCache, baseTable, table);
+            if (!rel) return;
+            const alias = `j${aliasIndex++}`;
+            aliasByTable[table] = alias;
+            if (rel.table === table) {
+              joins.push(
+                `LEFT JOIN ${sqlId(table)} ${alias} ON ${alias}.${sqlId(rel.column)} = ${baseAlias}.${sqlId(rel.referencedColumn)}`,
+              );
+            } else {
+              joins.push(
+                `LEFT JOIN ${sqlId(table)} ${alias} ON ${baseAlias}.${sqlId(rel.column)} = ${alias}.${sqlId(rel.referencedColumn)}`,
+              );
+            }
+          });
+
+        const selects = generatedVars.map((v) => {
+          const alias = aliasByTable[v.sourceTable] || baseAlias;
+          if (v.type === "list-object") {
+            const objectArgs = (v.sourceColumns || []).flatMap((col) => [
+              `'${col.key}'`,
+              `${alias}.${sqlId(col.column)}`,
+            ]);
+            return `  JSON_ARRAYAGG(JSON_OBJECT(${objectArgs.join(", ")})) AS ${sqlId(v.tech)}`;
+          }
+          if (v.type === "list") {
+            return `  JSON_ARRAYAGG(${alias}.${sqlId(v.sourceColumn)}) AS ${sqlId(v.tech)}`;
+          }
+          return `  MAX(${alias}.${sqlId(v.sourceColumn)}) AS ${sqlId(v.tech)}`;
+        });
+
+        return [
+          "SELECT",
+          selects.join(",\n"),
+          `FROM ${sqlId(baseTable)} ${baseAlias}`,
+          ...joins,
+          `WHERE ${baseAlias}.${sqlId(basePk)} = :id`,
+          `GROUP BY ${baseAlias}.${sqlId(basePk)}`,
+        ].join("\n");
+      }
+
+      function regenerateFamilySql(famId, silent = false) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        const generatedSql = buildSqlFromFamily(famId);
+        if (!generatedSql) return;
+        fam.sql = generatedSql;
+        DB.saveFamily(fam);
+        const sqlInput = document.getElementById("fSql");
+        if (sqlInput) sqlInput.value = generatedSql;
+        if (!silent) toast("Requête SELECT régénérée", "success");
+      }
+
+      window.setFamilyBaseTable = function (famId, tableName) {
+        const fam = DB.getFamily(famId);
+        if (!fam || !schemaMetaCache) return;
+        const state = getBuilderState(famId, fam, schemaMetaCache);
+        state.baseTable = tableName;
+        renderSchemaAssistant(famId);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.toggleSchemaColumnSelection = function (
+        famId,
+        tableName,
+        columnName,
+      ) {
+        const fam = DB.getFamily(famId);
+        if (!fam || !schemaMetaCache) return;
+        const state = getBuilderState(famId, fam, schemaMetaCache);
+        const key = `${tableName}.${columnName}`;
+        state.selectedColumns[key] = !state.selectedColumns[key];
+        renderSchemaAssistant(famId);
+      };
+
+      window.addSchemaScalar = function (famId, tableName, columnName) {
+        const fam = DB.getFamily(famId);
+        const column = getColumnsForTable(schemaMetaCache, tableName).find(
+          (item) => item.name === columnName,
+        );
+        if (!fam || !column) return;
+        const tech = uniqueTech(
+          fam,
+          slugTech(
+            tableName === getBuilderState(famId, fam, schemaMetaCache).baseTable
+              ? column.name
+              : `${tableName}_${column.name}`,
+          ),
+        );
+        upsertGeneratedVar(famId, tableName, {
+          tech,
+          label: column.comment || humanizeSchemaName(column.name),
+          type: "scalar",
+          sourceTable: tableName,
+          sourceColumn: column.name,
+          baseTable: getBuilderState(famId, fam, schemaMetaCache).baseTable,
+        });
+      };
+
+      window.addSchemaList = function (famId, tableName, columnName) {
+        const fam = DB.getFamily(famId);
+        const column = getColumnsForTable(schemaMetaCache, tableName).find(
+          (item) => item.name === columnName,
+        );
+        if (!fam || !column) return;
+        const tech = uniqueTech(
+          fam,
+          slugTech(`${tableName}_${column.name}_liste`),
+        );
+        upsertGeneratedVar(famId, tableName, {
+          tech,
+          label: `${column.comment || humanizeSchemaName(column.name)} (liste)`,
+          type: "list",
+          sourceTable: tableName,
+          sourceColumn: column.name,
+          baseTable: getBuilderState(famId, fam, schemaMetaCache).baseTable,
+        });
+      };
+
+      window.addSchemaTableVar = function (famId, tableName) {
+        const fam = DB.getFamily(famId);
+        if (!fam || !schemaMetaCache) return;
+        const state = getBuilderState(famId, fam, schemaMetaCache);
+        const selected = Object.entries(state.selectedColumns)
+          .filter(
+            ([key, checked]) => checked && key.startsWith(`${tableName}.`),
+          )
+          .map(([key]) => key.split(".")[1]);
+        if (!selected.length) {
+          toast("Cochez au moins une colonne pour créer le tableau", "error");
+          return;
+        }
+        const cols = getColumnsForTable(schemaMetaCache, tableName).filter(
+          (col) => selected.includes(col.name),
+        );
+        const tech = uniqueTech(fam, slugTech(`${tableName}_table`));
+        upsertGeneratedVar(famId, tableName, {
+          tech,
+          label: `${getTableMeta(schemaMetaCache, tableName)?.comment || humanizeSchemaName(tableName)} (tableau)`,
+          type: "list-object",
+          sourceTable: tableName,
+          baseTable: state.baseTable,
+          sourceColumns: cols.map((col) => ({
+            column: col.name,
+            key: slugTech(col.name),
+            label: col.comment || humanizeSchemaName(col.name),
+          })),
+          columns: cols.map((col) => ({
+            key: slugTech(col.name),
+            label: col.comment || humanizeSchemaName(col.name),
+          })),
+        });
+      };
+
+      window.testFamilyQuery = async function (famId) {
+        const fam = DB.getFamily(famId);
+        const box = document.getElementById("schemaPreviewBox");
+        if (!fam?.sql || !box) return;
+        box.textContent = "Test en cours...";
+        try {
+          const rows = await DB.runSelect(fam.sql, { id: 1, personId: 1 });
+          box.textContent = JSON.stringify(rows[0] || {}, null, 2);
+        } catch (error) {
+          box.textContent = error.message;
+        }
+      };
+
+      async function renderSchemaAssistant(famId) {
+        const wrap = document.getElementById("schemaBuilderWrap");
+        if (!wrap) return;
+        wrap.innerHTML =
+          '<div class="text-muted" style="padding:8px 0">Chargement du schéma MySQL...</div>';
+        try {
+          const schema = await ensureSchemaMeta();
+          const fam = DB.getFamily(famId);
+          if (!fam) return;
+          const state = getBuilderState(famId, fam, schema);
+          const visibleTables = getReachableTables(schema, state.baseTable);
+          wrap.innerHTML = `
+<div class="form-grid c3" style="margin-bottom:14px">
+  <div class="form-row" style="margin:0">
+    <label class="form-label">Table principale</label>
+    <select class="form-input" onchange="setFamilyBaseTable('${famId}', this.value)">
+      ${schema.tables
+        .filter((t) => !["family", "template"].includes(t.name))
+        .map(
+          (t) =>
+            `<option value="${escAttr(t.name)}" ${t.name === state.baseTable ? "selected" : ""}>${escHtml(t.name)}${t.comment ? ` - ${escHtml(t.comment)}` : ""}</option>`,
+        )
+        .join("")}
+    </select>
+  </div>
+  <div class="form-row" style="margin:0">
+    <label class="form-label">Aide</label>
+    <div class="text-muted" style="padding-top:9px">Les descriptions de colonnes alimentent automatiquement les libellés métier.</div>
+  </div>
+  <div class="form-row" style="margin:0">
+    <label class="form-label">Actions</label>
+    <div class="flex gap-8" style="padding-top:2px">
+      <button class="btn sm" onclick="regenerateFamilySql('${famId}')">Régénérer SELECT</button>
+      <button class="btn sm" onclick="testFamilyQuery('${famId}')">Tester id=1</button>
+    </div>
+  </div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px">
+  ${visibleTables
+    .map((tableName) => {
+      const table = getTableMeta(schema, tableName);
+      const relation = getJoinPlan(schema, state.baseTable, tableName);
+      const columns = getColumnsForTable(schema, tableName);
+      return `<div style="border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff">
+        <div class="flex gap-8" style="align-items:flex-start;margin-bottom:10px">
+          <div>
+            <div style="font-weight:700;color:var(--text)">${escHtml(tableName)}</div>
+            <div class="text-muted">${escHtml(table?.comment || humanizeSchemaName(tableName))}</div>
+          </div>
+          <span class="chip ${tableName === state.baseTable ? "chip-purple" : "chip-teal"}">${tableName === state.baseTable ? "Base" : "Join"}</span>
+        </div>
+        ${
+          relation
+            ? `<div class="text-muted" style="font-size:11px;margin-bottom:10px">${escHtml(relation.table)}.${escHtml(relation.column)} → ${escHtml(relation.referencedTable)}.${escHtml(relation.referencedColumn)}</div>`
+            : ""
+        }
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${columns
+            .map((col) => {
+              const key = `${tableName}.${col.name}`;
+              return `<div style="border:1px solid #edf0f4;border-radius:12px;padding:10px 12px">
+                <div class="flex gap-8" style="align-items:flex-start">
+                  <div style="flex:1">
+                    <div style="font-weight:600;color:var(--text)">${escHtml(col.name)}</div>
+                    <div class="text-muted">${escHtml(col.comment || humanizeSchemaName(col.name))} · ${escHtml(col.type)}</div>
+                  </div>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)">
+                    <input type="checkbox" ${state.selectedColumns[key] ? "checked" : ""} onchange="toggleSchemaColumnSelection('${famId}','${tableName}','${col.name}')">
+                    Tableau
+                  </label>
+                </div>
+                <div class="flex gap-8" style="margin-top:8px">
+                  <button class="btn sm" onclick="addSchemaScalar('${famId}','${tableName}','${col.name}')">Simple</button>
+                  <button class="btn sm" onclick="addSchemaList('${famId}','${tableName}','${col.name}')">Liste</button>
+                </div>
+              </div>`;
+            })
+            .join("")}
+        </div>
+        <div style="margin-top:10px">
+          <button class="btn sm primary" onclick="addSchemaTableVar('${famId}','${tableName}')">Créer un tableau d'objets depuis les colonnes cochées</button>
+        </div>
+      </div>`;
+    })
+    .join("")}
+</div>
+<div style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fbfcfe">
+  <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Aperçu du test de requête</div>
+  <pre id="schemaPreviewBox" style="margin:0;white-space:pre-wrap;font-size:11px;color:var(--text2)">Cliquez sur "Tester id=1" pour voir le premier enregistrement retourné.</pre>
+</div>`;
+        } catch (error) {
+          wrap.innerHTML = `<div class="text-danger">${escHtml(error.message)}</div>`;
+        }
       }
 
       // ── Pill HTML pour une variable ───────────────────────────────
@@ -1879,10 +2328,18 @@
       // ── Autres mutations ──────────────────────────────────────────
       function saveFamily(famId) {
         const fam = DB.getFamily(famId);
+        const sqlValue = document.getElementById("fSql")?.value?.trim() || "";
+        if (sqlValue && !/^select\b/i.test(sqlValue)) {
+          toast(
+            "La requête principale doit rester une requête SELECT",
+            "error",
+          );
+          return;
+        }
         fam.nom = document.getElementById("fNom")?.value || fam.nom;
         fam.description = document.getElementById("fDesc")?.value || "";
         fam.icon = document.getElementById("fIcon")?.value || "📄";
-        fam.sql = document.getElementById("fSql")?.value || "";
+        fam.sql = sqlValue;
         DB.saveFamily(fam);
         renderLeftPanel();
         toast("Famille enregistrée", "success");
@@ -1927,12 +2384,14 @@
         fam.classes.splice(ci, 1);
         DB.saveFamily(fam);
         renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
       }
       function deleteVar(famId, ci, vi) {
         const fam = DB.getFamily(famId);
         fam.classes[ci].vars.splice(vi, 1);
         DB.saveFamily(fam);
         renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
       }
 
       // ═══════════════════════════════════════════
