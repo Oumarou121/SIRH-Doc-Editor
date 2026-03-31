@@ -663,6 +663,37 @@ function getTemplatePageMargins(tpl) {
   };
 }
 
+function getTemplateOrientation(tpl) {
+  const o = (tpl?.orientation || tpl?.pageOrientation || "portrait")
+    .toString()
+    .toLowerCase();
+  return o === "landscape" ? "landscape" : "portrait";
+}
+
+function applyPageOrientationToUI(orientation) {
+  const o = orientation === "landscape" ? "landscape" : "portrait";
+  const pageW = o === "landscape" ? "297mm" : "210mm";
+  const pageH = o === "landscape" ? "210mm" : "297mm";
+
+  document.documentElement.style.setProperty("--page-orientation", o);
+  document.documentElement.style.setProperty("--page-w", pageW);
+  document.documentElement.style.setProperty("--page-h", pageH);
+
+  const badge = document.getElementById("sbOrientation");
+  if (badge) {
+    badge.textContent = o === "landscape" ? "Paysage" : "Portrait";
+  }
+
+  document.querySelectorAll(".preview-page").forEach((el) => {
+    el.style.width = pageW;
+    el.style.minHeight = pageH;
+  });
+  document.querySelectorAll(".sirh-print-page").forEach((el) => {
+    el.style.width = pageW;
+    el.style.height = pageH;
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  INSERTION INTELLIGENTE dans Tiptap (admin.html)
 //  Gère scalar, list, list-object
@@ -883,9 +914,11 @@ function closeModal(id) {
  */
 class PagePaginator {
   constructor(opts = {}) {
-    // Configuration A4 (en mm → pixels à 96 DPI)
-    this.pageWidthMm = 210;
-    this.pageHeightMm = 297;
+    // Orientation A4
+    this.orientation =
+      opts.orientation === "landscape" ? "landscape" : "portrait";
+    this.pageWidthMm = this.orientation === "landscape" ? 297 : 210;
+    this.pageHeightMm = this.orientation === "landscape" ? 210 : 297;
     this.marginTopMm = opts.marginTop || 20;
     this.marginBottomMm = opts.marginBottom || 20;
     this.marginLeftMm = opts.marginLeft || 25;
@@ -1143,11 +1176,13 @@ function paginateWithVariablesBlue(tpl, person) {
   const ftrHtml = tpl.hasFooter ? resolveVars(tpl.footer || "", person) : "";
 
   // Paginer le contenu
+  const orientation = getTemplateOrientation(tpl);
   const paginator = new PagePaginator({
     marginTop: margins.mt,
     marginBottom: margins.mb,
     marginLeft: margins.ml,
     marginRight: margins.mr,
+    orientation,
   });
 
   const pages = paginator.paginate(bHtml, hdrHtml, ftrHtml);
@@ -1169,6 +1204,9 @@ function previewDocument(tpl, person) {
     return;
   }
   const margins = getTemplatePageMargins(tpl);
+  const orientation = getTemplateOrientation(tpl);
+  const pageWidth = orientation === "landscape" ? "297mm" : "210mm";
+  const pageHeight = orientation === "landscape" ? "210mm" : "297mm";
 
   const hdrRaw = tpl.hasHeader ? resolveVars(tpl.header || "", person) : "";
   const bRaw = resolveVars(tpl.body || "", person);
@@ -1180,6 +1218,7 @@ function previewDocument(tpl, person) {
     marginBottom: margins.mb,
     marginLeft: margins.ml,
     marginRight: margins.mr,
+    orientation,
   });
 
   const pages = paginator.paginate(bRaw, hdrRaw, ftrRaw);
@@ -1283,8 +1322,8 @@ function previewDocument(tpl, person) {
     }
 
     .preview-page {
-      width: 210mm;
-      height: 297mm;
+      width: ${pageWidth};
+      height: ${pageHeight};
       background: white;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       border-radius: 4px;
@@ -1473,6 +1512,9 @@ function printDocPaginated(tpl, person, pages = null) {
     return;
   }
   const margins = getTemplatePageMargins(tpl);
+  const orientation = getTemplateOrientation(tpl);
+  const pageWidth = orientation === "landscape" ? "297mm" : "210mm";
+  const pageHeight = orientation === "landscape" ? "210mm" : "297mm";
 
   // Utiliser les pages déjà paginées ou les générer
   let pagesToPrint = pages;
@@ -1490,12 +1532,13 @@ function printDocPaginated(tpl, person, pages = null) {
       marginBottom: margins.mb,
       marginLeft: margins.ml,
       marginRight: margins.mr,
+      orientation,
     });
     pagesToPrint = paginator.paginate(bRaw, hdrRaw, ftrRaw);
   }
 
   const printCSS = `
-    @page { size: A4 portrait; margin: 0; }
+    @page { size: A4 ${orientation}; margin: 0; }
     html, body {
       width: auto !important;
       height: auto !important;
@@ -1507,8 +1550,8 @@ function printDocPaginated(tpl, person, pages = null) {
     #sirh-print-area { display: block; }
 
     .sirh-print-page {
-      width: 210mm;
-      height: 297mm;
+      width: ${pageWidth};
+      height: ${pageHeight};
       background: white;
       display: flex;
       flex-direction: column;
@@ -1670,9 +1713,11 @@ function printDoc(tpl, person) {
 
 class EditorPageManager {
   constructor(opts = {}) {
-    // Dimensions A4 (en mm)
-    this.pageHeightMm = 297;
-    this.pageWidthMm = 210;
+    // Orientation A4
+    this.orientation =
+      opts.orientation === "landscape" ? "landscape" : "portrait";
+    this.pageWidthMm = this.orientation === "landscape" ? 297 : 210;
+    this.pageHeightMm = this.orientation === "landscape" ? 210 : 297;
     this.marginTopMm = opts.marginTop || 20;
     this.marginBottomMm = opts.marginBottom || 20;
     this.marginLeftMm = opts.marginLeft || 25;
@@ -1845,3 +1890,211 @@ class EditorPageManager {
 
 // Exporter globalement
 window.EditorPageManager = EditorPageManager;
+
+// ═══════════════════════════════════════════════════════════════
+//  EditorPageVisualizer
+//  Affiche des lignes pointillées dans #sec-body pour matérialiser
+//  les sauts de page A4 en temps réel pendant l'édition.
+//  Compatible avec admin.html : new EditorPageVisualizer({...})
+// ═══════════════════════════════════════════════════════════════
+
+class EditorPageVisualizer {
+  /**
+   * @param {object} opts
+   * @param {number} opts.marginTop    marges en mm (défaut 20)
+   * @param {number} opts.marginBottom
+   * @param {number} opts.marginLeft
+   * @param {number} opts.marginRight
+   */
+  constructor(opts = {}) {
+    const toNum = (v, d) => {
+      const n = Number(v);
+      return isFinite(n) ? n : d;
+    };
+    this._mt = toNum(opts.marginTop, 20);
+    this._mb = toNum(opts.marginBottom, 20);
+    this._ml = toNum(opts.marginLeft, 25);
+    this._mr = toNum(opts.marginRight, 25);
+    this._orientation =
+      opts.orientation === "landscape" ? "landscape" : "portrait";
+
+    // Conversion mm → px (96 DPI)
+    this._mmPx = (mm) => (mm * 96) / 25.4;
+
+    this._pageH = this._mmPx(this._orientation === "landscape" ? 210 : 297);
+    this._secBody = null;
+    this._guides = null;
+    this._raf = 0;
+    this._ro = null; // ResizeObserver
+    this._bound = this._refresh.bind(this);
+  }
+
+  /**
+   * Initialiser le visualizer sur un sélecteur CSS ou élément DOM.
+   * @param {string|HTMLElement} selector  ex: "#sec-body"
+   * @param {number} headerHeightPx        hauteur du header rendu (0 si absent)
+   * @param {number} footerHeightPx        hauteur du footer rendu (0 si absent)
+   */
+  init(selector, headerHeightPx = 0, footerHeightPx = 0) {
+    this._headerH = headerHeightPx || 0;
+    this._footerH = footerHeightPx || 0;
+
+    const el =
+      typeof selector === "string"
+        ? document.querySelector(selector)
+        : selector;
+
+    if (!el) return;
+    this._secBody = el;
+
+    // Créer (ou récupérer) le conteneur de guides
+    let guides = el.querySelector(".epv-guides");
+    if (!guides) {
+      guides = document.createElement("div");
+      guides.className = "epv-guides";
+      guides.style.cssText = [
+        "position:absolute",
+        "inset:0",
+        "pointer-events:none",
+        "z-index:0",
+      ].join(";");
+      el.appendChild(guides);
+    }
+    this._guides = guides;
+
+    // Injecter le CSS des lignes de page (une seule fois)
+    this._injectCSS();
+
+    // Observer les changements de taille du contenu
+    if (typeof ResizeObserver !== "undefined") {
+      this._ro = new ResizeObserver(() => this._scheduleRefresh());
+      this._ro.observe(el);
+      const pm = el.querySelector(".ProseMirror");
+      if (pm) this._ro.observe(pm);
+    }
+
+    el.addEventListener("scroll", this._bound, { passive: true });
+    window.addEventListener("resize", this._bound, { passive: true });
+
+    this._scheduleRefresh();
+  }
+
+  /** Détruire proprement */
+  destroy() {
+    if (this._ro) {
+      this._ro.disconnect();
+      this._ro = null;
+    }
+    if (this._secBody) {
+      this._secBody.removeEventListener("scroll", this._bound);
+    }
+    window.removeEventListener("resize", this._bound);
+    if (this._guides) {
+      this._guides.innerHTML = "";
+    }
+    cancelAnimationFrame(this._raf);
+    this._secBody = null;
+    this._guides = null;
+  }
+
+  // ── Privé ──────────────────────────────────────────────────
+
+  _scheduleRefresh() {
+    cancelAnimationFrame(this._raf);
+    this._raf = requestAnimationFrame(() => this._refresh());
+  }
+
+  _refresh() {
+    const secBody = this._secBody;
+    const guides = this._guides;
+    if (!secBody || !guides) return;
+
+    const style = getComputedStyle(secBody);
+    const padTop = parseFloat(style.paddingTop) || 0;
+    const padBottom = parseFloat(style.paddingBottom) || 0;
+
+    // Hauteur utile disponible par page (en px)
+    const pageUsable = Math.max(
+      1,
+      this._pageH -
+        this._mmPx(this._mt) -
+        this._mmPx(this._mb) -
+        this._headerH -
+        this._footerH,
+    );
+
+    // Hauteur réelle du contenu
+    const pm = secBody.querySelector(".ProseMirror");
+    const contentH = pm ? Math.max(pm.scrollHeight, pm.offsetHeight) : 0;
+    const totalH = Math.max(contentH, pageUsable);
+
+    const totalPages = Math.max(1, Math.ceil(totalH / pageUsable));
+
+    // Reconstruire les lignes de saut de page
+    guides.innerHTML = "";
+    guides.style.height = totalH + padTop + padBottom + "px";
+
+    for (let p = 2; p <= totalPages; p++) {
+      const top = (p - 1) * pageUsable;
+
+      const line = document.createElement("div");
+      line.className = "epv-line";
+      line.style.top = top + padTop + "px";
+      line.dataset.label = `— Page ${p} —`;
+
+      guides.appendChild(line);
+    }
+
+    // Mettre à jour le badge "Page X / Y" si présent
+    this._updateBadge(secBody, pageUsable, padTop, totalPages);
+  }
+
+  _updateBadge(secBody, pageUsable, padTop, totalPages) {
+    const badge = document.getElementById("pageLiveBadge");
+    if (!badge) return;
+
+    // Calcul de la page courante depuis la position du curseur
+    let scrollY = secBody.scrollTop;
+    const curPage = Math.max(
+      1,
+      Math.min(totalPages, Math.floor(scrollY / pageUsable) + 1),
+    );
+    badge.textContent = `Page ${curPage} / ${totalPages}`;
+  }
+
+  _injectCSS() {
+    if (document.getElementById("epv-css")) return;
+    const s = document.createElement("style");
+    s.id = "epv-css";
+    s.textContent = `
+      .epv-guides {
+        position: absolute; inset: 0;
+        pointer-events: none; z-index: 0;
+      }
+      .epv-line {
+        position: absolute;
+        left: 6px; right: 6px; height: 0;
+        border-top: 2px dashed rgba(148,153,176,.42);
+        transition: border-color .15s;
+      }
+      .epv-line::after {
+        content: attr(data-label);
+        position: absolute;
+        right: 0; top: -12px;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 10px; font-weight: 700; letter-spacing: .03em;
+        color: #667085;
+        background: rgba(240,242,245,.96);
+        border: 1px solid rgba(148,153,176,.25);
+        font-family: 'IBM Plex Sans', sans-serif;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+    `;
+    document.head.appendChild(s);
+  }
+}
+
+// Exposer globalement
+window.EditorPageVisualizer = EditorPageVisualizer;

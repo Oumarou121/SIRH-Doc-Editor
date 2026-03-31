@@ -51,6 +51,7 @@
         --rxl: 12px;
         --sh: 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.06);
         --shlg: 0 8px 32px rgba(0, 0, 0, 0.12);
+        --page-orientation: portrait;
         --page-w: 210mm;
         --page-h: 297mm;
         --page-mt: 20mm;
@@ -1266,8 +1267,8 @@
       .preview-page {
         background: #fff;
         border-radius: 2px;
-        width: 210mm;
-        min-height: 297mm;
+        width: var(--page-w);
+        min-height: var(--page-h);
         margin: 0 auto;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
         display: flex;
@@ -2910,7 +2911,14 @@
           </button>
         </div>
         <div style="font-size: 11px; color: var(--text3); margin-bottom: 14px">
-          Marges en millimètres. Format fixe A4 (210×297mm)
+          Marges en millimètres. Format A4 (210×297mm) – Portrait / Paysage
+        </div>
+        <div class="frow">
+          <label class="flabel">Orientation</label>
+          <select class="finput" id="pg-orientation">
+            <option value="portrait">Portrait</option>
+            <option value="landscape">Paysage</option>
+          </select>
         </div>
         <div class="fgrid2">
           <div class="frow">
@@ -5117,6 +5125,10 @@
         if (editorHeader && tpl.header) setEditorHTML(editorHeader, tpl.header);
         if (editorFooter && tpl.footer) setEditorHTML(editorFooter, tpl.footer);
         applyPageMarginsToUI(tpl.pageMargins);
+        const orientation = getTemplateOrientation(tpl);
+        const selOrientation = document.getElementById("pg-orientation");
+        if (selOrientation) selOrientation.value = orientation;
+        applyPageOrientationToUI(orientation);
         activeEditor = editorBody;
         headerEnabled = !!tpl.hasHeader;
         footerEnabled = !!tpl.hasFooter;
@@ -5199,6 +5211,7 @@
         tpl.hasHeader = headerEnabled;
         tpl.hasFooter = footerEnabled;
         tpl.pageMargins = getCurrentPageMargins();
+        tpl.orientation = getCurrentPageOrientation();
         tpl.updatedAt = new Date().toISOString();
         DB.saveTemplate(tpl);
         renderTplList(curFamId);
@@ -5335,20 +5348,33 @@
         toast("Filigrane supprimé");
       };
 
+      function getCurrentPageOrientation() {
+        const sel = document.getElementById("pg-orientation");
+        if (!sel) return "portrait";
+        return sel.value === "landscape" ? "landscape" : "portrait";
+      }
+
       window.openPageSettings = function () {
         if (!curTplId) {
           toast("Ouvrez d'abord un template", "error");
           return;
         }
+        const tpl = DB.getTemplate(curTplId) || {};
+        const orientation = getTemplateOrientation(tpl);
+        const sel = document.getElementById("pg-orientation");
+        if (sel) sel.value = orientation;
         applyPageMarginsToUI(getCurrentPageMargins());
+        applyPageOrientationToUI(orientation);
         openModal("modalPageSettings");
       };
       window.applyPageMargins = function () {
         const margins = applyPageMarginsToUI(getCurrentPageMargins());
+        const orientation = getCurrentPageOrientation();
+        applyPageOrientationToUI(orientation);
         closeModal("modalPageSettings");
         scheduleEditorPaginationRefresh();
         toast(
-          `Marges : haut ${margins.mt}mm · bas ${margins.mb}mm · gauche ${margins.ml}mm · droite ${margins.mr}mm`,
+          `Marges : haut ${margins.mt}mm · bas ${margins.mb}mm · gauche ${margins.ml}mm · droite ${margins.mr}mm · orientation ${orientation}`,
         );
       };
       window.resetPageMargins = function () {
