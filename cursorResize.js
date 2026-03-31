@@ -161,6 +161,13 @@
         "margin-left:10px",
         "margin-bottom:6px",
       );
+    } else if (align === "inline") {
+      parts.push(
+        "display:inline-block",
+        "float:none",
+        "margin:0 8px 0 0",
+        "vertical-align:middle",
+      );
     } else {
       parts.push(
         "display:block",
@@ -267,6 +274,8 @@
     let _activeEditor = null;
     let _ctxMenu = null;
     let _overlay = null;
+    let _draggingImg = null;
+    let _draggingEditor = null;
 
     function _getOverlay() {
       if (_overlay && document.body.contains(_overlay)) return _overlay;
@@ -300,6 +309,16 @@
           ? _activeWrap
           : _activeImg;
       return box ? box.getBoundingClientRect() : null;
+    }
+
+    function _inferAlign(el) {
+      if (!el) return "center";
+      if (el.style.float === "left") return "left";
+      if (el.style.float === "right") return "right";
+      if (el.style.display === "inline-block") return "inline";
+      if (el.style.marginLeft === "auto" && el.style.marginRight === "auto")
+        return "center";
+      return "center";
     }
 
     /* ── Appliquer taille px ── */
@@ -358,22 +377,108 @@
     }
 
     function _bindPlainImage(img, editor) {
-      if (!img || img.dataset.sirhBound === "1") return;
-      img.dataset.sirhBound = "1";
+      if (!img) return;
       img._editor = editor;
+      img.dataset.sirhAlign = img.dataset.sirhAlign || _inferAlign(img);
       img.contentEditable = "false";
-      img.draggable = false;
+      img.draggable = true;
+      _bindEditorDnD(editor);
       const onSelect = (e) => {
         e.stopPropagation();
         _select(img, img, editor);
       };
-      img.addEventListener("mousedown", onSelect);
-      img.addEventListener("click", onSelect);
-      img.addEventListener("contextmenu", (e) => {
+      if (img.dataset.sirhBound !== "1") {
+        img.dataset.sirhBound = "1";
+        img.addEventListener("mousedown", onSelect);
+        img.addEventListener("click", onSelect);
+        img.addEventListener("dragstart", (e) => {
+          _draggingImg = img;
+          _draggingEditor = editor;
+          _select(img, img, editor);
+          try {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", "sirh-image");
+          } catch (_) {}
+        });
+        img.addEventListener("dragend", () => {
+          _draggingImg = null;
+          _draggingEditor = null;
+        });
+        img.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          _select(img, img, editor);
+          _showCtxMenu(e.clientX, e.clientY, img, img);
+        });
+      }
+      const parent = img.parentElement;
+      const inTextParagraph =
+        parent &&
+        parent.tagName === "P" &&
+        parent.textContent.replace(/\s+/g, "").length > 0;
+      if (inTextParagraph) {
+        img.dataset.sirhAlign = "inline";
+        img.style.display = "inline-block";
+        img.style.float = "none";
+        img.style.margin = "0 8px 0 0";
+        img.style.verticalAlign = "middle";
+        _persistImageNode(img, img);
+      }
+    }
+
+    function _bindEditorDnD(editor) {
+      const host = editor?.view?.dom;
+      if (!host || host.dataset.sirhDropBound === "1") return;
+      host.dataset.sirhDropBound = "1";
+      host.addEventListener("dragover", (e) => {
+        if (!_draggingImg) return;
         e.preventDefault();
-        e.stopPropagation();
-        _select(img, img, editor);
-        _showCtxMenu(e.clientX, e.clientY, img, img);
+      });
+      host.addEventListener("drop", (e) => {
+        if (!_draggingImg || !_draggingEditor || _draggingEditor !== editor)
+          return;
+        e.preventDefault();
+        try {
+          const srcPos = _findImageNodePos(editor, _draggingImg);
+          const node = srcPos != null ? editor.state.doc.nodeAt(srcPos) : null;
+          const coords = editor.view.posAtCoords({
+            left: e.clientX,
+            top: e.clientY,
+          });
+          if (srcPos == null || !node || !coords?.pos) return;
+          let insertPos = coords.pos;
+          if (insertPos > srcPos) insertPos -= node.nodeSize;
+          const nextAttrs = {
+            ...node.attrs,
+            style: _buildImageStyle(
+              {
+                dataset: {
+                  sirhAlign: "inline",
+                  sirhW:
+                    parseInt(_draggingImg.style.width, 10) ||
+                    _draggingImg.offsetWidth,
+                  sirhH:
+                    parseInt(_draggingImg.style.height, 10) ||
+                    _draggingImg.offsetHeight,
+                  sirhWidthMode: "fixed",
+                },
+              },
+              _draggingImg,
+            ),
+            "data-keep-ratio":
+              _draggingImg.getAttribute("data-keep-ratio") || "true",
+          };
+          const movedNode = node.type.create(nextAttrs, null, node.marks);
+          let tr = editor.state.tr.delete(srcPos, srcPos + node.nodeSize);
+          tr = tr.insert(insertPos, movedNode);
+          editor.view.dispatch(tr);
+          setTimeout(() => {
+            global.activateImageResizers?.(editor);
+          }, 60);
+        } finally {
+          _draggingImg = null;
+          _draggingEditor = null;
+        }
       });
     }
 
@@ -816,9 +921,11 @@
   function _patchAdminFunctions() {
     global.activateImageResizers = function (ed) {
       if (!ed) return;
-      ed.view.dom.querySelectorAll("img").forEach((img) => {
-        SirhImgResize.bind(img, ed);
-      });
+      ed.view.dom
+        .querySelectorAll("img:not(.ProseMirror-separator)")
+        .forEach((img) => {
+          SirhImgResize.bind(img, ed);
+        });
     };
 
     global.wrapImgResize = function (img, ed) {
@@ -964,7 +1071,9 @@
           .run();
 
         function _findAndWrap(attempt) {
-          const allImgs = ed.view.dom.querySelectorAll("img");
+          const allImgs = ed.view.dom.querySelectorAll(
+            "img:not(.ProseMirror-separator)",
+          );
           let target = null;
 
           // 1) D'abord l'image nouvellement insérée via UID (unique)

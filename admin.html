@@ -4112,7 +4112,7 @@
             Superscript,
             TextAlign.configure({ types: ["heading", "paragraph"] }),
             Link.configure({ openOnClick: false, autolink: true }),
-            WordImage.configure({ inline: false, allowBase64: true }),
+            WordImage.configure({ inline: true, allowBase64: true }),
             Table.configure({ resizable: true }),
             TableRow,
             TableCellExt,
@@ -4959,9 +4959,11 @@
       };
       activateImageResizers = function (ed) {
         if (!ed || !window.SirhImgResize) return;
-        ed.view.dom.querySelectorAll("img").forEach((img) => {
-          window.SirhImgResize.bind(img, ed);
-        });
+        ed.view.dom
+          .querySelectorAll("img:not(.ProseMirror-separator)")
+          .forEach((img) => {
+            window.SirhImgResize.bind(img, ed);
+          });
       };
       wrapImgResize = function (img, ed) {
         if (!window.SirhImgResize) return null;
