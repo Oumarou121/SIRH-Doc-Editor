@@ -29,6 +29,7 @@
     s.id = "sirh-cr-css";
     s.textContent = [
       ".ProseMirror{cursor:text!important}",
+      ".ProseMirror img.ProseMirror-selectednode{outline:none!important}",
       ".sirh-img-wrap{display:inline-block;position:relative;line-height:0;user-select:none;max-width:100%;cursor:grab!important;box-sizing:border-box;overflow:visible}",
       ".sirh-img-wrap:active{cursor:grabbing!important}",
       ".sirh-img-selected{outline:2px solid #2563eb;outline-offset:2px}",
@@ -439,6 +440,11 @@
           return;
         e.preventDefault();
         try {
+          const draggedSrc = _draggingImg.getAttribute("src") || "";
+          const draggedWidth =
+            parseInt(_draggingImg.style.width, 10) || _draggingImg.offsetWidth;
+          const draggedHeight =
+            parseInt(_draggingImg.style.height, 10) || _draggingImg.offsetHeight;
           const srcPos = _findImageNodePos(editor, _draggingImg);
           const node = srcPos != null ? editor.state.doc.nodeAt(srcPos) : null;
           const coords = editor.view.posAtCoords({
@@ -454,12 +460,8 @@
               {
                 dataset: {
                   sirhAlign: "inline",
-                  sirhW:
-                    parseInt(_draggingImg.style.width, 10) ||
-                    _draggingImg.offsetWidth,
-                  sirhH:
-                    parseInt(_draggingImg.style.height, 10) ||
-                    _draggingImg.offsetHeight,
+                  sirhW: draggedWidth,
+                  sirhH: draggedHeight,
                   sirhWidthMode: "fixed",
                 },
               },
@@ -469,11 +471,39 @@
               _draggingImg.getAttribute("data-keep-ratio") || "true",
           };
           const movedNode = node.type.create(nextAttrs, null, node.marks);
+          _deselect();
           let tr = editor.state.tr.delete(srcPos, srcPos + node.nodeSize);
           tr = tr.insert(insertPos, movedNode);
           editor.view.dispatch(tr);
           setTimeout(() => {
+            try {
+              const posAfter = Math.min(
+                insertPos + movedNode.nodeSize,
+                editor.state.doc.content.size,
+              );
+              editor.commands?.setTextSelection?.(posAfter);
+            } catch (_) {}
             global.activateImageResizers?.(editor);
+            const imgs = Array.from(
+              host.querySelectorAll("img:not(.ProseMirror-separator)"),
+            );
+            imgs.forEach((img) => img.classList.remove("ProseMirror-selectednode"));
+            let target = null;
+            const hit = document.elementFromPoint(e.clientX, e.clientY);
+            if (hit?.tagName === "IMG" && !hit.classList.contains("ProseMirror-separator")) {
+              target = hit;
+            }
+            if (!target) {
+              target = imgs.find((img) => (img.getAttribute("src") || "") === draggedSrc);
+            }
+            if (!target) {
+              target = imgs.find(
+                (img) =>
+                  (parseInt(img.style.width, 10) || img.offsetWidth) === draggedWidth &&
+                  (parseInt(img.style.height, 10) || img.offsetHeight) === draggedHeight,
+              );
+            }
+            if (target) _select(target, target, editor);
           }, 60);
         } finally {
           _draggingImg = null;
@@ -486,6 +516,10 @@
     function _reposition() {
       const ov = _overlay;
       if (!ov || !_activeImg || !_activeWrap) return;
+      if (!_activeImg.isConnected || !_activeWrap.isConnected) {
+        _deselect();
+        return;
+      }
       const rect = _getTargetRect();
       if (!rect) return;
       ov.classList.add("visible");
