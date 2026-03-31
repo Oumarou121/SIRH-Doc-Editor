@@ -19,7 +19,9 @@ function clone(data) {
 function normalizeState(state) {
   const next = state && typeof state === "object" ? state : {};
   return {
-    etablissements: Array.isArray(next.etablissements) ? clone(next.etablissements) : [],
+    etablissements: Array.isArray(next.etablissements)
+      ? clone(next.etablissements)
+      : [],
     admins: Array.isArray(next.admins) ? clone(next.admins) : [],
     families: Array.isArray(next.families) ? clone(next.families) : [],
     templates: Array.isArray(next.templates) ? clone(next.templates) : [],
@@ -128,7 +130,9 @@ async function loadPersonnel() {
 
   let hasDepartementId = false;
   try {
-    const [columns] = await pool.query("SHOW COLUMNS FROM personnel LIKE 'departement_id'");
+    const [columns] = await pool.query(
+      "SHOW COLUMNS FROM personnel LIKE 'departement_id'",
+    );
     hasDepartementId = columns.length > 0;
   } catch (_) {}
 
@@ -197,8 +201,7 @@ async function loadSchema() {
     relations: relations.map((row) => ({
       table: row.table_name || row.TABLE_NAME,
       column: row.column_name || row.COLUMN_NAME,
-      referencedTable:
-        row.referenced_table_name || row.REFERENCED_TABLE_NAME,
+      referencedTable: row.referenced_table_name || row.REFERENCED_TABLE_NAME,
       referencedColumn:
         row.referenced_column_name || row.REFERENCED_COLUMN_NAME,
     })),
@@ -206,7 +209,9 @@ async function loadSchema() {
 }
 
 async function runSelectQuery(sql, params = {}) {
-  const cleanedSql = String(sql || "").trim().replace(/;+\s*$/, "");
+  const cleanedSql = String(sql || "")
+    .trim()
+    .replace(/;+\s*$/, "");
   if (!/^\s*select\b/i.test(cleanedSql)) {
     throw new Error("Seules les requetes SELECT sont autorisees.");
   }

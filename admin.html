@@ -2787,7 +2787,7 @@
         </div>
         <div class="fgrid2">
           <div class="frow" style="margin: 0">
-            <label class="flabel">Largeur (px ou %)</label
+            <label class="flabel">Largeur (px, mm, cm, %)</label
             ><input class="finput" type="text" id="img-w" placeholder="Auto" />
           </div>
           <div class="frow" style="margin: 0">
@@ -2798,6 +2798,10 @@
               <option value="right">Droite</option>
             </select>
           </div>
+        </div>
+        <div class="frow" style="margin-top: 8px">
+          <label class="flabel">Hauteur (px, mm, cm)</label
+          ><input class="finput" type="text" id="img-h" placeholder="Auto" />
         </div>
         <div class="frow" style="margin-top: 8px">
           <label class="flabel">Légende (optionnel)</label
@@ -3726,6 +3730,28 @@
         },
       });
 
+      const WordImage = Image.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            style: {
+              default: null,
+              parseHTML: (el) => el.getAttribute("style") || null,
+              renderHTML: (attrs) =>
+                attrs.style ? { style: attrs.style } : {},
+            },
+            "data-keep-ratio": {
+              default: "true",
+              parseHTML: (el) => el.getAttribute("data-keep-ratio") || "true",
+              renderHTML: (attrs) =>
+                attrs["data-keep-ratio"] != null
+                  ? { "data-keep-ratio": attrs["data-keep-ratio"] }
+                  : {},
+            },
+          };
+        },
+      });
+
       // ── TableCell/Header with bg, text color, align ──
       function _cellStyle(attrs) {
         let s = "";
@@ -4086,7 +4112,7 @@
             Superscript,
             TextAlign.configure({ types: ["heading", "paragraph"] }),
             Link.configure({ openOnClick: false, autolink: true }),
-            Image.configure({ inline: false, allowBase64: true }),
+            WordImage.configure({ inline: false, allowBase64: true }),
             Table.configure({ resizable: true }),
             TableRow,
             TableCellExt,
@@ -4901,6 +4927,66 @@
       });
 
       // ── Links ──
+      window.previewImgFile = function (input) {
+        const f = input.files[0];
+        const area = document.getElementById("img-preview-area");
+        if (!f) {
+          area.style.display = "none";
+          return;
+        }
+        const r = new FileReader();
+        r.onload = (e) => {
+          document.getElementById("img-preview").src = e.target.result;
+          area.style.display = "flex";
+        };
+        r.readAsDataURL(f);
+      };
+      window.previewImgUrl = function (url) {
+        const area = document.getElementById("img-preview-area");
+        if (!url) {
+          area.style.display = "none";
+          return;
+        }
+        document.getElementById("img-preview").src = url;
+        area.style.display = "flex";
+      };
+      window.doInsertImage = function () {
+        if (typeof window.__sirhDoInsertImage === "function") {
+          window.__sirhDoInsertImage();
+          return;
+        }
+        toast("Le gestionnaire d'image unifiÃ© n'est pas disponible", "error");
+      };
+      activateImageResizers = function (ed) {
+        if (!ed || !window.SirhImgResize) return;
+        ed.view.dom.querySelectorAll("img").forEach((img) => {
+          window.SirhImgResize.bind(img, ed);
+        });
+      };
+      wrapImgResize = function (img, ed) {
+        if (!window.SirhImgResize) return null;
+        return window.SirhImgResize.bind(img, ed);
+      };
+      positionImgToolbar = function () {
+        window.SirhImgResize?.reposition();
+      };
+      selectImg = function (wrap, img) {
+        if (window.SirhImgResize && wrap && img)
+          window.SirhImgResize.select(wrap, img);
+      };
+      window.setImgAlign = function (btn, align) {
+        const wrap = window.SirhImgResize?.activeWrap;
+        if (wrap) window.SirhImgResize.applyAlign(wrap, align);
+      };
+      window.setImgWidthFixed = function (btn, pct) {
+        const wrap = window.SirhImgResize?.activeWrap;
+        const img = window.SirhImgResize?.activeImg;
+        if (wrap && img) window.SirhImgResize.applyWidthPct(wrap, img, pct);
+      };
+      window.removeImgFixed = function () {
+        window.SirhImgResize?.removeActive();
+      };
+
       window.doInsertLink = function () {
         const ed = activeEditor || editorBody;
         if (!ed) return;
