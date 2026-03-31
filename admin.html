@@ -959,6 +959,7 @@
         table-layout: fixed;
         margin: 8px 0;
         word-wrap: break-word;
+        box-sizing: border-box;
       }
       .tiptap-wrapper .ProseMirror td,
       .tiptap-wrapper .ProseMirror th {
@@ -968,6 +969,7 @@
         position: relative;
         overflow: hidden;
         word-break: break-word;
+        box-sizing: border-box;
       }
       .tiptap-wrapper .ProseMirror th:not([style]) {
         background: #f2f2f2;
@@ -3817,6 +3819,203 @@
         },
       });
 
+      function _getEditorTableFrameWidth(ed) {
+        const root = ed?.view?.dom;
+        if (!root) return 0;
+        const styles = window.getComputedStyle(root);
+        const padX =
+          (parseFloat(styles.paddingLeft) || 0) +
+          (parseFloat(styles.paddingRight) || 0);
+        const width =
+          root.clientWidth || root.getBoundingClientRect().width || 0;
+        return Math.max(1, Math.floor(width - padX - 2));
+      }
+
+      function _countTableColumns(tableNode) {
+        let maxCols = 0;
+        tableNode?.forEach((rowNode) => {
+          let cols = 0;
+          rowNode.forEach((cellNode) => {
+            cols += Math.max(1, cellNode.attrs?.colspan || 1);
+          });
+          maxCols = Math.max(maxCols, cols);
+        });
+        return maxCols;
+      }
+
+      function _distributeTableWidths(totalWidth, colCount) {
+        const safeCols = Math.max(1, colCount || 1);
+        const safeWidth = Math.max(
+          safeCols,
+          Math.floor(totalWidth) || safeCols,
+        );
+        const base = Math.floor(safeWidth / safeCols);
+        let remainder = safeWidth - base * safeCols;
+        return Array.from({ length: safeCols }, () => {
+          const extra = remainder > 0 ? 1 : 0;
+          remainder = Math.max(0, remainder - 1);
+          return base + extra;
+        });
+      }
+
+      function _readTableWidths(tableNode, colCount) {
+        const firstRow = tableNode?.firstChild;
+        if (!firstRow) return null;
+        const widths = [];
+        let colIndex = 0;
+        firstRow.forEach((cellNode) => {
+          const colspan = Math.max(1, cellNode.attrs?.colspan || 1);
+          const colwidth = Array.isArray(cellNode.attrs?.colwidth)
+            ? cellNode.attrs.colwidth
+            : [];
+          for (let i = 0; i < colspan && colIndex < colCount; i++, colIndex++) {
+            const width = Number(colwidth[i]);
+            widths[colIndex] =
+              Number.isFinite(width) && width > 0 ? width : null;
+          }
+        });
+        return widths.some((width) => Number.isFinite(width) && width > 0)
+          ? widths
+          : null;
+      }
+
+      function _scaleTableWidths(widths, targetWidth) {
+        const clean = widths.map((width) =>
+          Number.isFinite(width) && width > 0 ? width : 0,
+        );
+        const total = clean.reduce((sum, width) => sum + width, 0);
+        if (!total || targetWidth <= 0) return null;
+        const scaled = clean.map((width) =>
+          Math.max(1, Math.floor((width * targetWidth) / total)),
+        );
+        let delta = targetWidth - scaled.reduce((sum, width) => sum + width, 0);
+        let index = 0;
+        while (delta !== 0 && scaled.length) {
+          const step = delta > 0 ? 1 : -1;
+          const next = scaled[index] + step;
+          if (next >= 1) {
+            scaled[index] = next;
+            delta -= step;
+          }
+          index = (index + 1) % scaled.length;
+        }
+        return scaled;
+      }
+
+      function _sameColwidths(prev, next) {
+        if (!Array.isArray(prev) || prev.length !== next.length) return false;
+        return prev.every((width, idx) => Number(width) === Number(next[idx]));
+      }
+
+      function _resolveTableWidths(ed, tableNode, tablePos, mode) {
+        const colCount = _countTableColumns(tableNode);
+        if (!colCount) return null;
+        const frameWidth = _getEditorTableFrameWidth(ed);
+        if (!frameWidth) return null;
+        const equalized = _distributeTableWidths(frameWidth, colCount);
+        if (mode === "equalize") return equalized;
+
+        const current = _readTableWidths(tableNode, colCount);
+        const hasCompleteCurrent =
+          Array.isArray(current) &&
+          current.length === colCount &&
+          current.every((width) => Number.isFinite(width) && width > 0);
+        const currentTotal = hasCompleteCurrent
+          ? current.reduce((sum, width) => sum + width, 0)
+          : 0;
+        let measuredWidth = currentTotal;
+        try {
+          const tableEl = ed.view.nodeDOM(tablePos);
+          if (tableEl?.nodeType === 1) {
+            measuredWidth = Math.max(
+              measuredWidth,
+              Math.ceil(tableEl.scrollWidth || 0),
+              Math.ceil(tableEl.getBoundingClientRect().width || 0),
+            );
+          }
+        } catch (_) {}
+
+        if (measuredWidth <= frameWidth + 1) return null;
+        if (!hasCompleteCurrent || currentTotal <= 0) return equalized;
+        return _scaleTableWidths(current, frameWidth);
+      }
+
+      function _autoFitEditorTables(ed, mode = "clamp", scope = "all") {
+        if (!ed?.view) return false;
+        const tables = [];
+        if (scope === "active") {
+          const { $from } = ed.state.selection;
+          for (let depth = $from.depth; depth > 0; depth--) {
+            const node = $from.node(depth);
+            if (node.type.name === "table") {
+              tables.push({ tableNode: node, tablePos: $from.before(depth) });
+              break;
+            }
+          }
+        } else {
+          ed.state.doc.descendants((node, pos) => {
+            if (node.type.name === "table")
+              tables.push({ tableNode: node, tablePos: pos });
+          });
+        }
+        if (!tables.length) return false;
+
+        const tr = ed.state.tr;
+        let changed = false;
+        tables.forEach(({ tableNode, tablePos }) => {
+          const widths = _resolveTableWidths(ed, tableNode, tablePos, mode);
+          if (!widths?.length) return;
+          tableNode.forEach((rowNode, rowOffset) => {
+            let colIndex = 0;
+            rowNode.forEach((cellNode, cellOffset) => {
+              const colspan = Math.max(1, cellNode.attrs?.colspan || 1);
+              const colwidth = widths.slice(colIndex, colIndex + colspan);
+              while (colwidth.length < colspan) {
+                colwidth.push(widths[widths.length - 1] || 1);
+              }
+              if (!_sameColwidths(cellNode.attrs?.colwidth, colwidth)) {
+                tr.setNodeMarkup(
+                  tablePos + 1 + rowOffset + 1 + cellOffset,
+                  undefined,
+                  {
+                    ...cellNode.attrs,
+                    colwidth,
+                  },
+                );
+                changed = true;
+              }
+              colIndex += colspan;
+            });
+          });
+        });
+        if (!changed) return false;
+        ed.view.dispatch(tr);
+        return true;
+      }
+
+      function _scheduleTableAutoFit(ed, mode = "clamp", scope = "all") {
+        if (!ed) return;
+        const nextMode = mode === "equalize" ? "equalize" : "clamp";
+        const nextScope = scope === "active" ? "active" : "all";
+        ed.__tableAutoFitMode =
+          ed.__tableAutoFitMode === "equalize" || nextMode === "equalize"
+            ? "equalize"
+            : "clamp";
+        ed.__tableAutoFitScope =
+          ed.__tableAutoFitScope === "all" || nextScope === "all"
+            ? "all"
+            : "active";
+        if (ed.__tableAutoFitFrame) return;
+        ed.__tableAutoFitFrame = requestAnimationFrame(() => {
+          const pendingMode = ed.__tableAutoFitMode || "clamp";
+          const pendingScope = ed.__tableAutoFitScope || "all";
+          ed.__tableAutoFitFrame = null;
+          ed.__tableAutoFitMode = null;
+          ed.__tableAutoFitScope = null;
+          _autoFitEditorTables(ed, pendingMode, pendingScope);
+        });
+      }
+
       // ═══════════════════════════════════════════════════════════
       //  STATE
       // ═══════════════════════════════════════════════════════════
@@ -4122,9 +4321,13 @@
             }),
           ],
           content: "",
+          onCreate: ({ editor }) => {
+            _scheduleTableAutoFit(editor, "clamp", "all");
+          },
           onUpdate: () => {
             if (onUpdate) onUpdate();
             setTimeout(() => activateImageResizers(editor), 60);
+            _scheduleTableAutoFit(editor, "clamp", "all");
             scheduleEditorPaginationRefresh();
           },
           onFocus: () => {
@@ -4444,11 +4647,13 @@
         const rows = parseInt(document.getElementById("ti-rows").value) || 3,
           cols = parseInt(document.getElementById("ti-cols").value) || 3;
         const ed = activeEditor || editorBody;
-        if (ed)
+        if (ed) {
           ed.chain()
             .focus()
             .insertTable({ rows, cols, withHeaderRow: true })
             .run();
+          _scheduleTableAutoFit(ed, "equalize", "active");
+        }
         closeModal("modalTable");
         toast(`Tableau ${rows}×${cols} inséré`);
       };
@@ -4460,6 +4665,11 @@
         } catch (e) {
           console.warn("tblCmd", cmd, e);
         }
+        const fitMode = /addColumn|deleteColumn|mergeCells|splitCell/.test(cmd)
+          ? "equalize"
+          : "clamp";
+        const fitScope = cmd === "deleteTable" ? "all" : "active";
+        _scheduleTableAutoFit(ed, fitMode, fitScope);
         positionTblToolbar();
       };
 
@@ -5782,6 +5992,9 @@
           document.getElementById("tblToolbar").classList.remove("on");
       });
       window.addEventListener("resize", () => {
+        [editorHeader, editorBody, editorFooter]
+          .filter(Boolean)
+          .forEach((ed) => _scheduleTableAutoFit(ed, "clamp", "all"));
         scheduleEditorPaginationRefresh();
       });
 
