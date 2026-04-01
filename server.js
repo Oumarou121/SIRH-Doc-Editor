@@ -98,6 +98,52 @@ function cleanQueryRow(row) {
   return next;
 }
 
+function candidateRelationTables(columnName) {
+  const base = String(columnName || "").replace(/_id$/i, "");
+  if (!base || base === "id") return [];
+  return [...new Set([base, `${base}s`, `${base}es`].filter(Boolean))];
+}
+
+function inferSchemaRelations(tables, columns, existingRelations) {
+  const tableSet = new Set((tables || []).map((table) => table.name));
+  const pkByTable = new Map();
+  (columns || []).forEach((column) => {
+    if (!pkByTable.has(column.table) && column.key === "PRI") {
+      pkByTable.set(column.table, column.name);
+    }
+  });
+  (tables || []).forEach((table) => {
+    if (!pkByTable.has(table.name)) pkByTable.set(table.name, "id");
+  });
+
+  const relationKey = (rel) =>
+    `${rel.table}.${rel.column}->${rel.referencedTable}.${rel.referencedColumn}`;
+  const known = new Set((existingRelations || []).map(relationKey));
+  const inferred = [];
+
+  (columns || []).forEach((column) => {
+    if (!/_id$/i.test(column.name) || column.name.toLowerCase() === "id")
+      return;
+    for (const candidate of candidateRelationTables(column.name)) {
+      if (!tableSet.has(candidate)) continue;
+      const relation = {
+        table: column.table,
+        column: column.name,
+        referencedTable: candidate,
+        referencedColumn: pkByTable.get(candidate) || "id",
+        inferred: true,
+      };
+      const key = relationKey(relation);
+      if (known.has(key)) continue;
+      known.add(key);
+      inferred.push(relation);
+      break;
+    }
+  });
+
+  return inferred;
+}
+
 async function tableExists(tableName) {
   const [rows] = await pool.query("SHOW TABLES LIKE ?", [tableName]);
   return rows.length > 0;
@@ -378,26 +424,34 @@ async function loadSchema() {
      ORDER BY table_name, ordinal_position`,
   );
 
+  const normalizedTables = tables.map((row) => ({
+    name: row.table_name || row.TABLE_NAME,
+    comment: row.table_comment || row.TABLE_COMMENT || "",
+  }));
+  const normalizedColumns = columns.map((row) => ({
+    table: row.table_name || row.TABLE_NAME,
+    name: row.column_name || row.COLUMN_NAME,
+    type: row.data_type || row.DATA_TYPE,
+    comment: row.column_comment || row.COLUMN_COMMENT || "",
+    nullable: (row.is_nullable || row.IS_NULLABLE) === "YES",
+    key: row.column_key || row.COLUMN_KEY || "",
+  }));
+  const normalizedRelations = relations.map((row) => ({
+    table: row.table_name || row.TABLE_NAME,
+    column: row.column_name || row.COLUMN_NAME,
+    referencedTable: row.referenced_table_name || row.REFERENCED_TABLE_NAME,
+    referencedColumn: row.referenced_column_name || row.REFERENCED_COLUMN_NAME,
+  }));
+  const inferredRelations = inferSchemaRelations(
+    normalizedTables,
+    normalizedColumns,
+    normalizedRelations,
+  );
+
   return {
-    tables: tables.map((row) => ({
-      name: row.table_name || row.TABLE_NAME,
-      comment: row.table_comment || row.TABLE_COMMENT || "",
-    })),
-    columns: columns.map((row) => ({
-      table: row.table_name || row.TABLE_NAME,
-      name: row.column_name || row.COLUMN_NAME,
-      type: row.data_type || row.DATA_TYPE,
-      comment: row.column_comment || row.COLUMN_COMMENT || "",
-      nullable: (row.is_nullable || row.IS_NULLABLE) === "YES",
-      key: row.column_key || row.COLUMN_KEY || "",
-    })),
-    relations: relations.map((row) => ({
-      table: row.table_name || row.TABLE_NAME,
-      column: row.column_name || row.COLUMN_NAME,
-      referencedTable: row.referenced_table_name || row.REFERENCED_TABLE_NAME,
-      referencedColumn:
-        row.referenced_column_name || row.REFERENCED_COLUMN_NAME,
-    })),
+    tables: normalizedTables,
+    columns: normalizedColumns,
+    relations: [...normalizedRelations, ...inferredRelations],
   };
 }
 

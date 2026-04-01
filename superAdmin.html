@@ -1770,6 +1770,12 @@
         renderClassesContainer(famId);
         renderFamilyBeneficiaryTableSelect(famId);
         renderSchemaAssistant(famId);
+        if (
+          fam.beneficiaryMode === "etablissement" &&
+          (!fam.sql || /:beneficiaryId\b/i.test(fam.sql))
+        ) {
+          setTimeout(() => regenerateFamilySql(famId, true), 0);
+        }
       }
 
       async function renderFamilyBeneficiaryTableSelect(famId) {
@@ -1821,7 +1827,8 @@
       window.updateFamilyBeneficiaryMode = function (famId, mode) {
         const fam = DB.getFamily(famId);
         if (!fam) return;
-        fam.beneficiaryMode = mode === "etablissement" ? "etablissement" : "table";
+        fam.beneficiaryMode =
+          mode === "etablissement" ? "etablissement" : "table";
         if (fam.beneficiaryMode === "table") {
           fam.beneficiaryTable =
             fam.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
@@ -1968,11 +1975,84 @@
         );
       }
 
+      function getRelationPath(schema, fromTable, toTable) {
+        if (!fromTable || !toTable) return null;
+        if (fromTable === toTable) return [];
+        const queue = [fromTable];
+        const seen = new Set([fromTable]);
+        const parent = new Map();
+
+        while (queue.length) {
+          const current = queue.shift();
+          for (const rel of schema.relations || []) {
+            let next = null;
+            if (rel.table === current) next = rel.referencedTable;
+            else if (rel.referencedTable === current) next = rel.table;
+            if (!next || seen.has(next)) continue;
+            seen.add(next);
+            parent.set(next, { prev: current, relation: rel });
+            if (next === toTable) {
+              const path = [];
+              let cursor = toTable;
+              while (cursor !== fromTable) {
+                const step = parent.get(cursor);
+                if (!step) return null;
+                path.unshift({
+                  fromTable: step.prev,
+                  toTable: cursor,
+                  relation: step.relation,
+                });
+                cursor = step.prev;
+              }
+              return path;
+            }
+            queue.push(next);
+          }
+        }
+
+        return null;
+      }
+
+      function buildRelationCondition(step, fromAlias, toAlias) {
+        const rel = step.relation;
+        if (
+          rel.table === step.fromTable &&
+          rel.referencedTable === step.toTable
+        ) {
+          return `${fromAlias}.${sqlId(rel.column)} = ${toAlias}.${sqlId(rel.referencedColumn)}`;
+        }
+        if (
+          rel.table === step.toTable &&
+          rel.referencedTable === step.fromTable
+        ) {
+          return `${toAlias}.${sqlId(rel.column)} = ${fromAlias}.${sqlId(rel.referencedColumn)}`;
+        }
+        return "1=0";
+      }
+
+      function getConnectedTables(schema, anchorTable) {
+        if (!anchorTable) return [];
+        const queue = [anchorTable];
+        const seen = new Set([anchorTable]);
+        while (queue.length) {
+          const current = queue.shift();
+          for (const rel of schema.relations || []) {
+            const next =
+              rel.table === current
+                ? rel.referencedTable
+                : rel.referencedTable === current
+                  ? rel.table
+                  : null;
+            if (!next || seen.has(next)) continue;
+            seen.add(next);
+            queue.push(next);
+          }
+        }
+        return [...seen];
+      }
+
       function getFamilyVisibleTables(schema, fam) {
-        return getVisibleFamilySchemaTables(schema, [
-          fam?.beneficiaryTable,
-          inferBaseTable(fam, schema),
-        ]);
+        return getVisibleFamilySchemaTables(schema, [fam?.beneficiaryTable]);
       }
 
       function getFamilyBeneficiaryTable(fam) {
@@ -1981,7 +2061,11 @@
 
       function buildBeneficiarySqlFromFamily(famId) {
         const fam = DB.getFamily(famId);
-        if (!fam || !schemaMetaCache || fam.beneficiaryMode === "etablissement") {
+        if (
+          !fam ||
+          !schemaMetaCache ||
+          fam.beneficiaryMode === "etablissement"
+        ) {
           return "";
         }
         const tableName = getFamilyBeneficiaryTable(fam);
@@ -2012,21 +2096,46 @@
             "matricule",
           ].includes(column.name),
         )?.name;
-        const hasEtabColumn = columns.some(
-          (column) => column.name === "etablissement_id",
+        const pathToEtab = getRelationPath(
+          schemaMetaCache,
+          tableName,
+          "etablissement",
         );
+        const sourceAlias = "src";
+        const joinParts = [];
+        let currentAlias = sourceAlias;
+        let etabAlias = sourceAlias;
+
+        (pathToEtab || []).forEach((step, index) => {
+          const nextAlias = `r${index + 1}`;
+          joinParts.push(
+            `LEFT JOIN ${sqlId(step.toTable)} ${nextAlias} ON ${buildRelationCondition(step, currentAlias, nextAlias)}`,
+          );
+          currentAlias = nextAlias;
+          etabAlias = nextAlias;
+        });
+
+        const etabFilter =
+          tableName === "etablissement"
+            ? `${sourceAlias}.${sqlId(getPrimaryColumn(schemaMetaCache, tableName))} = :etablissementId`
+            : pathToEtab?.length
+              ? `${etabAlias}.${sqlId(getPrimaryColumn(schemaMetaCache, "etablissement"))} = :etablissementId`
+              : columns.some((column) => column.name === "etablissement_id")
+                ? `${sourceAlias}.${sqlId("etablissement_id")} = :etablissementId`
+                : "";
         return [
           "SELECT",
-          `  ${sqlId(pk)} AS id,`,
-          `  ${sqlId(labelColumn)} AS libelle${
+          `  ${sourceAlias}.${sqlId(pk)} AS id,`,
+          `  ${sourceAlias}.${sqlId(labelColumn)} AS libelle${
             subtitleColumn ? "," : ""
           }`,
           subtitleColumn
-            ? `  ${sqlId(subtitleColumn)} AS sous_libelle`
+            ? `  ${sourceAlias}.${sqlId(subtitleColumn)} AS sous_libelle`
             : "",
-          `FROM ${sqlId(tableName)}`,
-          hasEtabColumn ? `WHERE ${sqlId("etablissement_id")} = :etablissementId` : "",
-          `ORDER BY ${sqlId(labelColumn)} ASC`,
+          `FROM ${sqlId(tableName)} ${sourceAlias}`,
+          ...joinParts,
+          etabFilter ? `WHERE ${etabFilter}` : "",
+          `ORDER BY ${sourceAlias}.${sqlId(labelColumn)} ASC`,
           "LIMIT 500",
         ]
           .filter(Boolean)
@@ -2040,12 +2149,17 @@
           if (baseTable === "etablissement") {
             return `${baseAlias}.${sqlId(basePk)} = :etablissementId`;
           }
-          if (getColumnsForTable(schema, baseTable).some((c) => c.name === "etablissement_id")) {
+          if (
+            getColumnsForTable(schema, baseTable).some(
+              (c) => c.name === "etablissement_id",
+            )
+          ) {
             return `${baseAlias}.${sqlId("etablissement_id")} = :etablissementId`;
           }
           const etabRelation = schema.relations.find(
             (rel) =>
-              rel.table === baseTable && rel.referencedTable === "etablissement",
+              rel.table === baseTable &&
+              rel.referencedTable === "etablissement",
           );
           if (etabRelation) {
             return `${baseAlias}.${sqlId(etabRelation.column)} = :etablissementId`;
@@ -2125,15 +2239,7 @@
       }
 
       function getReachableTables(schema, baseTable) {
-        const direct = getDirectRelations(schema, baseTable);
-        return [
-          baseTable,
-          ...new Set(
-            direct.map((rel) =>
-              rel.table === baseTable ? rel.referencedTable : rel.table,
-            ),
-          ),
-        ].filter(Boolean);
+        return getConnectedTables(schema, baseTable).filter(Boolean);
       }
 
       function ensureClassForTable(fam, schema, tableName) {
@@ -2179,17 +2285,124 @@
       }
 
       function getJoinPlan(schema, baseTable, tableName) {
-        if (tableName === baseTable) return null;
-        const direct = schema.relations.find(
-          (rel) =>
-            (rel.table === tableName && rel.referencedTable === baseTable) ||
-            (rel.table === baseTable && rel.referencedTable === tableName),
-        );
-        return direct || null;
+        if (tableName === baseTable) return [];
+        return getRelationPath(schema, baseTable, tableName);
       }
 
       function sqlId(name) {
         return `\`${String(name || "").replace(/`/g, "``")}\``;
+      }
+
+      function buildEtablissementScopedVarExpr(
+        schema,
+        varDef,
+        outerAlias = "e",
+      ) {
+        const sourceTable = varDef?.sourceTable;
+        if (!sourceTable) return null;
+        const sourceColumns = getColumnsForTable(schema, sourceTable);
+        if (!sourceColumns.length) return null;
+
+        const sourceAlias = "src";
+        const joins = [];
+        let etabMatcher = "";
+
+        if (sourceTable === "etablissement") {
+          etabMatcher = `${sourceAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))} = ${outerAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))}`;
+        } else if (
+          sourceColumns.some((column) => column.name === "etablissement_id")
+        ) {
+          etabMatcher = `${sourceAlias}.${sqlId("etablissement_id")} = ${outerAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))}`;
+        } else {
+          const pathToEtab = getRelationPath(
+            schema,
+            sourceTable,
+            "etablissement",
+          );
+          if (!pathToEtab?.length) {
+            etabMatcher = "1=1";
+          } else {
+            let currentAlias = sourceAlias;
+            let etabAlias = sourceAlias;
+            pathToEtab.forEach((step, index) => {
+              const nextAlias = `etj${index + 1}`;
+              joins.push(
+                `LEFT JOIN ${sqlId(step.toTable)} ${nextAlias} ON ${buildRelationCondition(step, currentAlias, nextAlias)}`,
+              );
+              currentAlias = nextAlias;
+              etabAlias = nextAlias;
+            });
+            etabMatcher = `${etabAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))} = ${outerAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))}`;
+          }
+        }
+
+        if (varDef.type === "list-object") {
+          const sourceCols = varDef.sourceColumns || [];
+          if (
+            !sourceCols.length ||
+            sourceCols.some(
+              (col) =>
+                !sourceColumns.some((tableCol) => tableCol.name === col.column),
+            )
+          ) {
+            return null;
+          }
+          const objectArgs = sourceCols.flatMap((col) => [
+            `'${col.key}'`,
+            `${sourceAlias}.${sqlId(col.column)}`,
+          ]);
+          return `(
+  SELECT JSON_ARRAYAGG(JSON_OBJECT(${objectArgs.join(", ")}))
+  FROM ${sqlId(sourceTable)} ${sourceAlias}
+  ${joins.join("\n  ")}
+  WHERE ${etabMatcher}
+)`;
+        }
+
+        if (
+          !sourceColumns.some((column) => column.name === varDef.sourceColumn)
+        ) {
+          return null;
+        }
+
+        if (varDef.type === "list") {
+          return `(
+  SELECT JSON_ARRAYAGG(${sourceAlias}.${sqlId(varDef.sourceColumn)})
+  FROM ${sqlId(sourceTable)} ${sourceAlias}
+  ${joins.join("\n  ")}
+  WHERE ${etabMatcher}
+)`;
+        }
+
+        return `(
+  SELECT MAX(${sourceAlias}.${sqlId(varDef.sourceColumn)})
+  FROM ${sqlId(sourceTable)} ${sourceAlias}
+  ${joins.join("\n  ")}
+  WHERE ${etabMatcher}
+)`;
+      }
+
+      function buildEtablissementFamilySql(fam) {
+        const vars = (fam.classes || [])
+          .flatMap((c) => c.vars || [])
+          .filter((v) => v.sourceTable);
+        const exprs = vars
+          .map((v) => {
+            const expr = buildEtablissementScopedVarExpr(
+              schemaMetaCache,
+              v,
+              "e",
+            );
+            return expr ? `  ${expr} AS ${sqlId(v.tech)}` : null;
+          })
+          .filter(Boolean);
+        if (!exprs.length) return fam.sql || "";
+        return [
+          "SELECT",
+          exprs.join(",\n"),
+          `FROM ${sqlId("etablissement")} e`,
+          `WHERE e.${sqlId(getPrimaryColumn(schemaMetaCache, "etablissement"))} = :etablissementId`,
+        ].join("\n");
       }
 
       function getValidGeneratedVars(schema, baseTable, vars) {
@@ -2217,6 +2430,9 @@
       function buildSqlFromFamily(famId) {
         const fam = DB.getFamily(famId);
         if (!fam || !schemaMetaCache) return fam?.sql || "";
+        if (fam.beneficiaryMode === "etablissement") {
+          return buildEtablissementFamilySql(fam);
+        }
 
         const builder = getBuilderState(famId, fam, schemaMetaCache);
         const allGeneratedVars = (fam.classes || [])
@@ -2239,19 +2455,30 @@
         [...new Set(generatedVars.map((v) => v.sourceTable))]
           .filter((table) => table !== baseTable)
           .forEach((table) => {
-            const rel = getJoinPlan(schemaMetaCache, baseTable, table);
-            if (!rel) return;
-            const alias = `j${aliasIndex++}`;
-            aliasByTable[table] = alias;
-            if (rel.table === table) {
-              joins.push(
-                `LEFT JOIN ${sqlId(table)} ${alias} ON ${alias}.${sqlId(rel.column)} = ${baseAlias}.${sqlId(rel.referencedColumn)}`,
-              );
-            } else {
-              joins.push(
-                `LEFT JOIN ${sqlId(table)} ${alias} ON ${baseAlias}.${sqlId(rel.column)} = ${alias}.${sqlId(rel.referencedColumn)}`,
-              );
-            }
+            const relPath = getJoinPlan(schemaMetaCache, baseTable, table);
+            if (!relPath?.length) return;
+            let currentAlias = baseAlias;
+            let currentTable = baseTable;
+            relPath.forEach((step) => {
+              const nextTable = step.toTable;
+              if (!aliasByTable[nextTable]) {
+                const nextAlias = `j${aliasIndex++}`;
+                aliasByTable[nextTable] = nextAlias;
+                joins.push(
+                  `LEFT JOIN ${sqlId(nextTable)} ${nextAlias} ON ${buildRelationCondition(
+                    {
+                      fromTable: currentTable,
+                      toTable: nextTable,
+                      relation: step.relation,
+                    },
+                    currentAlias,
+                    nextAlias,
+                  )}`,
+                );
+              }
+              currentAlias = aliasByTable[nextTable];
+              currentTable = nextTable;
+            });
           });
 
         const selects = generatedVars.map((v) => {
@@ -2460,11 +2687,13 @@
           const fam = DB.getFamily(famId);
           if (!fam) return;
           const state = getBuilderState(famId, fam, schema);
-          const visibleTables = getReachableTables(schema, state.baseTable).filter(
-            (tableName) =>
-              getFamilyVisibleTables(schema, fam).some(
-                (table) => table.name === tableName,
-              ),
+          const visibleTables = getReachableTables(
+            schema,
+            state.baseTable,
+          ).filter((tableName) =>
+            getFamilyVisibleTables(schema, fam).some(
+              (table) => table.name === tableName,
+            ),
           );
           const baseTableOptions = getFamilyVisibleTables(schema, fam);
           const hiddenTables = getSuperadminHiddenFamilyTables();
@@ -2995,5 +3224,3 @@
     </script>
   </body>
 </html>
-
-
