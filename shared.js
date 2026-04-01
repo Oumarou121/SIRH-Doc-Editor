@@ -1480,6 +1480,32 @@ function toCssUrlValue(value) {
   return `url("${raw.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}")`;
 }
 
+function mmToPx(mm) {
+  const n = Number(mm);
+  return ((Number.isFinite(n) ? n : 0) * 96) / 25.4;
+}
+
+function getPageHeightPxForOrientation(orientation) {
+  return mmToPx(orientation === "landscape" ? 210 : 297);
+}
+
+function computeEditorPageUsableHeightPx(opts = {}) {
+  const orientation =
+    opts.orientation === "landscape" ? "landscape" : "portrait";
+  const toNum = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  };
+  return Math.max(
+    1,
+    getPageHeightPxForOrientation(orientation) -
+      toNum(opts.paddingTopPx) -
+      toNum(opts.paddingBottomPx) -
+      toNum(opts.headerHeightPx) -
+      toNum(opts.footerHeightPx),
+  );
+}
+
 function applyPageOrientationToUI(orientation) {
   const o = orientation === "landscape" ? "landscape" : "portrait";
   const pageW = o === "landscape" ? "297mm" : "210mm";
@@ -2863,14 +2889,13 @@ class EditorPageVisualizer {
     const padBottom = parseFloat(style.paddingBottom) || 0;
 
     // Hauteur utile disponible par page (en px)
-    const pageUsable = Math.max(
-      1,
-      this._pageH -
-        this._mmPx(this._mt) -
-        this._mmPx(this._mb) -
-        this._headerH -
-        this._footerH,
-    );
+    const pageUsable = computeEditorPageUsableHeightPx({
+      orientation: this._orientation,
+      paddingTopPx: padTop,
+      paddingBottomPx: padBottom,
+      headerHeightPx: this._headerH,
+      footerHeightPx: this._footerH,
+    });
 
     // Hauteur réelle du contenu
     const pm = secBody.querySelector(".ProseMirror");
@@ -2947,3 +2972,4 @@ class EditorPageVisualizer {
 
 // Exposer globalement
 window.EditorPageVisualizer = EditorPageVisualizer;
+window.computeEditorPageUsableHeightPx = computeEditorPageUsableHeightPx;

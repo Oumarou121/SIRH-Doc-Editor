@@ -4940,11 +4940,50 @@
         const styles = getComputedStyle(secBody);
         const padTop = parseFloat(styles.paddingTop) || 0;
         const padBottom = parseFloat(styles.paddingBottom) || 0;
-        const pageHeight = Math.max(
-          1,
-          secBody.clientHeight - padTop - padBottom,
-        );
+        const secHeader = document.getElementById("sec-header");
+        const secFooter = document.getElementById("sec-footer");
+        const headerHeight =
+          headerEnabled && secHeader ? secHeader.offsetHeight : 0;
+        const footerHeight =
+          footerEnabled && secFooter ? secFooter.offsetHeight : 0;
+        const pageHeight =
+          typeof window.computeEditorPageUsableHeightPx === "function"
+            ? window.computeEditorPageUsableHeightPx({
+                orientation: getCurrentPageOrientation(),
+                paddingTopPx: padTop,
+                paddingBottomPx: padBottom,
+                headerHeightPx: headerHeight,
+                footerHeightPx: footerHeight,
+              })
+            : Math.max(1, secBody.clientHeight - padTop - padBottom);
         return { secBody, padTop, padBottom, pageHeight };
+      }
+
+      function rebuildEditorPageVisualizer() {
+        const secBody = document.getElementById("sec-body");
+        if (!secBody || typeof EditorPageVisualizer !== "function") return;
+        const margins = getCurrentPageMargins();
+        const secHeader = document.getElementById("sec-header");
+        const secFooter = document.getElementById("sec-footer");
+        const headerHeight =
+          headerEnabled && secHeader ? secHeader.offsetHeight : 0;
+        const footerHeight =
+          footerEnabled && secFooter ? secFooter.offsetHeight : 0;
+
+        if (window.pageVisualizer) {
+          try {
+            window.pageVisualizer.destroy();
+          } catch (_) {}
+        }
+
+        window.pageVisualizer = new EditorPageVisualizer({
+          marginTop: margins.mt,
+          marginBottom: margins.mb,
+          marginLeft: margins.ml,
+          marginRight: margins.mr,
+          orientation: getCurrentPageOrientation(),
+        });
+        window.pageVisualizer.init("#sec-body", headerHeight, footerHeight);
       }
 
       function ensureEditorPageGuides() {
@@ -5021,16 +5060,7 @@
         const currentPage = getCurrentBodyPage(totalPages);
 
         guides.innerHTML = "";
-        guides.style.height = `${contentHeight}px`;
-
-        for (let page = 2; page <= totalPages; page++) {
-          const line = document.createElement("div");
-          line.className =
-            "editor-page-line" + (page === currentPage ? " active" : "");
-          line.style.top = `${(page - 1) * pageHeight}px`;
-          line.dataset.label = `Page ${page}`;
-          guides.appendChild(line);
-        }
+        guides.style.height = "0px";
 
         secBody.dataset.pageCount = String(totalPages);
         updatePageLiveBadge(currentPage, totalPages);
@@ -5902,6 +5932,10 @@
         applyDocumentThemeToRoot(tpl);
         applyPageMarginsToUI(tpl.pageMargins);
         applyPageOrientationToUI(tpl.orientation);
+        setTimeout(() => {
+          rebuildEditorPageVisualizer();
+          scheduleEditorPaginationRefresh();
+        }, 50);
         return tpl;
       }
 
@@ -6239,35 +6273,9 @@
         updateWordCount();
         bindEditorPaginationVisuals();
 
-        // ── Initialiser la visualisation des pages multiples ──
-        if (!window.pageVisualizer) {
-          window.pageVisualizer = new EditorPageVisualizer({
-            marginTop: resolvedMargins.mt,
-            marginBottom: resolvedMargins.mb,
-            marginLeft: resolvedMargins.ml,
-            marginRight: resolvedMargins.mr,
-          });
-        } else {
-          window.pageVisualizer.destroy();
-          window.pageVisualizer = new EditorPageVisualizer({
-            marginTop: resolvedMargins.mt,
-            marginBottom: resolvedMargins.mb,
-            marginLeft: resolvedMargins.ml,
-            marginRight: resolvedMargins.mr,
-          });
-        }
-
         // Initialiser après 100ms
         setTimeout(() => {
-          if (window.pageVisualizer) {
-            const secHeader = document.querySelector("#sec-header");
-            const secFooter = document.querySelector("#sec-footer");
-            const headerH =
-              headerEnabled && secHeader ? secHeader.offsetHeight : 0;
-            const footerH =
-              footerEnabled && secFooter ? secFooter.offsetHeight : 0;
-            window.pageVisualizer.init("#sec-body", headerH, footerH);
-          }
+          rebuildEditorPageVisualizer();
           scheduleEditorPaginationRefresh();
           [editorBody, editorHeader, editorFooter].forEach((ed) => {
             if (ed) activateImageResizers(ed);
@@ -6395,16 +6403,7 @@
 
         // Recalculer les délimiteurs des pages
         setTimeout(() => {
-          if (window.pageVisualizer) {
-            const secHeader = document.querySelector("#sec-header");
-            const secFooter = document.querySelector("#sec-footer");
-            const headerH =
-              headerEnabled && secHeader ? secHeader.offsetHeight : 0;
-            const footerH =
-              footerEnabled && secFooter ? secFooter.offsetHeight : 0;
-            window.pageVisualizer.destroy();
-            window.pageVisualizer.init("#sec-body", headerH, footerH);
-          }
+          rebuildEditorPageVisualizer();
           scheduleEditorPaginationRefresh();
         }, 50);
       }
@@ -6480,7 +6479,10 @@
         const orientation = getCurrentPageOrientation();
         applyPageOrientationToUI(orientation);
         closeModal("modalPageSettings");
-        scheduleEditorPaginationRefresh();
+        setTimeout(() => {
+          rebuildEditorPageVisualizer();
+          scheduleEditorPaginationRefresh();
+        }, 50);
         toast(
           `Marges : haut ${margins.mt}mm · bas ${margins.mb}mm · gauche ${margins.ml}mm · droite ${margins.mr}mm · orientation ${orientation}`,
         );
