@@ -5889,6 +5889,22 @@
         return charters;
       }
 
+      function syncTemplateLayoutFromCharter(tpl, charter) {
+        if (!tpl || !charter?.config?.layout) return tpl;
+        const layout = normalizeGraphicCharterConfig(charter.config).layout;
+        tpl.graphicCharterId = charter.id;
+        tpl.pageMargins = normalizeMargins(layout.pageMargins);
+        tpl.orientation = layout.orientation;
+        const orientationSelect = document.getElementById("pg-orientation");
+        if (orientationSelect) {
+          orientationSelect.value = tpl.orientation;
+        }
+        applyDocumentThemeToRoot(tpl);
+        applyPageMarginsToUI(tpl.pageMargins);
+        applyPageOrientationToUI(tpl.orientation);
+        return tpl;
+      }
+
       function readGraphicCharterForm() {
         return {
           name: document.getElementById("gc-name").value.trim(),
@@ -6025,9 +6041,8 @@
         }
         if (curTplId) {
           const tpl = DB.getTemplate(curTplId);
-          tpl.graphicCharterId = saved.id;
+          syncTemplateLayoutFromCharter(tpl, saved);
           DB.saveTemplate(tpl);
-          applyDocumentThemeToRoot(tpl);
         }
         populateGraphicCharterSelect(saved.id);
         renderTplList(curFamId);
@@ -6039,11 +6054,11 @@
       window.onGraphicCharterChange = function () {
         const charterId = getSelectedGraphicCharterId();
         const tpl = curTplId ? DB.getTemplate(curTplId) : null;
-        setGraphicCharterMeta(getGraphicCharter(getActiveEtabId(), charterId));
-        if (!tpl || !charterId) return;
-        tpl.graphicCharterId = charterId;
+        const charter = getGraphicCharter(getActiveEtabId(), charterId);
+        setGraphicCharterMeta(charter);
+        if (!tpl || !charterId || !charter) return;
+        syncTemplateLayoutFromCharter(tpl, charter);
         DB.saveTemplate(tpl);
-        applyDocumentThemeToRoot(tpl);
         renderTplList(curFamId);
         setSaveState("Modifie", true);
       };
@@ -6062,15 +6077,10 @@
           toast("Aucune charte disponible", "error");
           return;
         }
-        tpl.graphicCharterId = charter.id;
-        tpl.pageMargins = normalizeMargins(charter.config.layout.pageMargins);
-        tpl.orientation = charter.config.layout.orientation;
+        syncTemplateLayoutFromCharter(tpl, charter);
         tpl.hasHeader = !!charter.config.header.enabledByDefault;
         tpl.hasFooter = !!charter.config.footer.enabledByDefault;
         DB.saveTemplate(tpl);
-        applyDocumentThemeToRoot(tpl);
-        applyPageMarginsToUI(tpl.pageMargins);
-        applyPageOrientationToUI(tpl.orientation);
         if (editorHeader)
           setEditorHTML(editorHeader, charter.config.header.html);
         if (editorFooter)
