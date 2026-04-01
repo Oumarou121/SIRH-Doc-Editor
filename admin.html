@@ -4828,6 +4828,112 @@
         });
       }
 
+      window.getGraphicCharterBackgroundSource = function () {
+        return (
+          document.getElementById("gc-bg-data")?.value?.trim() ||
+          document.getElementById("gc-bg-url")?.value?.trim() ||
+          ""
+        );
+      };
+
+      window.applyGraphicCharterBackgroundToUI = function (pageBackground) {
+        const bg = normalizePageBackground(pageBackground);
+        const isDataUrl = bg.image.startsWith("data:");
+        const enabled = document.getElementById("gc-bg-enabled");
+        const url = document.getElementById("gc-bg-url");
+        const data = document.getElementById("gc-bg-data");
+        const size = document.getElementById("gc-bg-size");
+        const position = document.getElementById("gc-bg-position");
+        const fileInput = document.getElementById("gc-bg-file");
+        if (!enabled || !url || !data || !size || !position) return bg;
+
+        enabled.checked = !!bg.enabled && !!bg.image;
+        url.value = isDataUrl ? "" : bg.image;
+        data.value = isDataUrl ? bg.image : "";
+        size.value = bg.size;
+        position.value = bg.position;
+        if (fileInput) fileInput.value = "";
+        updateGraphicCharterBackgroundPreview();
+        return bg;
+      };
+
+      window.getGraphicCharterBackgroundFromForm = function () {
+        return normalizePageBackground({
+          enabled: !!document.getElementById("gc-bg-enabled")?.checked,
+          image: getGraphicCharterBackgroundSource(),
+          size: document.getElementById("gc-bg-size")?.value || "cover",
+          position:
+            document.getElementById("gc-bg-position")?.value || "center center",
+          repeat: "no-repeat",
+        });
+      };
+
+      window.updateGraphicCharterBackgroundPreview = function () {
+        const preview = document.getElementById("gc-bg-preview");
+        const status = document.getElementById("gc-bg-status");
+        const enabled = !!document.getElementById("gc-bg-enabled")?.checked;
+        const image = getGraphicCharterBackgroundSource();
+        const bg = getGraphicCharterBackgroundFromForm();
+        if (!preview || !status) return;
+
+        preview.style.backgroundColor = "#fff";
+        preview.style.backgroundImage =
+          enabled && image ? toCssUrlValue(image) : "none";
+        preview.style.backgroundSize = bg.size;
+        preview.style.backgroundPosition = bg.position;
+        preview.style.backgroundRepeat = bg.repeat;
+
+        if (enabled && image) {
+          status.textContent = `${
+            image.startsWith("data:")
+              ? "Fichier local chargé"
+              : "Image distante prête"
+          } • ${bg.size} • ${bg.position}`;
+          return;
+        }
+
+        status.textContent = image
+          ? "Image chargée mais désactivée."
+          : "Aucune image de fond sélectionnée.";
+      };
+
+      window.handleGraphicCharterBackgroundUrlInput = function () {
+        const urlInput = document.getElementById("gc-bg-url");
+        const dataInput = document.getElementById("gc-bg-data");
+        if (dataInput) dataInput.value = "";
+        if (urlInput?.value?.trim()) {
+          document.getElementById("gc-bg-enabled").checked = true;
+        }
+        updateGraphicCharterBackgroundPreview();
+      };
+
+      window.handleGraphicCharterBackgroundFileChange = function (event) {
+        const file = event?.target?.files?.[0];
+        if (!file) {
+          updateGraphicCharterBackgroundPreview();
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          document.getElementById("gc-bg-data").value = String(
+            reader.result || "",
+          );
+          document.getElementById("gc-bg-url").value = "";
+          document.getElementById("gc-bg-enabled").checked = true;
+          updateGraphicCharterBackgroundPreview();
+        };
+        reader.readAsDataURL(file);
+      };
+
+      window.clearGraphicCharterBackground = function () {
+        document.getElementById("gc-bg-enabled").checked = false;
+        document.getElementById("gc-bg-url").value = "";
+        document.getElementById("gc-bg-data").value = "";
+        const fileInput = document.getElementById("gc-bg-file");
+        if (fileInput) fileInput.value = "";
+        updateGraphicCharterBackgroundPreview();
+      };
+
       function getEditorBodyMetrics() {
         const secBody = document.getElementById("sec-body");
         if (!secBody) return null;
@@ -5814,6 +5920,7 @@
                 ml: document.getElementById("gc-margin-left").value,
                 mr: document.getElementById("gc-margin-right").value,
               },
+              pageBackground: getGraphicCharterBackgroundFromForm(),
             },
             header: {
               enabledByDefault:
@@ -5866,6 +5973,7 @@
           config.layout.pageMargins.ml;
         document.getElementById("gc-margin-right").value =
           config.layout.pageMargins.mr;
+        applyGraphicCharterBackgroundToUI(config.layout.pageBackground);
         document.getElementById("gc-header-html").value = config.header.html;
         document.getElementById("gc-footer-html").value = config.footer.html;
         document.getElementById("gc-header-enabled").checked =
