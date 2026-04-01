@@ -50,6 +50,15 @@
         --page-mb: 20mm;
         --page-ml: 25mm;
         --page-mr: 25mm;
+        --doc-font-body: "Times New Roman", Times, serif;
+        --doc-font-heading: "Times New Roman", Times, serif;
+        --doc-color-primary: #1d4ed8;
+        --doc-color-secondary: #475569;
+        --doc-color-text: #111111;
+        --doc-color-heading: #0f172a;
+        --doc-color-border: #c8cdd8;
+        --doc-table-header-bg: #f2f2f2;
+        --doc-table-row-alt-bg: #f8fafc;
       }
       html,
       body {
@@ -578,7 +587,11 @@
       .a4-page {
         width: var(--page-w);
         height: var(--page-h);
-        background: #fff;
+        background-color: #fff;
+        background-image: var(--doc-page-bg-image, none);
+        background-size: var(--doc-page-bg-size, cover);
+        background-position: var(--doc-page-bg-position, center center);
+        background-repeat: var(--doc-page-bg-repeat, no-repeat);
         box-shadow:
           0 2px 12px rgba(0, 0, 0, 0.18),
           0 0 0 1px rgba(0, 0, 0, 0.08);
@@ -590,14 +603,14 @@
       }
       .a4-header {
         padding: 5mm var(--page-mr) 3mm var(--page-ml);
-        border-bottom: 1px dashed #c8cdd8;
+        border-bottom: 1px dashed var(--doc-color-border);
         flex-shrink: 0;
         min-height: 20mm;
         position: relative;
       }
       .a4-footer {
         padding: 3mm var(--page-mr) 5mm var(--page-ml);
-        border-top: 1px dashed #c8cdd8;
+        border-top: 1px dashed var(--doc-color-border);
         flex-shrink: 0;
         min-height: 14mm;
         position: relative;
@@ -645,10 +658,10 @@
 
       /* ── CONTENU DOC ── */
       .doc-content {
-        font-family: "Times New Roman", Times, serif;
+        font-family: var(--doc-font-body);
         font-size: 12pt;
         line-height: 1.6;
-        color: #111;
+        color: var(--doc-color-text);
       }
       .doc-content p {
         margin: 0 0 0.4em;
@@ -657,18 +670,24 @@
         margin-bottom: 0;
       }
       .doc-content h1 {
+        font-family: var(--doc-font-heading);
         font-size: 22pt;
         font-weight: 700;
+        color: var(--doc-color-heading);
         margin: 0.8em 0 0.4em;
       }
       .doc-content h2 {
+        font-family: var(--doc-font-heading);
         font-size: 18pt;
         font-weight: 700;
+        color: var(--doc-color-heading);
         margin: 0.7em 0 0.3em;
       }
       .doc-content h3 {
+        font-family: var(--doc-font-heading);
         font-size: 14pt;
         font-weight: 700;
+        color: var(--doc-color-heading);
         margin: 0.6em 0 0.3em;
       }
       .doc-content ul {
@@ -686,7 +705,7 @@
       }
       .doc-content hr {
         border: none;
-        border-top: 1.5px solid #c8cdd8;
+        border-top: 1.5px solid var(--doc-color-border);
         margin: 10px 0;
       }
       .doc-content table {
@@ -695,14 +714,14 @@
       }
       .doc-content td,
       .doc-content th {
-        border: 1px solid #c8cdd8;
+        border: 1px solid var(--doc-color-border);
         padding: 7px 10px;
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
       }
       .doc-content th:not([style]) {
-        background: #f2f2f2;
-        color: #111;
+        background: var(--doc-table-header-bg);
+        color: var(--doc-color-text);
         font-weight: 700;
         text-align: left;
       }
@@ -1240,7 +1259,8 @@
         const wait = document.getElementById("docWait");
         const canvas = document.getElementById("a4Canvas");
         const scaler = document.getElementById("zoomScaler");
-        const margins = tpl.pageMargins || { mt: 20, mb: 20, ml: 25, mr: 25 };
+        applyDocumentThemeToRoot(tpl);
+        const margins = getTemplatePageMargins(tpl);
         wait.style.display = "none";
         canvas.style.display = "flex";
         scaler.innerHTML = "";

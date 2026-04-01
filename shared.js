@@ -18,6 +18,7 @@ const API_BASE = (() => {
 const API_ROOT = `${API_BASE}/api`;
 
 function cloneData(data) {
+  if (data === undefined) return undefined;
   return JSON.parse(JSON.stringify(data));
 }
 
@@ -25,11 +26,15 @@ function normalizeState(state) {
   const next = state && typeof state === "object" ? state : {};
   return {
     etablissements: Array.isArray(next.etablissements)
-      ? cloneData(next.etablissements)
+      ? next.etablissements.map((etab) =>
+          normalizeEtablissementRecord(cloneData(etab)),
+        )
       : [],
     admins: Array.isArray(next.admins) ? cloneData(next.admins) : [],
     families: Array.isArray(next.families) ? cloneData(next.families) : [],
-    templates: Array.isArray(next.templates) ? cloneData(next.templates) : [],
+    templates: Array.isArray(next.templates)
+      ? next.templates.map((tpl) => normalizeTemplateRecord(cloneData(tpl)))
+      : [],
     personnel: Array.isArray(next.personnel) ? cloneData(next.personnel) : [],
   };
 }
@@ -237,6 +242,484 @@ const DB = {
   },
 };
 
+const DEFAULT_GRAPHIC_CHARTER = Object.freeze({
+  identity: {
+    officialName: "",
+    directorName: "",
+    slogan: "",
+    logoText: "",
+  },
+  colors: {
+    primary: "#1d4ed8",
+    secondary: "#475569",
+    text: "#111111",
+    heading: "#0f172a",
+    border: "#c8cdd8",
+    tableHeaderBg: "#f2f2f2",
+    tableAltRowBg: "#f8fafc",
+  },
+  typography: {
+    bodyFont: '"Times New Roman", Times, serif',
+    headingFont: '"Times New Roman", Times, serif',
+  },
+  layout: {
+    orientation: "portrait",
+    pageMargins: { mt: 20, mb: 20, ml: 25, mr: 25 },
+    pageBackground: {
+      enabled: false,
+      image: "",
+      size: "cover",
+      position: "center center",
+      repeat: "no-repeat",
+    },
+  },
+  header: {
+    enabledByDefault: true,
+    html: '<p style="text-align:center"><strong>{{nom_etab}}</strong></p><p style="text-align:center;font-size:10pt;color:var(--doc-color-secondary)">{{adresse_etab}} — Tél : {{tel_etab}}</p>',
+  },
+  footer: {
+    enabledByDefault: true,
+    html: '<p style="text-align:center;font-size:9pt;color:var(--doc-color-secondary)">Document officiel — {{nom_etab}} — Année {{annee_univ}}</p>',
+  },
+  watermark: {
+    enabled: false,
+    text: "",
+    color: "#94a3b8",
+    opacity: 0.08,
+  },
+});
+
+function normalizeLegacyGraphicCharter(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.graphicCharters)) return raw.graphicCharters;
+  if (Array.isArray(raw?.charters)) return raw.charters;
+  if (
+    isPlainObject(raw) &&
+    ["identity", "colors", "typography", "layout", "header", "footer"].some(
+      (key) => key in raw,
+    )
+  ) {
+    return [
+      {
+        id: "charter_legacy",
+        name: "Charte importee",
+        description: "Charte reprise depuis l'ancien format",
+        config: raw,
+        isDefault: true,
+      },
+    ];
+  }
+  return [];
+}
+
+function normalizeGraphicCharterEntry(entry = {}, index = 0) {
+  const configSource =
+    entry && typeof entry === "object" && "config" in entry
+      ? entry.config
+      : entry;
+  return {
+    id: String(entry?.id || genId("charter")),
+    name:
+      String(entry?.name || entry?.nom || "").trim() || `Charte ${index + 1}`,
+    description: String(entry?.description || "").trim(),
+    isDefault: !!entry?.isDefault,
+    createdAt: entry?.createdAt || null,
+    updatedAt: entry?.updatedAt || null,
+    config: normalizeGraphicCharterConfig(configSource || {}),
+  };
+}
+
+function normalizeGraphicCharterCollection(raw) {
+  const list = normalizeLegacyGraphicCharter(raw).map((entry, index) =>
+    normalizeGraphicCharterEntry(entry, index),
+  );
+  if (!list.length) return [];
+  const preferred =
+    list.find((entry) => entry.isDefault)?.id || list[0]?.id || null;
+  list.forEach((entry) => {
+    entry.isDefault = entry.id === preferred;
+  });
+  return list;
+}
+
+function normalizeEtablissementRecord(record = {}) {
+  const next = cloneData(record || {}) || {};
+  next.graphicCharters = normalizeGraphicCharterCollection(
+    next.graphicCharters ?? next.graphicCharter,
+  );
+  delete next.graphicCharter;
+  return next;
+}
+
+function normalizeTemplateRecord(record = {}) {
+  const next = cloneData(record || {}) || {};
+  next.graphicCharterId = next.graphicCharterId
+    ? String(next.graphicCharterId)
+    : null;
+  return next;
+}
+
+function isPlainObject(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function deepMerge(base, extra) {
+  if (!isPlainObject(base)) return cloneData(extra);
+  const out = cloneData(base);
+  Object.entries(extra || {}).forEach(([key, value]) => {
+    if (isPlainObject(value) && isPlainObject(out[key])) {
+      out[key] = deepMerge(out[key], value);
+      return;
+    }
+    out[key] = cloneData(value);
+  });
+  return out;
+}
+
+function normalizeMargins(src, fallback) {
+  const base = fallback || DEFAULT_GRAPHIC_CHARTER.layout.pageMargins;
+  const toNum = (value, def) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : def;
+  };
+  return {
+    mt: toNum(src?.mt, base.mt),
+    mb: toNum(src?.mb, base.mb),
+    ml: toNum(src?.ml, base.ml),
+    mr: toNum(src?.mr, base.mr),
+  };
+}
+
+function normalizePageBackground(src) {
+  const enabled = !!src?.enabled && !!String(src?.image || "").trim();
+  const size = String(src?.size || "cover").toLowerCase();
+  const position = String(src?.position || "center center").toLowerCase();
+  const repeat = String(src?.repeat || "no-repeat").toLowerCase();
+  return {
+    enabled,
+    image: enabled ? String(src?.image || "").trim() : "",
+    size: ["cover", "contain", "100% 100%"].includes(size) ? size : "cover",
+    position: [
+      "center center",
+      "top center",
+      "bottom center",
+      "center left",
+      "center right",
+    ].includes(position)
+      ? position
+      : "center center",
+    repeat: ["no-repeat", "repeat", "repeat-x", "repeat-y"].includes(repeat)
+      ? repeat
+      : "no-repeat",
+  };
+}
+
+function normalizeGraphicCharterConfig(config = {}) {
+  const merged = deepMerge(DEFAULT_GRAPHIC_CHARTER, config || {});
+  merged.identity = {
+    officialName: String(merged.identity?.officialName || "").trim(),
+    directorName: String(merged.identity?.directorName || "").trim(),
+    slogan: String(merged.identity?.slogan || "").trim(),
+    logoText: String(merged.identity?.logoText || "").trim(),
+  };
+  merged.colors = {
+    primary: merged.colors?.primary || DEFAULT_GRAPHIC_CHARTER.colors.primary,
+    secondary:
+      merged.colors?.secondary || DEFAULT_GRAPHIC_CHARTER.colors.secondary,
+    text: merged.colors?.text || DEFAULT_GRAPHIC_CHARTER.colors.text,
+    heading: merged.colors?.heading || DEFAULT_GRAPHIC_CHARTER.colors.heading,
+    border: merged.colors?.border || DEFAULT_GRAPHIC_CHARTER.colors.border,
+    tableHeaderBg:
+      merged.colors?.tableHeaderBg ||
+      DEFAULT_GRAPHIC_CHARTER.colors.tableHeaderBg,
+    tableAltRowBg:
+      merged.colors?.tableAltRowBg ||
+      DEFAULT_GRAPHIC_CHARTER.colors.tableAltRowBg,
+  };
+  merged.typography = {
+    bodyFont:
+      merged.typography?.bodyFont ||
+      DEFAULT_GRAPHIC_CHARTER.typography.bodyFont,
+    headingFont:
+      merged.typography?.headingFont ||
+      DEFAULT_GRAPHIC_CHARTER.typography.headingFont,
+  };
+  merged.layout = {
+    orientation:
+      String(merged.layout?.orientation || "portrait").toLowerCase() ===
+      "landscape"
+        ? "landscape"
+        : "portrait",
+    pageMargins: normalizeMargins(merged.layout?.pageMargins),
+    pageBackground: normalizePageBackground(merged.layout?.pageBackground),
+  };
+  merged.header = {
+    enabledByDefault:
+      merged.header?.enabledByDefault !== false &&
+      DEFAULT_GRAPHIC_CHARTER.header.enabledByDefault,
+    html: String(merged.header?.html || DEFAULT_GRAPHIC_CHARTER.header.html),
+  };
+  merged.footer = {
+    enabledByDefault:
+      merged.footer?.enabledByDefault !== false &&
+      DEFAULT_GRAPHIC_CHARTER.footer.enabledByDefault,
+    html: String(merged.footer?.html || DEFAULT_GRAPHIC_CHARTER.footer.html),
+  };
+  merged.watermark = {
+    enabled: !!merged.watermark?.enabled,
+    text: String(merged.watermark?.text || ""),
+    color: merged.watermark?.color || DEFAULT_GRAPHIC_CHARTER.watermark.color,
+    opacity: Number.isFinite(Number(merged.watermark?.opacity))
+      ? Number(merged.watermark.opacity)
+      : DEFAULT_GRAPHIC_CHARTER.watermark.opacity,
+  };
+  return merged;
+}
+
+function getGraphicCharters(etablissementId) {
+  const etab = etablissementId ? DB.getEtablissement(etablissementId) : null;
+  return normalizeGraphicCharterCollection(etab?.graphicCharters || []);
+}
+
+function getGraphicCharter(etablissementId, charterId = null) {
+  const charters = getGraphicCharters(etablissementId);
+  if (!charters.length) return null;
+  if (charterId) {
+    const match = charters.find((item) => item.id === String(charterId));
+    if (match) return match;
+  }
+  return charters.find((item) => item.isDefault) || charters[0] || null;
+}
+
+function getDefaultGraphicCharterId(etablissementId) {
+  return getGraphicCharter(etablissementId)?.id || null;
+}
+
+function ensureEtablissementGraphicCharters(etablissementId) {
+  const etab = etablissementId ? DB.getEtablissement(etablissementId) : null;
+  if (!etab) return [];
+  const current = getGraphicCharters(etablissementId);
+  if (current.length) return current;
+  const created = [
+    normalizeGraphicCharterEntry(
+      {
+        id: genId("charter"),
+        name: "Charte standard",
+        description: "Charte par defaut de l'etablissement",
+        isDefault: true,
+        config: {},
+      },
+      0,
+    ),
+  ];
+  DB.saveEtablissement({
+    ...etab,
+    graphicCharters: created,
+    updatedAt: new Date().toISOString(),
+  });
+  return created;
+}
+
+function saveGraphicCharter(etablissementId, charter) {
+  const etab = etablissementId ? DB.getEtablissement(etablissementId) : null;
+  if (!etab) return null;
+  const current = getGraphicCharters(etablissementId);
+  const normalized = normalizeGraphicCharterEntry(
+    {
+      ...charter,
+      id: charter?.id || genId("charter"),
+      updatedAt: new Date().toISOString(),
+      createdAt: charter?.createdAt || new Date().toISOString(),
+    },
+    current.length,
+  );
+  let next = current.filter((item) => item.id !== normalized.id);
+  next.push(normalized);
+  if (normalized.isDefault || !next.some((item) => item.isDefault)) {
+    next = next.map((item) => ({
+      ...item,
+      isDefault: item.id === normalized.id,
+    }));
+  }
+  DB.saveEtablissement({
+    ...etab,
+    graphicCharters: next,
+    updatedAt: new Date().toISOString(),
+  });
+  return normalized;
+}
+
+function deleteGraphicCharter(etablissementId, charterId) {
+  const etab = etablissementId ? DB.getEtablissement(etablissementId) : null;
+  if (!etab) return null;
+  const current = getGraphicCharters(etablissementId);
+  const removed = current.find((item) => item.id === String(charterId));
+  if (!removed) return null;
+  let next = current.filter((item) => item.id !== String(charterId));
+  if (next.length && !next.some((item) => item.isDefault)) {
+    next = next.map((item, index) => ({
+      ...item,
+      isDefault: index === 0,
+    }));
+  }
+  const fallbackId =
+    next.find((item) => item.isDefault)?.id || next[0]?.id || null;
+  const state = DB.get();
+  state.etablissements = state.etablissements.map((item) =>
+    item.id === etablissementId
+      ? {
+          ...item,
+          graphicCharters: next,
+          updatedAt: new Date().toISOString(),
+        }
+      : item,
+  );
+  state.templates = state.templates.map((tpl) =>
+    tpl.etablissementId === etablissementId &&
+    tpl.graphicCharterId === String(charterId)
+      ? { ...tpl, graphicCharterId: fallbackId }
+      : tpl,
+  );
+  DB.save(state);
+  return removed;
+}
+
+function setDefaultGraphicCharter(etablissementId, charterId) {
+  const etab = etablissementId ? DB.getEtablissement(etablissementId) : null;
+  if (!etab) return null;
+  const current = getGraphicCharters(etablissementId);
+  if (!current.some((item) => item.id === String(charterId))) return null;
+  const next = current.map((item) => ({
+    ...item,
+    isDefault: item.id === String(charterId),
+    updatedAt:
+      item.id === String(charterId) ? new Date().toISOString() : item.updatedAt,
+  }));
+  DB.saveEtablissement({
+    ...etab,
+    graphicCharters: next,
+    updatedAt: new Date().toISOString(),
+  });
+  return getGraphicCharter(etablissementId, charterId);
+}
+
+function getEtablissementGraphicCharter(etablissementId, charterId = null) {
+  return getGraphicCharter(etablissementId, charterId)?.config
+    ? normalizeGraphicCharterConfig(
+        getGraphicCharter(etablissementId, charterId).config,
+      )
+    : normalizeGraphicCharterConfig({});
+}
+
+function getTemplateGraphicCharterRecord(tpl) {
+  if (!tpl?.etablissementId) return null;
+  const resolvedId =
+    tpl.graphicCharterId || getDefaultGraphicCharterId(tpl.etablissementId);
+  return getGraphicCharter(tpl.etablissementId, resolvedId);
+}
+
+function getTemplateGraphicCharter(tpl) {
+  const record = getTemplateGraphicCharterRecord(tpl);
+  return record?.config
+    ? normalizeGraphicCharterConfig(record.config)
+    : normalizeGraphicCharterConfig({});
+}
+
+function getAcademicYearLabel(date = new Date()) {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  return month >= 9 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+}
+
+function buildDocumentContext(tpl, person) {
+  const base = person ? cloneData(person) : {};
+  const etab = tpl?.etablissementId
+    ? DB.getEtablissement(tpl.etablissementId)
+    : null;
+  const charter = getTemplateGraphicCharter(tpl);
+  const officialName =
+    charter.identity.officialName || etab?.nom || base.nom_etab || "";
+
+  return {
+    ...base,
+    nom_etab: officialName,
+    adresse_etab: etab?.adresse || base.adresse_etab || "",
+    tel_etab: etab?.tel || base.tel_etab || "",
+    ville_etab: etab?.ville || base.ville_etab || "",
+    directeur: charter.identity.directorName || base.directeur || "",
+    slogan_etab: charter.identity.slogan || base.slogan_etab || "",
+    logo_etab: charter.identity.logoText || base.logo_etab || "",
+    annee_univ: base.annee_univ || getAcademicYearLabel(),
+  };
+}
+
+function getDocumentThemeVars(tpl) {
+  const charter = getTemplateGraphicCharter(tpl);
+  const pageBackground = getTemplatePageBackground(tpl);
+  return {
+    "--doc-font-body": charter.typography.bodyFont,
+    "--doc-font-heading": charter.typography.headingFont,
+    "--doc-color-primary": charter.colors.primary,
+    "--doc-color-secondary": charter.colors.secondary,
+    "--doc-color-text": charter.colors.text,
+    "--doc-color-heading": charter.colors.heading,
+    "--doc-color-border": charter.colors.border,
+    "--doc-table-header-bg": charter.colors.tableHeaderBg,
+    "--doc-table-row-alt-bg": charter.colors.tableAltRowBg,
+    "--doc-watermark-color": charter.watermark.color,
+    "--doc-watermark-opacity": String(charter.watermark.opacity),
+    "--doc-page-bg-image":
+      pageBackground.enabled && pageBackground.image
+        ? toCssUrlValue(pageBackground.image)
+        : "none",
+    "--doc-page-bg-size": pageBackground.size,
+    "--doc-page-bg-position": pageBackground.position,
+    "--doc-page-bg-repeat": pageBackground.repeat,
+  };
+}
+
+function applyDocumentThemeToRoot(tpl, target = document.documentElement) {
+  const vars = getDocumentThemeVars(tpl);
+  Object.entries(vars).forEach(([key, value]) => {
+    target.style.setProperty(key, value);
+  });
+  return vars;
+}
+
+function getDocumentThemeStyleAttr(tpl) {
+  return Object.entries(getDocumentThemeVars(tpl))
+    .map(([key, value]) => `${key}:${value}`)
+    .join(";");
+}
+
+function createTemplateFromGraphicCharter(
+  etablissementId,
+  familyId,
+  name,
+  graphicCharterId = null,
+) {
+  const charterRecord = getGraphicCharter(etablissementId, graphicCharterId);
+  const charter = charterRecord?.config
+    ? normalizeGraphicCharterConfig(charterRecord.config)
+    : normalizeGraphicCharterConfig({});
+  return {
+    id: genId("tpl"),
+    familyId,
+    etablissementId,
+    graphicCharterId: charterRecord?.id || null,
+    nom: name || "Nouveau template",
+    updatedAt: new Date().toISOString(),
+    hasHeader: !!charter.header.enabledByDefault,
+    hasFooter: !!charter.footer.enabledByDefault,
+    orientation: charter.layout.orientation,
+    pageMargins: normalizeMargins(charter.layout.pageMargins),
+    header: charter.header.html || "",
+    body: "<p>Rédigez le contenu du document ici.</p>",
+    footer: charter.footer.html || "",
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  MOTEUR DE RÉSOLUTION DES VARIABLES
 //
@@ -274,8 +757,8 @@ function _buildObjectTable(
       : Object.keys(items[0]).map((k) => ({ key: k, label: k }));
 
   // ── Styles par défaut : texte NOIR GRAS pour les en-têtes ────
-  const defaultThStyle = `font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px;text-align:left`;
-  const defaultTdStyle = `color:#111;border:1px solid #c8cdd8;padding:6px 10px`;
+  const defaultThStyle = `font-weight:700;color:var(--doc-color-text, #111);background:var(--doc-table-header-bg, #f2f2f2);border:1px solid var(--doc-color-border, #c8cdd8);padding:6px 10px;text-align:left`;
+  const defaultTdStyle = `color:var(--doc-color-text, #111);border:1px solid var(--doc-color-border, #c8cdd8);padding:6px 10px`;
 
   const thBase = customThStyle || defaultThStyle;
   const tdBase = customTdStyle || defaultTdStyle;
@@ -292,7 +775,10 @@ function _buildObjectTable(
 
   const rows = items.map((obj, ri) => {
     // Légère alternance de fond pour la lisibilité
-    const rowBg = ri % 2 === 1 ? `background:#f9f9f9` : `background:#fff`;
+    const rowBg =
+      ri % 2 === 1
+        ? `background:var(--doc-table-row-alt-bg, #f8fafc)`
+        : `background:#fff`;
     const cells = cols.map((c) => {
       const raw = obj[c.key] !== undefined ? String(obj[c.key]) : "";
       const alignExtra = c.align ? `;text-align:${c.align}` : "";
@@ -649,25 +1135,32 @@ function resolveVarsRaw(html, person) {
 }
 
 function getTemplatePageMargins(tpl) {
-  const src = tpl?.pageMargins || {};
-  const toNum = (value, fallback) => {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : fallback;
-  };
-
-  return {
-    mt: toNum(src.mt, 20),
-    mb: toNum(src.mb, 20),
-    ml: toNum(src.ml, 25),
-    mr: toNum(src.mr, 25),
-  };
+  const charter = getTemplateGraphicCharter(tpl);
+  return normalizeMargins(tpl?.pageMargins, charter.layout.pageMargins);
 }
 
 function getTemplateOrientation(tpl) {
-  const o = (tpl?.orientation || tpl?.pageOrientation || "portrait")
+  const charter = getTemplateGraphicCharter(tpl);
+  const o = (
+    tpl?.orientation ||
+    tpl?.pageOrientation ||
+    charter.layout.orientation ||
+    "portrait"
+  )
     .toString()
     .toLowerCase();
   return o === "landscape" ? "landscape" : "portrait";
+}
+
+function getTemplatePageBackground(tpl) {
+  const record = getTemplateGraphicCharterRecord(tpl);
+  return normalizePageBackground(record?.config?.layout?.pageBackground);
+}
+
+function toCssUrlValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "none";
+  return `url("${raw.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}")`;
 }
 
 function applyPageOrientationToUI(orientation) {
@@ -823,7 +1316,12 @@ const PRINT_PAGE_CSS = `
 body  { margin: 0; background: #fff; }
 .a4-page {
   width: 210mm; min-height: 297mm;
-  background: #fff; margin: 0 auto;
+  background-color: #fff;
+  background-image: var(--doc-page-bg-image, none);
+  background-size: var(--doc-page-bg-size, cover);
+  background-position: var(--doc-page-bg-position, center center);
+  background-repeat: var(--doc-page-bg-repeat, no-repeat);
+  margin: 0 auto;
   display: flex; flex-direction: column;
   page-break-after: always; break-after: page;
 }
@@ -914,6 +1412,8 @@ function closeModal(id) {
  */
 class PagePaginator {
   constructor(opts = {}) {
+    this.theme = normalizeGraphicCharterConfig(opts.theme || {});
+
     // Orientation A4
     this.orientation =
       opts.orientation === "landscape" ? "landscape" : "portrait";
@@ -945,10 +1445,10 @@ class PagePaginator {
 
   _applyMeasureStyles(el) {
     if (!el) return;
-    el.style.fontFamily = '"Times New Roman", Times, serif';
+    el.style.fontFamily = this.theme.typography.bodyFont;
     el.style.fontSize = "12pt";
     el.style.lineHeight = "1.6";
-    el.style.color = "#111";
+    el.style.color = this.theme.colors.text;
   }
 
   _applyMeasureContentStyles(root) {
@@ -968,21 +1468,29 @@ class PagePaginator {
     if (lastParagraph) lastParagraph.style.marginBottom = "0";
 
     root.querySelectorAll("h1").forEach((el) => {
+      el.style.fontFamily = this.theme.typography.headingFont;
+      el.style.color = this.theme.colors.heading;
       el.style.fontSize = "22pt";
       el.style.fontWeight = "700";
       el.style.margin = "0.8em 0 0.4em";
     });
     root.querySelectorAll("h2").forEach((el) => {
+      el.style.fontFamily = this.theme.typography.headingFont;
+      el.style.color = this.theme.colors.heading;
       el.style.fontSize = "18pt";
       el.style.fontWeight = "700";
       el.style.margin = "0.7em 0 0.3em";
     });
     root.querySelectorAll("h3").forEach((el) => {
+      el.style.fontFamily = this.theme.typography.headingFont;
+      el.style.color = this.theme.colors.heading;
       el.style.fontSize = "14pt";
       el.style.fontWeight = "700";
       el.style.margin = "0.6em 0 0.3em";
     });
     root.querySelectorAll("h4").forEach((el) => {
+      el.style.fontFamily = this.theme.typography.headingFont;
+      el.style.color = this.theme.colors.heading;
       el.style.fontSize = "12pt";
       el.style.fontWeight = "700";
       el.style.margin = "0.5em 0 0.2em";
@@ -1008,19 +1516,19 @@ class PagePaginator {
       el.style.margin = "6px 0";
     });
     root.querySelectorAll("td, th").forEach((el) => {
-      el.style.border = "1px solid #c8cdd8";
+      el.style.border = `1px solid ${this.theme.colors.border}`;
       el.style.padding = "6px 10px";
     });
     root.querySelectorAll("th:not([style])").forEach((el) => {
-      el.style.background = "#f2f2f2";
-      el.style.color = "#111";
+      el.style.background = this.theme.colors.tableHeaderBg;
+      el.style.color = this.theme.colors.text;
       el.style.fontWeight = "700";
       el.style.textAlign = "left";
     });
 
     root.querySelectorAll("hr").forEach((el) => {
       el.style.border = "none";
-      el.style.borderTop = "1.5px solid #c8cdd8";
+      el.style.borderTop = `1.5px solid ${this.theme.colors.border}`;
       el.style.margin = "10px 0";
     });
   }
@@ -1169,11 +1677,13 @@ class PagePaginator {
 function paginateWithVariablesBlue(tpl, person) {
   if (!tpl || !person) return { pages: [], hasHeader: false, hasFooter: false };
   const margins = getTemplatePageMargins(tpl);
+  const charter = getTemplateGraphicCharter(tpl);
+  const context = buildDocumentContext(tpl, person);
 
   // Résoudre les variables (avec classes .var-resolved pour le bleu)
-  const hdrHtml = tpl.hasHeader ? resolveVars(tpl.header || "", person) : "";
-  const bHtml = resolveVars(tpl.body || "", person);
-  const ftrHtml = tpl.hasFooter ? resolveVars(tpl.footer || "", person) : "";
+  const hdrHtml = tpl.hasHeader ? resolveVars(tpl.header || "", context) : "";
+  const bHtml = resolveVars(tpl.body || "", context);
+  const ftrHtml = tpl.hasFooter ? resolveVars(tpl.footer || "", context) : "";
 
   // Paginer le contenu
   const orientation = getTemplateOrientation(tpl);
@@ -1183,6 +1693,7 @@ function paginateWithVariablesBlue(tpl, person) {
     marginLeft: margins.ml,
     marginRight: margins.mr,
     orientation,
+    theme: charter,
   });
 
   const pages = paginator.paginate(bHtml, hdrHtml, ftrHtml);
@@ -1205,12 +1716,14 @@ function previewDocument(tpl, person) {
   }
   const margins = getTemplatePageMargins(tpl);
   const orientation = getTemplateOrientation(tpl);
+  const charter = getTemplateGraphicCharter(tpl);
+  const context = buildDocumentContext(tpl, person);
   const pageWidth = orientation === "landscape" ? "297mm" : "210mm";
   const pageHeight = orientation === "landscape" ? "210mm" : "297mm";
 
-  const hdrRaw = tpl.hasHeader ? resolveVars(tpl.header || "", person) : "";
-  const bRaw = resolveVars(tpl.body || "", person);
-  const ftrRaw = tpl.hasFooter ? resolveVars(tpl.footer || "", person) : "";
+  const hdrRaw = tpl.hasHeader ? resolveVars(tpl.header || "", context) : "";
+  const bRaw = resolveVars(tpl.body || "", context);
+  const ftrRaw = tpl.hasFooter ? resolveVars(tpl.footer || "", context) : "";
 
   // Paginer le contenu
   const paginator = new PagePaginator({
@@ -1219,6 +1732,7 @@ function previewDocument(tpl, person) {
     marginLeft: margins.ml,
     marginRight: margins.mr,
     orientation,
+    theme: charter,
   });
 
   const pages = paginator.paginate(bRaw, hdrRaw, ftrRaw);
@@ -1232,6 +1746,7 @@ function previewDocument(tpl, person) {
   const modal = document.createElement("div");
   modal.className = "preview-modal";
   modal.id = "pagePreviewModal";
+  modal.style.cssText = getDocumentThemeStyleAttr(tpl);
 
   // CSS du modal
   const styleEl = document.createElement("style");
@@ -1324,7 +1839,11 @@ function previewDocument(tpl, person) {
     .preview-page {
       width: ${pageWidth};
       height: ${pageHeight};
-      background: white;
+      background-color: #fff;
+      background-image: var(--doc-page-bg-image, none);
+      background-size: var(--doc-page-bg-size, cover);
+      background-position: var(--doc-page-bg-position, center center);
+      background-repeat: var(--doc-page-bg-repeat, no-repeat);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       border-radius: 4px;
       display: flex;
@@ -1336,20 +1855,20 @@ function previewDocument(tpl, person) {
     .preview-page-header {
       flex-shrink: 0;
       padding: 5mm ${margins.mr}mm 3mm ${margins.ml}mm;
-      font-family: "Times New Roman", Times, serif;
+      font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
-      color: #111;
+      color: var(--doc-color-text, #111);
       overflow: hidden;
     }
 
     .preview-page-body {
       flex: 1;
       padding: 5mm ${margins.mr}mm 5mm ${margins.ml}mm;
-      font-family: "Times New Roman", Times, serif;
+      font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
-      color: #111;
+      color: var(--doc-color-text, #111);
       overflow: hidden;
     }
 
@@ -1364,10 +1883,10 @@ function previewDocument(tpl, person) {
     .preview-page-footer {
       flex-shrink: 0;
       padding: 3mm ${margins.mr}mm 5mm ${margins.ml}mm;
-      font-family: "Times New Roman", Times, serif;
+      font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
-      color: #111;
+      color: var(--doc-color-text, #111);
       overflow: hidden;
     }
 
@@ -1387,7 +1906,7 @@ function previewDocument(tpl, person) {
     }
 
     .preview-page td, .preview-page th {
-      border: 1px solid #c8cdd8;
+      border: 1px solid var(--doc-color-border, #c8cdd8);
       padding: 6px 10px;
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
@@ -1398,8 +1917,8 @@ function previewDocument(tpl, person) {
     }
 
     .preview-page th:not([style]) {
-      background: #f2f2f2;
-      color: #111;
+      background: var(--doc-table-header-bg, #f2f2f2);
+      color: var(--doc-color-text, #111);
       font-weight: 700;
       text-align: left;
     }
@@ -1513,6 +2032,8 @@ function printDocPaginated(tpl, person, pages = null) {
   }
   const margins = getTemplatePageMargins(tpl);
   const orientation = getTemplateOrientation(tpl);
+  const charter = getTemplateGraphicCharter(tpl);
+  const context = buildDocumentContext(tpl, person);
   const pageWidth = orientation === "landscape" ? "297mm" : "210mm";
   const pageHeight = orientation === "landscape" ? "210mm" : "297mm";
 
@@ -1520,11 +2041,11 @@ function printDocPaginated(tpl, person, pages = null) {
   let pagesToPrint = pages;
   if (!pages) {
     const hdrRaw = tpl.hasHeader
-      ? resolveVarsRaw(tpl.header || "", person)
+      ? resolveVarsRaw(tpl.header || "", context)
       : "";
-    const bRaw = resolveVarsRaw(tpl.body || "", person);
+    const bRaw = resolveVarsRaw(tpl.body || "", context);
     const ftrRaw = tpl.hasFooter
-      ? resolveVarsRaw(tpl.footer || "", person)
+      ? resolveVarsRaw(tpl.footer || "", context)
       : "";
 
     const paginator = new PagePaginator({
@@ -1533,6 +2054,7 @@ function printDocPaginated(tpl, person, pages = null) {
       marginLeft: margins.ml,
       marginRight: margins.mr,
       orientation,
+      theme: charter,
     });
     pagesToPrint = paginator.paginate(bRaw, hdrRaw, ftrRaw);
   }
@@ -1552,7 +2074,13 @@ function printDocPaginated(tpl, person, pages = null) {
     .sirh-print-page {
       width: ${pageWidth};
       height: ${pageHeight};
-      background: white;
+      background-color: #fff;
+      background-image: var(--doc-page-bg-image, none);
+      background-size: var(--doc-page-bg-size, cover);
+      background-position: var(--doc-page-bg-position, center center);
+      background-repeat: var(--doc-page-bg-repeat, no-repeat);
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
       display: flex;
       flex-direction: column;
       page-break-after: always;
@@ -1567,19 +2095,19 @@ function printDocPaginated(tpl, person, pages = null) {
     .sirh-print-header {
       flex-shrink: 0;
       padding: 5mm ${margins.mr}mm 3mm ${margins.ml}mm;
-      font-family: "Times New Roman", Times, serif;
+      font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
-      color: #111;
+      color: var(--doc-color-text, #111);
     }
 
     .sirh-print-body {
       flex: 1;
       padding: 5mm ${margins.mr}mm 5mm ${margins.ml}mm;
-      font-family: "Times New Roman", Times, serif;
+      font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
-      color: #111;
+      color: var(--doc-color-text, #111);
       overflow: visible;
     }
 
@@ -1594,10 +2122,10 @@ function printDocPaginated(tpl, person, pages = null) {
     .sirh-print-footer {
       flex-shrink: 0;
       padding: 3mm ${margins.mr}mm 5mm ${margins.ml}mm;
-      font-family: "Times New Roman", Times, serif;
+      font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
-      color: #111;
+      color: var(--doc-color-text, #111);
     }
 
     .sirh-print-header p,
@@ -1621,7 +2149,7 @@ function printDocPaginated(tpl, person, pages = null) {
     table { border-collapse: collapse; width: 100%; margin: 6px 0; }
 
     td, th {
-      border: 1px solid #c8cdd8;
+      border: 1px solid var(--doc-color-border, #c8cdd8);
       padding: 6px 10px;
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
@@ -1630,8 +2158,8 @@ function printDocPaginated(tpl, person, pages = null) {
     td p, th p { color: inherit; }
 
     th:not([style]) {
-      background: #f2f2f2;
-      color: #111;
+      background: var(--doc-table-header-bg, #f2f2f2);
+      color: var(--doc-color-text, #111);
       font-weight: 700;
       text-align: left;
     }
@@ -1653,6 +2181,7 @@ function printDocPaginated(tpl, person, pages = null) {
   const wrap = document.createElement("div");
   wrap.id = "sirh-print-area";
   wrap.style.display = "none";
+  wrap.style.cssText += ";" + getDocumentThemeStyleAttr(tpl);
 
   const pagesHtml = pagesToPrint
     .map((page) => {

@@ -12,6 +12,8 @@ const ROOT_DIR = __dirname;
 
 const pool = mysql.createPool(DB_URL);
 
+let schemaReadyPromise = null;
+
 function clone(data) {
   return JSON.parse(JSON.stringify(data));
 }
@@ -86,6 +88,44 @@ async function tableExists(tableName) {
   return rows.length > 0;
 }
 
+async function tableHasColumn(tableName, columnName) {
+  const [rows] = await pool.query("SHOW COLUMNS FROM ?? LIKE ?", [
+    tableName,
+    columnName,
+  ]);
+  return rows.length > 0;
+}
+
+async function ensureSchema() {
+  if (schemaReadyPromise) return schemaReadyPromise;
+  schemaReadyPromise = (async () => {
+    const schemaPath = path.join(ROOT_DIR, "schema.sql");
+    if (!fs.existsSync(schemaPath)) return;
+    const sql = fs.readFileSync(schemaPath, "utf8");
+    const statements = sql
+      .split(/;\s*(?:\r?\n|$)/)
+      .map((statement) => statement.trim())
+      .filter(Boolean);
+    for (const statement of statements) {
+      await pool.query(statement);
+    }
+
+    if (await tableExists("template")) {
+      if (!(await tableHasColumn("template", "graphic_charter_id"))) {
+        await pool.query(
+          "ALTER TABLE template ADD COLUMN graphic_charter_id VARCHAR(64) NULL AFTER etablissement_id",
+        );
+      }
+      if (!(await tableHasColumn("template", "orientation"))) {
+        await pool.query(
+          "ALTER TABLE template ADD COLUMN orientation VARCHAR(16) NULL AFTER has_footer",
+        );
+      }
+    }
+  })();
+  return schemaReadyPromise;
+}
+
 async function loadFamilies() {
   if (!(await tableExists("family"))) return [];
   const [rows] = await pool.query(
@@ -102,10 +142,88 @@ async function loadFamilies() {
   }));
 }
 
+async function loadEtablissements() {
+  if (!(await tableExists("etablissement"))) return [];
+  const hasGraphicCharterJson = await tableHasColumn(
+    "etablissement",
+    "graphic_charter_json",
+  );
+  const hasBrandingJson = hasGraphicCharterJson
+    ? false
+    : await tableHasColumn("etablissement", "branding_json");
+  const hasCreatedAt = await tableHasColumn("etablissement", "created_at");
+  const hasUpdatedAt = await tableHasColumn("etablissement", "updated_at");
+  const [rows] = await pool.query(
+    `SELECT id, nom, ville, adresse, tel,
+            ${
+              hasGraphicCharterJson
+                ? "graphic_charter_json,"
+                : hasBrandingJson
+                  ? "branding_json AS graphic_charter_json,"
+                  : "NULL AS graphic_charter_json,"
+            }
+            ${hasCreatedAt ? "created_at," : "NULL AS created_at,"}
+            ${hasUpdatedAt ? "updated_at" : "NULL AS updated_at"}
+     FROM etablissement
+     ORDER BY nom`,
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    nom: row.nom || "",
+    ville: row.ville || "",
+    adresse: row.adresse || "",
+    tel: row.tel || "",
+    graphicCharters: safeJson(row.graphic_charter_json, []),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+  }));
+}
+
+async function loadGraphicCharters() {
+  if (!(await tableExists("graphic_charter"))) return [];
+  const [rows] = await pool.query(
+    `SELECT id, etablissement_id, nom, description, is_default, config_json, created_at, updated_at
+     FROM graphic_charter
+     ORDER BY etablissement_id, is_default DESC, nom ASC`,
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    etablissementId: row.etablissement_id ? String(row.etablissement_id) : null,
+    name: row.nom || "",
+    description: row.description || "",
+    isDefault: !!row.is_default,
+    config: safeJson(row.config_json, {}),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+  }));
+}
+
+async function loadAdmins() {
+  if (!(await tableExists("admin_user"))) return [];
+  const [rows] = await pool.query(
+    `SELECT id, etablissement_id, nom, email
+     FROM admin_user
+     ORDER BY nom`,
+  );
+  return rows.map((row) => ({
+    id: String(row.id),
+    etablissementId: row.etablissement_id ? String(row.etablissement_id) : null,
+    nom: row.nom || "",
+    email: row.email || "",
+  }));
+}
+
 async function loadTemplates() {
   if (!(await tableExists("template"))) return [];
+  const hasOrientation = await tableHasColumn("template", "orientation");
+  const hasGraphicCharterId = await tableHasColumn(
+    "template",
+    "graphic_charter_id",
+  );
   const [rows] = await pool.query(
     `SELECT id, family_id, etablissement_id, nom, updated_at, has_header, has_footer,
+            ${hasGraphicCharterId ? "graphic_charter_id," : "NULL AS graphic_charter_id,"}
+            ${hasOrientation ? "orientation," : "'portrait' AS orientation,"}
             page_margins_json, header_html, body_html, footer_html
      FROM template
      ORDER BY updated_at DESC, nom ASC`,
@@ -118,6 +236,10 @@ async function loadTemplates() {
     updatedAt: row.updated_at,
     hasHeader: !!row.has_header,
     hasFooter: !!row.has_footer,
+    graphicCharterId: row.graphic_charter_id
+      ? String(row.graphic_charter_id)
+      : null,
+    orientation: row.orientation || "portrait",
     pageMargins: safeJson(row.page_margins_json, {}),
     header: row.header_html || "",
     body: row.body_html || "",
@@ -156,9 +278,23 @@ async function loadPersonnel() {
 }
 
 async function loadState() {
+  const etablissements = await loadEtablissements();
+  const graphicCharters = await loadGraphicCharters();
+  const chartersByEtab = graphicCharters.reduce((acc, item) => {
+    const key = item.etablissementId || "__none__";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+
   return normalizeState({
-    etablissements: [],
-    admins: [],
+    etablissements: etablissements.map((etab) => ({
+      ...etab,
+      graphicCharters: chartersByEtab[etab.id]?.length
+        ? chartersByEtab[etab.id]
+        : etab.graphicCharters || [],
+    })),
+    admins: await loadAdmins(),
     families: await loadFamilies(),
     templates: await loadTemplates(),
     personnel: await loadPersonnel(),
@@ -229,11 +365,110 @@ async function replaceState(state) {
     );
   }
 
+  const hasEtablissements = await tableExists("etablissement");
+  const hasGraphicCharterTable = await tableExists("graphic_charter");
+  const hasAdmins = await tableExists("admin_user");
+  const hasGraphicCharterJson = hasEtablissements
+    ? await tableHasColumn("etablissement", "graphic_charter_json")
+    : false;
+  const hasBrandingJson =
+    hasEtablissements && !hasGraphicCharterJson
+      ? await tableHasColumn("etablissement", "branding_json")
+      : false;
+  const hasEtabCreatedAt = hasEtablissements
+    ? await tableHasColumn("etablissement", "created_at")
+    : false;
+  const hasEtabUpdatedAt = hasEtablissements
+    ? await tableHasColumn("etablissement", "updated_at")
+    : false;
+  const hasOrientation = await tableHasColumn("template", "orientation");
+  const hasGraphicCharterId = await tableHasColumn(
+    "template",
+    "graphic_charter_id",
+  );
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+    if (hasGraphicCharterTable) await conn.query("DELETE FROM graphic_charter");
+    if (hasAdmins) await conn.query("DELETE FROM admin_user");
+    if (hasEtablissements) await conn.query("DELETE FROM etablissement");
     await conn.query("DELETE FROM template");
     await conn.query("DELETE FROM family");
+
+    if (hasEtablissements) {
+      for (const item of normalized.etablissements) {
+        const columns = ["id", "nom", "ville", "adresse", "tel"];
+        const placeholders = ["?", "?", "?", "?", "?"];
+        const values = [
+          item.id,
+          item.nom || "",
+          item.ville || "",
+          item.adresse || "",
+          item.tel || "",
+        ];
+        if (hasGraphicCharterJson || hasBrandingJson) {
+          columns.push(
+            hasGraphicCharterJson ? "graphic_charter_json" : "branding_json",
+          );
+          placeholders.push("?");
+          values.push(
+            JSON.stringify(item.graphicCharters || item.graphicCharter || []),
+          );
+        }
+        if (hasEtabCreatedAt) {
+          columns.push("created_at");
+          placeholders.push("?");
+          values.push(item.createdAt || null);
+        }
+        if (hasEtabUpdatedAt) {
+          columns.push("updated_at");
+          placeholders.push("?");
+          values.push(item.updatedAt || item.createdAt || null);
+        }
+        await conn.execute(
+          `INSERT INTO etablissement (${columns.join(", ")})
+           VALUES (${placeholders.join(", ")})`,
+          values,
+        );
+      }
+    }
+
+    if (hasGraphicCharterTable) {
+      for (const etab of normalized.etablissements) {
+        for (const charter of etab.graphicCharters || []) {
+          await conn.execute(
+            `INSERT INTO graphic_charter (
+              id, etablissement_id, nom, description, is_default, config_json, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              charter.id,
+              etab.id,
+              charter.name || "",
+              charter.description || "",
+              charter.isDefault ? 1 : 0,
+              JSON.stringify(charter.config || {}),
+              charter.createdAt || null,
+              charter.updatedAt || charter.createdAt || null,
+            ],
+          );
+        }
+      }
+    }
+
+    if (hasAdmins) {
+      for (const item of normalized.admins) {
+        await conn.execute(
+          `INSERT INTO admin_user (id, etablissement_id, nom, email)
+           VALUES (?, ?, ?, ?)`,
+          [
+            item.id,
+            item.etablissementId || null,
+            item.nom || "",
+            item.email || "",
+          ],
+        );
+      }
+    }
 
     for (const item of normalized.families) {
       await conn.execute(
@@ -252,24 +487,56 @@ async function replaceState(state) {
     }
 
     for (const item of normalized.templates) {
+      const columns = [
+        "id",
+        "family_id",
+        "etablissement_id",
+        "nom",
+        "updated_at",
+        "has_header",
+        "has_footer",
+      ];
+      const placeholders = ["?", "?", "?", "?", "?", "?", "?"];
+      const values = [
+        item.id,
+        item.familyId,
+        item.etablissementId || null,
+        item.nom || "",
+        item.updatedAt || null,
+        item.hasHeader ? 1 : 0,
+        item.hasFooter ? 1 : 0,
+      ];
+
+      if (hasOrientation) {
+        columns.push("orientation");
+        placeholders.push("?");
+        values.push(item.orientation || "portrait");
+      }
+
+      if (hasGraphicCharterId) {
+        columns.push("graphic_charter_id");
+        placeholders.push("?");
+        values.push(item.graphicCharterId || null);
+      }
+
+      columns.push(
+        "page_margins_json",
+        "header_html",
+        "body_html",
+        "footer_html",
+      );
+      placeholders.push("?", "?", "?", "?");
+      values.push(
+        JSON.stringify(item.pageMargins || {}),
+        item.header || "",
+        item.body || "",
+        item.footer || "",
+      );
+
       await conn.execute(
-        `INSERT INTO template (
-          id, family_id, etablissement_id, nom, updated_at, has_header, has_footer,
-          page_margins_json, header_html, body_html, footer_html
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          item.id,
-          item.familyId,
-          item.etablissementId || null,
-          item.nom || "",
-          item.updatedAt || null,
-          item.hasHeader ? 1 : 0,
-          item.hasFooter ? 1 : 0,
-          JSON.stringify(item.pageMargins || {}),
-          item.header || "",
-          item.body || "",
-          item.footer || "",
-        ],
+        `INSERT INTO template (${columns.join(", ")})
+         VALUES (${placeholders.join(", ")})`,
+        values,
       );
     }
 
@@ -335,6 +602,7 @@ function readBody(req) {
 }
 
 async function handleApi(req, res, url) {
+  await ensureSchema();
   if (req.method === "OPTIONS") {
     sendText(res, 204, "");
     return true;

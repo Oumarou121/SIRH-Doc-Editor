@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
@@ -1134,7 +1134,7 @@
   </head>
   <body>
     <div id="loading">
-      <div class="load-icon">⚙️</div>
+      <div class="load-icon">âš™ï¸</div>
       <div class="load-title">SIRH<span>-Doc</span></div>
       <div class="load-sub">Interface Super Administrateur</div>
       <div class="load-bar"><div class="load-fill"></div></div>
@@ -1371,7 +1371,7 @@
 
     <!-- Modal établissement -->
     <div class="modal-overlay" id="modalEtab">
-      <div class="modal">
+      <div class="modal" style="max-width: 960px">
         <div class="modal-header">
           <span class="modal-title" id="etabModalTitle"
             >Nouvel établissement</span
@@ -1461,9 +1461,9 @@
     <script src="shared.js"></script>
 
     <script>
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  STATE
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       let currentSection = "families";
       let selectedFamId = null;
       let editingEtabId = null;
@@ -1492,9 +1492,9 @@
         },
       };
 
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  SECTIONS
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       function showSection(section, btn) {
         currentSection = section;
         document
@@ -1520,9 +1520,9 @@
         if (section === "dashboard") renderDashboard();
       }
 
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  LEFT PANEL
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       function renderLeftPanel() {
         const search = document
           .getElementById("searchInput")
@@ -1552,7 +1552,7 @@
             .forEach((etab) => {
               const item = document.createElement("div");
               item.className = "list-item";
-              item.innerHTML = `<div class="list-item-icon">🏛️</div><div class="list-item-body"><div class="list-item-name">${etab.nom}</div><div class="list-item-meta">${etab.ville}</div></div>`;
+              item.innerHTML = `<div class="list-item-icon">ðŸ›ï¸</div><div class="list-item-body"><div class="list-item-name">${etab.nom}</div><div class="list-item-meta">${etab.ville}</div></div>`;
               list.appendChild(item);
             });
         }
@@ -1585,9 +1585,9 @@
         if (currentSection === "admins") openAdminModal();
       }
 
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  FAMILY EDITOR
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       function newFamily() {
         const id = genId("fam");
         DB.saveFamily({
@@ -2394,9 +2394,10 @@
         regenerateFamilySql(famId, true);
       }
 
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  ÉTABLISSEMENTS
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
       function renderEtabContent() {
         const etabs = DB.getEtablissements();
         document.getElementById("etabContent").innerHTML = `
@@ -2447,12 +2448,18 @@
           toast("Le nom est requis", "error");
           return;
         }
+        const existing = editingEtabId
+          ? DB.getEtablissement(editingEtabId)
+          : null;
         DB.saveEtablissement({
           id: editingEtabId || genId("etab"),
           nom,
           ville: document.getElementById("etabVille").value,
           adresse: document.getElementById("etabAdresse").value,
           tel: document.getElementById("etabTel").value,
+          graphicCharters: existing?.graphicCharters || [],
+          createdAt: existing?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         });
         closeModal("modalEtab");
         renderEtabContent();
@@ -2478,9 +2485,9 @@
         openModal("modalConfirm");
       }
 
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  ADMINS
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       function renderAdminContent() {
         const admins = DB.getAdmins();
         document.getElementById("adminContent").innerHTML = `
@@ -2569,9 +2576,9 @@
         openModal("modalConfirm");
       }
 
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  DASHBOARD
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       function renderDashboard() {
         const fams = DB.getFamilies(),
           tpls = DB.get().templates,
@@ -2614,9 +2621,9 @@
 </div>`;
       }
 
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  INIT
-      // ═══════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       window.addEventListener("DOMContentLoaded", async () => {
         await DB.init();
         renderLeftPanel();
@@ -2639,3 +2646,5 @@
     </script>
   </body>
 </html>
+
+

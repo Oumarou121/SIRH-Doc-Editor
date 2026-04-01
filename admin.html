@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
@@ -60,6 +60,15 @@
         --page-mr: 25mm;
         --header-h: 20mm;
         --footer-h: 14mm;
+        --doc-font-body: "Times New Roman", Times, serif;
+        --doc-font-heading: "Times New Roman", Times, serif;
+        --doc-color-primary: #1d4ed8;
+        --doc-color-secondary: #475569;
+        --doc-color-text: #111111;
+        --doc-color-heading: #0f172a;
+        --doc-color-border: #c8cdd8;
+        --doc-table-header-bg: #f2f2f2;
+        --doc-table-row-alt-bg: #f8fafc;
       }
       html,
       body {
@@ -506,6 +515,47 @@
         color: var(--amber);
         font-weight: 600;
       }
+      .charter-bar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+      }
+      .charter-bar-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text3);
+      }
+      .charter-bar-select {
+        min-width: 220px;
+        max-width: 320px;
+        padding: 6px 30px 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        font: inherit;
+        font-size: 12px;
+        color: var(--text);
+        background: var(--surface2)
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 0l4.5 5L9 0z' fill='%239499b0'/%3E%3C/svg%3E")
+          no-repeat right 9px center;
+        -webkit-appearance: none;
+        appearance: none;
+        outline: none;
+      }
+      .charter-bar-select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-bg);
+      }
+      .charter-bar-note {
+        font-size: 11px;
+        color: var(--text3);
+      }
       .sec-tabs {
         display: flex;
         background: var(--surface);
@@ -761,7 +811,11 @@
       .a4-page {
         width: var(--page-w);
         height: var(--page-h);
-        background: #fff;
+        background-color: #fff;
+        background-image: var(--doc-page-bg-image, none);
+        background-size: var(--doc-page-bg-size, cover);
+        background-position: var(--doc-page-bg-position, center center);
+        background-repeat: var(--doc-page-bg-repeat, no-repeat);
         box-shadow:
           0 2px 12px rgba(0, 0, 0, 0.18),
           0 0 0 1px rgba(0, 0, 0, 0.08);
@@ -773,14 +827,14 @@
       }
       .a4-header {
         padding: 5mm var(--page-mr) 3mm var(--page-ml);
-        border-bottom: 1px dashed #c8cdd8;
+        border-bottom: 1px dashed var(--doc-color-border);
         flex-shrink: 0;
         min-height: var(--header-h);
         position: relative;
       }
       .a4-footer {
         padding: 3mm var(--page-mr) 5mm var(--page-ml);
-        border-top: 1px dashed #c8cdd8;
+        border-top: 1px dashed var(--doc-color-border);
         flex-shrink: 0;
         min-height: var(--footer-h);
         position: relative;
@@ -807,7 +861,11 @@
       /* ── PAGES MULTIPLES ── */
       .a4-page {
         position: relative;
-        background: white;
+        background-color: #fff;
+        background-image: var(--doc-page-bg-image, none);
+        background-size: var(--doc-page-bg-size, cover);
+        background-position: var(--doc-page-bg-position, center center);
+        background-repeat: var(--doc-page-bg-repeat, no-repeat);
       }
 
       .a4-page::before {
@@ -880,7 +938,7 @@
       /* ── DOC CONTENT (Tiptap) ── */
       .tiptap-wrapper {
         width: 100%;
-        min-height: 100px;
+        /* min-height: 100px;*/
         position: relative;
         z-index: 1;
       }
@@ -890,10 +948,10 @@
         min-height: 40px;
         outline: none;
         caret-color: var(--accent);
-        font-family: "Times New Roman", Times, serif;
+        font-family: var(--doc-font-body);
         font-size: 12pt;
         line-height: 1.6;
-        color: #111;
+        color: var(--doc-color-text);
       }
       .tiptap-wrapper .ProseMirror:focus {
         outline: none;
@@ -901,30 +959,38 @@
       .tiptap-wrapper .ProseMirror p {
         font-size: 12pt;
         line-height: 1.6;
-        color: #111;
+        color: var(--doc-color-text);
         margin: 0 0 0.4em;
       }
       .tiptap-wrapper .ProseMirror p:last-child {
         margin-bottom: 0;
       }
       .tiptap-wrapper .ProseMirror h1 {
+        font-family: var(--doc-font-heading);
         font-size: 22pt;
         font-weight: 700;
+        color: var(--doc-color-heading);
         margin: 0.8em 0 0.4em;
       }
       .tiptap-wrapper .ProseMirror h2 {
+        font-family: var(--doc-font-heading);
         font-size: 18pt;
         font-weight: 700;
+        color: var(--doc-color-heading);
         margin: 0.7em 0 0.3em;
       }
       .tiptap-wrapper .ProseMirror h3 {
+        font-family: var(--doc-font-heading);
         font-size: 14pt;
         font-weight: 700;
+        color: var(--doc-color-heading);
         margin: 0.6em 0 0.3em;
       }
       .tiptap-wrapper .ProseMirror h4 {
+        font-family: var(--doc-font-heading);
         font-size: 12pt;
         font-weight: 700;
+        color: var(--doc-color-heading);
         margin: 0.5em 0 0.2em;
       }
       .tiptap-wrapper .ProseMirror ul {
@@ -949,7 +1015,7 @@
       }
       .tiptap-wrapper .ProseMirror hr {
         border: none;
-        border-top: 1.5px solid #c8cdd8;
+        border-top: 1.5px solid var(--doc-color-border);
         margin: 12px 0;
       }
       .tiptap-wrapper .ProseMirror table {
@@ -963,7 +1029,7 @@
       }
       .tiptap-wrapper .ProseMirror td,
       .tiptap-wrapper .ProseMirror th {
-        border: 1px solid #c8cdd8;
+        border: 1px solid var(--doc-color-border);
         padding: 7px 10px;
         min-width: 0;
         position: relative;
@@ -972,8 +1038,8 @@
         box-sizing: border-box;
       }
       .tiptap-wrapper .ProseMirror th:not([style]) {
-        background: #f2f2f2;
-        color: #111;
+        background: var(--doc-table-header-bg);
+        color: var(--doc-color-text);
       }
       .tiptap-wrapper .ProseMirror th {
         font-weight: 700;
@@ -1024,12 +1090,12 @@
       }
       .preview-page td,
       .preview-page th {
-        border: 1px solid #c8cdd8;
+        border: 1px solid var(--doc-color-border);
         padding: 7px 10px;
       }
       .preview-page th:not([style]) {
-        background: #f2f2f2;
-        color: #111;
+        background: var(--doc-table-header-bg);
+        color: var(--doc-color-text);
         font-weight: 700;
         text-align: left;
       }
@@ -1267,7 +1333,11 @@
         gap: 18px;
       }
       .preview-page {
-        background: #fff;
+        background-color: #fff;
+        background-image: var(--doc-page-bg-image, none);
+        background-size: var(--doc-page-bg-size, cover);
+        background-position: var(--doc-page-bg-position, center center);
+        background-repeat: var(--doc-page-bg-repeat, no-repeat);
         border-radius: 2px;
         width: var(--page-w);
         min-height: var(--page-h);
@@ -1280,21 +1350,21 @@
       }
       .preview-page .prev-header {
         padding: 5mm var(--page-mr) 3mm var(--page-ml);
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid var(--doc-color-border);
         flex-shrink: 0;
-        font-family: "Times New Roman", Times, serif;
+        font-family: var(--doc-font-body);
         font-size: 12pt;
         line-height: 1.6;
-        color: #111;
+        color: var(--doc-color-text);
       }
       .preview-page .prev-body {
         flex: 1;
         padding: 5mm var(--page-mr) 5mm var(--page-ml);
         overflow: hidden;
-        font-family: "Times New Roman", Times, serif;
+        font-family: var(--doc-font-body);
         font-size: 12pt;
         line-height: 1.6;
-        color: #111;
+        color: var(--doc-color-text);
       }
       .preview-page .prev-body.no-header {
         padding-top: var(--page-mt);
@@ -1304,13 +1374,13 @@
       }
       .preview-page .prev-footer {
         padding: 3mm var(--page-mr) 5mm var(--page-ml);
-        border-top: 1px solid #e2e8f0;
+        border-top: 1px solid var(--doc-color-border);
         flex-shrink: 0;
         margin-top: auto;
-        font-family: "Times New Roman", Times, serif;
+        font-family: var(--doc-font-body);
         font-size: 12pt;
         line-height: 1.6;
-        color: #111;
+        color: var(--doc-color-text);
       }
       .preview-page .var-resolved {
         color: #2563eb;
@@ -1984,6 +2054,37 @@
                 Enregistrer
                 <span style="font-size: 9px; opacity: 0.65">Ctrl+S</span>
               </button>
+            </div>
+
+            <div class="charter-bar">
+              <span class="charter-bar-label">Charte graphique</span>
+              <select
+                class="charter-bar-select"
+                id="graphicCharterSelect"
+                onchange="onGraphicCharterChange()"
+              ></select>
+              <button class="btn ghost sm" onclick="openGraphicCharterModal()">
+                Nouvelle
+              </button>
+              <button
+                class="btn ghost sm"
+                onclick="editCurrentGraphicCharter()"
+              >
+                Modifier
+              </button>
+              <button
+                class="btn ghost sm"
+                onclick="applySelectedGraphicCharterToTemplate()"
+              >
+                Appliquer au document
+              </button>
+              <button
+                class="btn danger sm"
+                onclick="deleteCurrentGraphicCharter()"
+              >
+                Supprimer
+              </button>
+              <span class="charter-bar-note" id="graphicCharterMeta"></span>
             </div>
 
             <div class="sec-tabs">
@@ -2688,10 +2789,13 @@
     <div class="modal-overlay" id="modalDelTpl">
       <div class="modal modal-sm">
         <div class="mhdr">
-          <span class="mtitle">Supprimer le template ?</span>
+          <span class="mtitle" id="delTplTitle">Supprimer le template ?</span>
           <button class="mclose" onclick="closeModal('modalDelTpl')">✕</button>
         </div>
-        <p style="font-size: 12px; color: var(--text2); line-height: 1.7">
+        <p
+          id="delTplMsg"
+          style="font-size: 12px; color: var(--text2); line-height: 1.7"
+        >
           Ce template sera définitivement supprimé.
         </p>
         <div class="mactions">
@@ -2909,7 +3013,7 @@
     </div>
 
     <div class="modal-overlay" id="modalPageSettings">
-      <div class="modal modal-sm">
+      <div class="modal">
         <div class="mhdr">
           <span class="mtitle">Mise en page — Marges A4</span>
           <button class="mclose" onclick="closeModal('modalPageSettings')">
@@ -2981,6 +3085,306 @@
           </button>
           <button class="btn primary" onclick="applyPageMargins()">
             Appliquer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="modalGraphicCharter">
+      <div class="modal" style="max-width: 880px">
+        <div class="mhdr">
+          <span class="mtitle" id="graphicCharterModalTitle"
+            >Nouvelle charte graphique</span
+          >
+          <button class="mclose" onclick="closeModal('modalGraphicCharter')">
+            ✕
+          </button>
+        </div>
+        <div class="fgrid2">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Nom de la charte</label>
+            <input class="finput" id="gc-name" placeholder="Charte classique" />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Description</label>
+            <input
+              class="finput"
+              id="gc-description"
+              placeholder="Usage interne, officiel, convocation..."
+            />
+          </div>
+        </div>
+        <div class="fgrid2" style="margin-top: 14px">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Nom officiel affiché</label>
+            <input class="finput" id="gc-official-name" />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Nom du signataire</label>
+            <input class="finput" id="gc-director-name" />
+          </div>
+        </div>
+        <div class="fgrid2" style="margin-top: 14px">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Police du corps</label>
+            <select class="finput" id="gc-body-font">
+              <option value='"Times New Roman", Times, serif'>
+                Times New Roman
+              </option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value='"Amiri", serif'>Amiri</option>
+              <option value='"Cairo", sans-serif'>Cairo</option>
+            </select>
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Police des titres</label>
+            <select class="finput" id="gc-heading-font">
+              <option value='"Times New Roman", Times, serif'>
+                Times New Roman
+              </option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value='"Amiri", serif'>Amiri</option>
+              <option value='"Cairo", sans-serif'>Cairo</option>
+            </select>
+          </div>
+        </div>
+        <div class="fgrid3" style="margin-top: 14px">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Couleur primaire</label>
+            <input
+              class="finput"
+              id="gc-primary-color"
+              type="color"
+              style="height: 34px; padding: 3px"
+            />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Couleur du texte</label>
+            <input
+              class="finput"
+              id="gc-text-color"
+              type="color"
+              style="height: 34px; padding: 3px"
+            />
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Couleur des bordures</label>
+            <input
+              class="finput"
+              id="gc-border-color"
+              type="color"
+              style="height: 34px; padding: 3px"
+            />
+          </div>
+        </div>
+        <div class="fgrid3" style="margin-top: 14px">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Orientation</label>
+            <select class="finput" id="gc-orientation">
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Paysage</option>
+            </select>
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Marges haut / bas (mm)</label>
+            <div class="fgrid2" style="gap: 8px">
+              <input
+                class="finput"
+                id="gc-margin-top"
+                type="number"
+                min="5"
+                max="60"
+              />
+              <input
+                class="finput"
+                id="gc-margin-bottom"
+                type="number"
+                min="5"
+                max="60"
+              />
+            </div>
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Marges gauche / droite (mm)</label>
+            <div class="fgrid2" style="gap: 8px">
+              <input
+                class="finput"
+                id="gc-margin-left"
+                type="number"
+                min="5"
+                max="60"
+              />
+              <input
+                class="finput"
+                id="gc-margin-right"
+                type="number"
+                min="5"
+                max="60"
+              />
+            </div>
+          </div>
+        </div>
+        <div
+          style="
+            margin: 16px 0 10px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text3);
+          "
+        >
+          Fond de page de la charte graphique
+        </div>
+        <div class="frow" style="margin-bottom: 10px">
+          <label
+            class="flabel"
+            style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              font-weight: 600;
+            "
+          >
+            <input
+              type="checkbox"
+              id="gc-bg-enabled"
+              onchange="updateGraphicCharterBackgroundPreview()"
+            />
+            Activer l'image de fond sur chaque page
+          </label>
+        </div>
+        <div class="frow">
+          <label class="flabel">URL de l'image</label>
+          <input
+            class="finput"
+            type="url"
+            id="gc-bg-url"
+            placeholder="https://exemple.com/fond.jpg"
+            oninput="handleGraphicCharterBackgroundUrlInput()"
+          />
+        </div>
+        <div class="frow">
+          <label class="flabel">Ou choisir un fichier</label>
+          <input
+            class="finput"
+            type="file"
+            id="gc-bg-file"
+            accept="image/*"
+            onchange="handleGraphicCharterBackgroundFileChange(event)"
+          />
+          <input type="hidden" id="gc-bg-data" />
+        </div>
+        <div class="fgrid2">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Ajustement</label>
+            <select
+              class="finput"
+              id="gc-bg-size"
+              onchange="updateGraphicCharterBackgroundPreview()"
+            >
+              <option value="cover">Couvrir la page</option>
+              <option value="contain">Contenir l'image</option>
+              <option value="100% 100%">Étendre à la page</option>
+            </select>
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Position</label>
+            <select
+              class="finput"
+              id="gc-bg-position"
+              onchange="updateGraphicCharterBackgroundPreview()"
+            >
+              <option value="center center">Centre</option>
+              <option value="top center">Haut</option>
+              <option value="bottom center">Bas</option>
+              <option value="center left">Gauche</option>
+              <option value="center right">Droite</option>
+            </select>
+          </div>
+        </div>
+        <div class="frow" style="margin-top: 12px">
+          <div
+            id="gc-bg-preview"
+            style="
+              width: 100%;
+              height: 130px;
+              border-radius: 14px;
+              border: 1px dashed var(--border2);
+              background-color: #fff;
+              background-position: center;
+              background-size: cover;
+              background-repeat: no-repeat;
+              box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+            "
+          ></div>
+          <div
+            id="gc-bg-status"
+            style="
+              margin-top: 8px;
+              font-size: 11px;
+              color: var(--text3);
+              line-height: 1.5;
+            "
+          >
+            Aucune image de fond sélectionnée.
+          </div>
+        </div>
+        <div class="fgrid2" style="margin-top: 14px">
+          <div class="frow" style="margin: 0">
+            <label class="flabel">En-tête par défaut</label>
+            <textarea
+              class="finput"
+              id="gc-header-html"
+              rows="6"
+              placeholder="HTML de l'en-tête"
+            ></textarea>
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel">Pied de page par défaut</label>
+            <textarea
+              class="finput"
+              id="gc-footer-html"
+              rows="6"
+              placeholder="HTML du pied de page"
+            ></textarea>
+          </div>
+        </div>
+        <div class="fgrid2" style="margin-top: 14px">
+          <label
+            class="flabel"
+            style="display: flex; gap: 8px; align-items: center"
+          >
+            <input id="gc-header-enabled" type="checkbox" />
+            Activer l'en-tête à la création
+          </label>
+          <label
+            class="flabel"
+            style="display: flex; gap: 8px; align-items: center"
+          >
+            <input id="gc-footer-enabled" type="checkbox" />
+            Activer le pied à la création
+          </label>
+        </div>
+        <div class="frow" style="margin-top: 14px">
+          <label
+            class="flabel"
+            style="display: flex; gap: 8px; align-items: center"
+          >
+            <input id="gc-is-default" type="checkbox" />
+            Utiliser cette charte par défaut pour les nouveaux templates
+          </label>
+        </div>
+        <div class="mactions">
+          <button class="btn" onclick="clearGraphicCharterBackground()">
+            Retirer l'image
+          </button>
+          <button class="btn" onclick="closeModal('modalGraphicCharter')">
+            Annuler
+          </button>
+          <button class="btn primary" onclick="saveGraphicCharterModal()">
+            Enregistrer
           </button>
         </div>
       </div>
@@ -4016,13 +4420,30 @@
         });
       }
 
-      // ═══════════════════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  STATE
-      // ═══════════════════════════════════════════════════════════
-      const ETAB_ID = "etab_1";
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      const DEFAULT_ETAB_ID = "etab_1";
+      function getActiveEtabId() {
+        if (DB.getEtablissement(DEFAULT_ETAB_ID)) return DEFAULT_ETAB_ID;
+        const firstId = DB.getEtablissements()[0]?.id || null;
+        if (firstId) return firstId;
+        const created = DB.saveEtablissement({
+          id: DEFAULT_ETAB_ID,
+          nom: "Établissement principal",
+          ville: "",
+          adresse: "",
+          tel: "",
+          graphicCharters: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        return created?.id || DEFAULT_ETAB_ID;
+      }
       let curFamId = null,
         curTplId = null,
         pendingDelId = null;
+      let editingGraphicCharterId = null;
       let editorHeader = null,
         editorBody = null,
         editorFooter = null;
@@ -5165,7 +5586,7 @@
           window.__sirhDoInsertImage();
           return;
         }
-        toast("Le gestionnaire d'image unifiÃ© n'est pas disponible", "error");
+        toast("Le gestionnaire d'image unifié n'est pas disponible", "error");
       };
       activateImageResizers = function (ed) {
         if (!ed || !window.SirhImgResize) return;
@@ -5319,6 +5740,262 @@
       }
 
       // ── Family & template list ──
+      function getSelectedGraphicCharterId() {
+        const select = document.getElementById("graphicCharterSelect");
+        return select?.value || null;
+      }
+
+      function setGraphicCharterMeta(charter) {
+        const meta = document.getElementById("graphicCharterMeta");
+        if (!meta) return;
+        if (!charter) {
+          meta.textContent = "Aucune charte selectionnee";
+          return;
+        }
+        meta.textContent = charter.isDefault
+          ? `${charter.name} - charte par defaut`
+          : charter.description || charter.name;
+      }
+
+      function populateGraphicCharterSelect(selectedId = null) {
+        const select = document.getElementById("graphicCharterSelect");
+        if (!select) return [];
+        const charters = getGraphicCharters(getActiveEtabId());
+        select.innerHTML = "";
+        charters.forEach((charter) => {
+          const option = document.createElement("option");
+          option.value = charter.id;
+          option.textContent = charter.isDefault
+            ? `${charter.name} (par defaut)`
+            : charter.name;
+          select.appendChild(option);
+        });
+        const resolvedId =
+          selectedId ||
+          getDefaultGraphicCharterId(getActiveEtabId()) ||
+          charters[0]?.id ||
+          "";
+        select.value = resolvedId;
+        setGraphicCharterMeta(getGraphicCharter(getActiveEtabId(), resolvedId));
+        return charters;
+      }
+
+      function readGraphicCharterForm() {
+        return {
+          name: document.getElementById("gc-name").value.trim(),
+          description: document.getElementById("gc-description").value.trim(),
+          isDefault: document.getElementById("gc-is-default").checked,
+          config: normalizeGraphicCharterConfig({
+            identity: {
+              officialName: document
+                .getElementById("gc-official-name")
+                .value.trim(),
+              directorName: document
+                .getElementById("gc-director-name")
+                .value.trim(),
+            },
+            colors: {
+              primary: document.getElementById("gc-primary-color").value,
+              text: document.getElementById("gc-text-color").value,
+              border: document.getElementById("gc-border-color").value,
+            },
+            typography: {
+              bodyFont: document.getElementById("gc-body-font").value,
+              headingFont: document.getElementById("gc-heading-font").value,
+            },
+            layout: {
+              orientation: document.getElementById("gc-orientation").value,
+              pageMargins: {
+                mt: document.getElementById("gc-margin-top").value,
+                mb: document.getElementById("gc-margin-bottom").value,
+                ml: document.getElementById("gc-margin-left").value,
+                mr: document.getElementById("gc-margin-right").value,
+              },
+            },
+            header: {
+              enabledByDefault:
+                document.getElementById("gc-header-enabled").checked,
+              html: document.getElementById("gc-header-html").value,
+            },
+            footer: {
+              enabledByDefault:
+                document.getElementById("gc-footer-enabled").checked,
+              html: document.getElementById("gc-footer-html").value,
+            },
+          }),
+        };
+      }
+
+      function fillGraphicCharterForm(charter = null) {
+        const entry =
+          charter ||
+          normalizeGraphicCharterEntry(
+            {
+              name: "Nouvelle charte",
+              isDefault: !getGraphicCharters(getActiveEtabId()).length,
+              config: {},
+            },
+            0,
+          );
+        const config = normalizeGraphicCharterConfig(entry.config || {});
+        document.getElementById("gc-name").value = entry.name || "";
+        document.getElementById("gc-description").value =
+          entry.description || "";
+        document.getElementById("gc-official-name").value =
+          config.identity.officialName || "";
+        document.getElementById("gc-director-name").value =
+          config.identity.directorName || "";
+        document.getElementById("gc-body-font").value =
+          config.typography.bodyFont;
+        document.getElementById("gc-heading-font").value =
+          config.typography.headingFont;
+        document.getElementById("gc-primary-color").value =
+          config.colors.primary;
+        document.getElementById("gc-text-color").value = config.colors.text;
+        document.getElementById("gc-border-color").value = config.colors.border;
+        document.getElementById("gc-orientation").value =
+          config.layout.orientation;
+        document.getElementById("gc-margin-top").value =
+          config.layout.pageMargins.mt;
+        document.getElementById("gc-margin-bottom").value =
+          config.layout.pageMargins.mb;
+        document.getElementById("gc-margin-left").value =
+          config.layout.pageMargins.ml;
+        document.getElementById("gc-margin-right").value =
+          config.layout.pageMargins.mr;
+        document.getElementById("gc-header-html").value = config.header.html;
+        document.getElementById("gc-footer-html").value = config.footer.html;
+        document.getElementById("gc-header-enabled").checked =
+          !!config.header.enabledByDefault;
+        document.getElementById("gc-footer-enabled").checked =
+          !!config.footer.enabledByDefault;
+        document.getElementById("gc-is-default").checked = !!entry.isDefault;
+      }
+
+      window.openGraphicCharterModal = function (charterId = null) {
+        editingGraphicCharterId = charterId;
+        const charter = charterId
+          ? getGraphicCharter(getActiveEtabId(), charterId)
+          : null;
+        document.getElementById("graphicCharterModalTitle").textContent =
+          charter
+            ? "Modifier la charte graphique"
+            : "Nouvelle charte graphique";
+        fillGraphicCharterForm(charter);
+        openModal("modalGraphicCharter");
+      };
+
+      window.editCurrentGraphicCharter = function () {
+        const charterId = getSelectedGraphicCharterId();
+        if (!charterId) {
+          toast("Aucune charte disponible", "error");
+          return;
+        }
+        window.openGraphicCharterModal(charterId);
+      };
+
+      window.saveGraphicCharterModal = function () {
+        const payload = readGraphicCharterForm();
+        if (!payload.name) {
+          toast("Le nom de la charte est requis", "error");
+          return;
+        }
+        const current = editingGraphicCharterId
+          ? getGraphicCharter(getActiveEtabId(), editingGraphicCharterId)
+          : null;
+        const saved = saveGraphicCharter(getActiveEtabId(), {
+          id: editingGraphicCharterId || undefined,
+          createdAt: current?.createdAt || new Date().toISOString(),
+          ...payload,
+        });
+        if (!saved) {
+          toast("Impossible d'enregistrer la charte", "error");
+          return;
+        }
+        if (curTplId) {
+          const tpl = DB.getTemplate(curTplId);
+          tpl.graphicCharterId = saved.id;
+          DB.saveTemplate(tpl);
+          applyDocumentThemeToRoot(tpl);
+        }
+        populateGraphicCharterSelect(saved.id);
+        renderTplList(curFamId);
+        closeModal("modalGraphicCharter");
+        setSaveState("Modifie", true);
+        toast("Charte graphique enregistree", "success");
+      };
+
+      window.onGraphicCharterChange = function () {
+        const charterId = getSelectedGraphicCharterId();
+        const tpl = curTplId ? DB.getTemplate(curTplId) : null;
+        setGraphicCharterMeta(getGraphicCharter(getActiveEtabId(), charterId));
+        if (!tpl || !charterId) return;
+        tpl.graphicCharterId = charterId;
+        DB.saveTemplate(tpl);
+        applyDocumentThemeToRoot(tpl);
+        renderTplList(curFamId);
+        setSaveState("Modifie", true);
+      };
+
+      window.applySelectedGraphicCharterToTemplate = function () {
+        if (!curTplId || !editorBody) {
+          toast("Ouvrez d'abord un template", "error");
+          return;
+        }
+        const tpl = DB.getTemplate(curTplId);
+        const charterId =
+          getSelectedGraphicCharterId() ||
+          getDefaultGraphicCharterId(getActiveEtabId());
+        const charter = getGraphicCharter(getActiveEtabId(), charterId);
+        if (!charter) {
+          toast("Aucune charte disponible", "error");
+          return;
+        }
+        tpl.graphicCharterId = charter.id;
+        tpl.pageMargins = normalizeMargins(charter.config.layout.pageMargins);
+        tpl.orientation = charter.config.layout.orientation;
+        tpl.hasHeader = !!charter.config.header.enabledByDefault;
+        tpl.hasFooter = !!charter.config.footer.enabledByDefault;
+        DB.saveTemplate(tpl);
+        applyDocumentThemeToRoot(tpl);
+        applyPageMarginsToUI(tpl.pageMargins);
+        applyPageOrientationToUI(tpl.orientation);
+        if (editorHeader)
+          setEditorHTML(editorHeader, charter.config.header.html);
+        if (editorFooter)
+          setEditorHTML(editorFooter, charter.config.footer.html);
+        headerEnabled = tpl.hasHeader;
+        footerEnabled = tpl.hasFooter;
+        updateSectionVisibility();
+        switchSection("body");
+        setSaveState("Modifie", true);
+        toast("La charte a ete appliquee au document", "success");
+      };
+
+      window.deleteCurrentGraphicCharter = function () {
+        const charterId = getSelectedGraphicCharterId();
+        if (!charterId) {
+          toast("Aucune charte a supprimer", "error");
+          return;
+        }
+        const charter = getGraphicCharter(getActiveEtabId(), charterId);
+        document.getElementById("delTplTitle").textContent =
+          "Supprimer la charte graphique ?";
+        document.getElementById("delTplMsg").textContent =
+          `Supprimer la charte "${charter?.name || "Sans nom"}" ? Les templates lies basculeront sur la charte par defaut.`;
+        document.getElementById("delTplBtn").onclick = () => {
+          deleteGraphicCharter(getActiveEtabId(), charterId);
+          closeModal("modalDelTpl");
+          populateGraphicCharterSelect(
+            getDefaultGraphicCharterId(getActiveEtabId()),
+          );
+          if (curTplId) buildEditorUI(DB.getTemplate(curTplId));
+          renderTplList(curFamId);
+          toast("Charte supprimee", "success");
+        };
+        openModal("modalDelTpl");
+      };
+
       function populateFamilySelect() {
         const sel = document.getElementById("famSelAdmin");
         DB.getFamilies().forEach((f) => {
@@ -5327,8 +6004,9 @@
           o.textContent = (f.icon || "") + " " + f.nom;
           sel.appendChild(o);
         });
-        const etab = DB.getEtablissement(ETAB_ID);
+        const etab = DB.getEtablissement(getActiveEtabId());
         if (etab) document.getElementById("etabLabel").textContent = etab.nom;
+        populateGraphicCharterSelect();
       }
       window.onFamChange = function () {
         curFamId = document.getElementById("famSelAdmin").value;
@@ -5346,7 +6024,7 @@
             '<div style="padding:18px;font-size:11px;color:var(--text3);text-align:center;line-height:1.6">Sélectionnez une famille</div>';
           return;
         }
-        const tpls = DB.getTemplates(famId, ETAB_ID);
+        const tpls = DB.getTemplates(famId, getActiveEtabId());
         if (!tpls?.length) {
           scroll.innerHTML =
             '<div style="padding:16px;font-size:11px;color:var(--text3);text-align:center;line-height:1.6">Aucun template.<br>Créez le premier !</div>';
@@ -5393,6 +6071,10 @@
         document.getElementById("emptyState").style.display = "none";
         document.getElementById("editorInner").style.display = "flex";
         document.getElementById("tnameInput").value = tpl.nom;
+        populateGraphicCharterSelect(
+          tpl.graphicCharterId || getDefaultGraphicCharterId(getActiveEtabId()),
+        );
+        applyDocumentThemeToRoot(tpl);
         setSaveState("Prêt", false);
         destroyEditors();
         editorBody = createEditor(
@@ -5422,7 +6104,8 @@
         if (editorBody && tpl.body) setEditorHTML(editorBody, tpl.body);
         if (editorHeader && tpl.header) setEditorHTML(editorHeader, tpl.header);
         if (editorFooter && tpl.footer) setEditorHTML(editorFooter, tpl.footer);
-        applyPageMarginsToUI(tpl.pageMargins);
+        const resolvedMargins = getTemplatePageMargins(tpl);
+        applyPageMarginsToUI(resolvedMargins);
         const orientation = getTemplateOrientation(tpl);
         const selOrientation = document.getElementById("pg-orientation");
         if (selOrientation) selOrientation.value = orientation;
@@ -5438,18 +6121,18 @@
         // ── Initialiser la visualisation des pages multiples ──
         if (!window.pageVisualizer) {
           window.pageVisualizer = new EditorPageVisualizer({
-            marginTop: 20,
-            marginBottom: 20,
-            marginLeft: 25,
-            marginRight: 25,
+            marginTop: resolvedMargins.mt,
+            marginBottom: resolvedMargins.mb,
+            marginLeft: resolvedMargins.ml,
+            marginRight: resolvedMargins.mr,
           });
         } else {
           window.pageVisualizer.destroy();
           window.pageVisualizer = new EditorPageVisualizer({
-            marginTop: 20,
-            marginBottom: 20,
-            marginLeft: 25,
-            marginRight: 25,
+            marginTop: resolvedMargins.mt,
+            marginBottom: resolvedMargins.mb,
+            marginLeft: resolvedMargins.ml,
+            marginRight: resolvedMargins.mr,
           });
         }
 
@@ -5477,25 +6160,25 @@
           return;
         }
         const fam = DB.getFamily(curFamId);
-        const id = genId("tpl");
-        DB.saveTemplate({
-          id,
-          familyId: curFamId,
-          etablissementId: ETAB_ID,
+        const tpl = createTemplateFromGraphicCharter(
+          getActiveEtabId(),
+          curFamId,
+          "Nouveau template - " + fam.nom,
+          getSelectedGraphicCharterId() ||
+            getDefaultGraphicCharterId(getActiveEtabId()),
+        );
+        tpl.nom = "Nouveau template - " + fam.nom;
+        DB.saveTemplate(tpl);
+        /*
           nom: "Nouveau template — " + fam.nom,
-          updatedAt: new Date().toISOString(),
-          hasHeader: false,
-          hasFooter: false,
-          pageMargins: { mt: 20, mb: 20, ml: 25, mr: 25 },
-          header:
             '<p style="text-align:center"><strong>{{nom_etab}}</strong></p><p style="text-align:center;font-size:10pt;color:#666">{{adresse_etab}} — Tél : {{tel_etab}}</p>',
           body: "<p>Rédigez le contenu du document ici.</p>",
           footer:
             '<p style="text-align:center;font-size:9pt;color:#999">Document officiel — {{nom_etab}} — Année {{annee_univ}}</p>',
-        });
-        curTplId = id;
+        */
+        curTplId = tpl.id;
         renderTplList(curFamId);
-        openTemplate(id);
+        openTemplate(tpl.id);
         toast("Nouveau template créé", "success");
       };
 
@@ -5508,6 +6191,9 @@
         tpl.footer = editorFooter ? getEditorHTML(editorFooter) : "";
         tpl.hasHeader = headerEnabled;
         tpl.hasFooter = footerEnabled;
+        tpl.graphicCharterId =
+          getSelectedGraphicCharterId() ||
+          getDefaultGraphicCharterId(getActiveEtabId());
         tpl.pageMargins = getCurrentPageMargins();
         tpl.orientation = getCurrentPageOrientation();
         tpl.updatedAt = new Date().toISOString();
@@ -5604,6 +6290,10 @@
 
       window.confirmDelTpl = function (id) {
         pendingDelId = id;
+        document.getElementById("delTplTitle").textContent =
+          "Supprimer le template ?";
+        document.getElementById("delTplMsg").textContent =
+          "Ce template sera définitivement supprimé.";
         document.getElementById("delTplBtn").onclick = () => {
           DB.deleteTemplate(pendingDelId);
           if (curTplId === pendingDelId) {
@@ -5657,8 +6347,7 @@
           toast("Ouvrez d'abord un template", "error");
           return;
         }
-        const tpl = DB.getTemplate(curTplId) || {};
-        const orientation = getTemplateOrientation(tpl);
+        const orientation = getCurrentPageOrientation();
         const sel = document.getElementById("pg-orientation");
         if (sel) sel.value = orientation;
         applyPageMarginsToUI(getCurrentPageMargins());
@@ -5676,7 +6365,10 @@
         );
       };
       window.resetPageMargins = function () {
-        applyPageMarginsToUI({ mt: 20, mb: 20, ml: 25, mr: 25 });
+        const charter = curTplId
+          ? getTemplateGraphicCharter(DB.getTemplate(curTplId))
+          : normalizeGraphicCharterConfig({});
+        applyPageMarginsToUI(normalizeMargins(charter.layout.pageMargins));
         window.applyPageMargins();
       };
 
@@ -5688,7 +6380,7 @@
         }
         const sel = document.getElementById("prevPerson");
         sel.innerHTML = "";
-        DB.getPersonnel(ETAB_ID).forEach((p) => {
+        DB.getPersonnel(getActiveEtabId()).forEach((p) => {
           const o = document.createElement("option");
           o.value = p.id;
           o.textContent = p.nom_prenom + " — " + p.poste;
@@ -5702,6 +6394,8 @@
         if (!tpl || !editorBody) return null;
         return {
           ...tpl,
+          graphicCharterId:
+            getSelectedGraphicCharterId() || tpl.graphicCharterId || null,
           header:
             headerEnabled && editorHeader ? getEditorHTML(editorHeader) : "",
           body: getEditorHTML(editorBody),
@@ -5709,6 +6403,7 @@
             footerEnabled && editorFooter ? getEditorHTML(editorFooter) : "",
           hasHeader: headerEnabled,
           hasFooter: footerEnabled,
+          orientation: getCurrentPageOrientation(),
           pageMargins: getCurrentPageMargins(),
         };
       }

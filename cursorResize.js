@@ -444,7 +444,8 @@
           const draggedWidth =
             parseInt(_draggingImg.style.width, 10) || _draggingImg.offsetWidth;
           const draggedHeight =
-            parseInt(_draggingImg.style.height, 10) || _draggingImg.offsetHeight;
+            parseInt(_draggingImg.style.height, 10) ||
+            _draggingImg.offsetHeight;
           const srcPos = _findImageNodePos(editor, _draggingImg);
           const node = srcPos != null ? editor.state.doc.nodeAt(srcPos) : null;
           const coords = editor.view.posAtCoords({
@@ -487,20 +488,29 @@
             const imgs = Array.from(
               host.querySelectorAll("img:not(.ProseMirror-separator)"),
             );
-            imgs.forEach((img) => img.classList.remove("ProseMirror-selectednode"));
+            imgs.forEach((img) =>
+              img.classList.remove("ProseMirror-selectednode"),
+            );
             let target = null;
             const hit = document.elementFromPoint(e.clientX, e.clientY);
-            if (hit?.tagName === "IMG" && !hit.classList.contains("ProseMirror-separator")) {
+            if (
+              hit?.tagName === "IMG" &&
+              !hit.classList.contains("ProseMirror-separator")
+            ) {
               target = hit;
             }
             if (!target) {
-              target = imgs.find((img) => (img.getAttribute("src") || "") === draggedSrc);
+              target = imgs.find(
+                (img) => (img.getAttribute("src") || "") === draggedSrc,
+              );
             }
             if (!target) {
               target = imgs.find(
                 (img) =>
-                  (parseInt(img.style.width, 10) || img.offsetWidth) === draggedWidth &&
-                  (parseInt(img.style.height, 10) || img.offsetHeight) === draggedHeight,
+                  (parseInt(img.style.width, 10) || img.offsetWidth) ===
+                    draggedWidth &&
+                  (parseInt(img.style.height, 10) || img.offsetHeight) ===
+                    draggedHeight,
               );
             }
             if (target) _select(target, target, editor);
