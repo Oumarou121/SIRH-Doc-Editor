@@ -3,6 +3,9 @@ CREATE TABLE IF NOT EXISTS family (
   nom VARCHAR(255) NOT NULL,
   icon VARCHAR(32) DEFAULT '',
   description TEXT NULL,
+  beneficiary_mode VARCHAR(32) NULL,
+  beneficiary_table VARCHAR(128) NULL,
+  beneficiary_sql_text LONGTEXT NULL,
   sql_text LONGTEXT NULL,
   created_at VARCHAR(64) NULL,
   classes_json LONGTEXT NOT NULL

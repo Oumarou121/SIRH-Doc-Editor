@@ -9,6 +9,7 @@ const DB_URL =
   process.env.SIRHDOC_DATABASE_URL ||
   "mysql://sirhdoc_user:%40Mamoudou123@localhost:3306/sirhdoc";
 const ROOT_DIR = __dirname;
+const DEFAULT_FAMILY_BENEFICIARY_TABLE = "personnel";
 
 const pool = mysql.createPool(DB_URL);
 
@@ -18,6 +19,18 @@ function clone(data) {
   return JSON.parse(JSON.stringify(data));
 }
 
+function normalizeFamilyRecord(record = {}) {
+  const next = clone(record || {});
+  next.beneficiaryMode =
+    next.beneficiaryMode === "etablissement" ? "etablissement" : "table";
+  next.beneficiaryTable =
+    next.beneficiaryMode === "table"
+      ? String(next.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE)
+      : null;
+  next.beneficiarySql = String(next.beneficiarySql || "").trim();
+  return next;
+}
+
 function normalizeState(state) {
   const next = state && typeof state === "object" ? state : {};
   return {
@@ -25,7 +38,9 @@ function normalizeState(state) {
       ? clone(next.etablissements)
       : [],
     admins: Array.isArray(next.admins) ? clone(next.admins) : [],
-    families: Array.isArray(next.families) ? clone(next.families) : [],
+    families: Array.isArray(next.families)
+      ? next.families.map((family) => normalizeFamilyRecord(family))
+      : [],
     templates: Array.isArray(next.templates) ? clone(next.templates) : [],
     personnel: Array.isArray(next.personnel) ? clone(next.personnel) : [],
   };
@@ -122,6 +137,24 @@ async function ensureSchema() {
         );
       }
     }
+
+    if (await tableExists("family")) {
+      if (!(await tableHasColumn("family", "beneficiary_mode"))) {
+        await pool.query(
+          "ALTER TABLE family ADD COLUMN beneficiary_mode VARCHAR(32) NULL AFTER description",
+        );
+      }
+      if (!(await tableHasColumn("family", "beneficiary_table"))) {
+        await pool.query(
+          "ALTER TABLE family ADD COLUMN beneficiary_table VARCHAR(128) NULL AFTER beneficiary_mode",
+        );
+      }
+      if (!(await tableHasColumn("family", "beneficiary_sql_text"))) {
+        await pool.query(
+          "ALTER TABLE family ADD COLUMN beneficiary_sql_text LONGTEXT NULL AFTER beneficiary_table",
+        );
+      }
+    }
   })();
   return schemaReadyPromise;
 }
@@ -129,13 +162,37 @@ async function ensureSchema() {
 async function loadFamilies() {
   if (!(await tableExists("family"))) return [];
   const [rows] = await pool.query(
-    "SELECT id, nom, icon, description, sql_text, created_at, classes_json FROM family ORDER BY nom",
+    `SELECT id, nom, icon, description,
+            ${
+              (await tableHasColumn("family", "beneficiary_mode"))
+                ? "beneficiary_mode,"
+                : "'table' AS beneficiary_mode,"
+            }
+            ${
+              (await tableHasColumn("family", "beneficiary_table"))
+                ? "beneficiary_table,"
+                : "NULL AS beneficiary_table,"
+            }
+            ${
+              (await tableHasColumn("family", "beneficiary_sql_text"))
+                ? "beneficiary_sql_text,"
+                : "NULL AS beneficiary_sql_text,"
+            }
+            sql_text, created_at, classes_json
+     FROM family
+     ORDER BY nom`,
   );
   return rows.map((row) => ({
     id: String(row.id),
     nom: row.nom,
     icon: row.icon,
     description: row.description,
+    beneficiaryMode: row.beneficiary_mode || "table",
+    beneficiaryTable:
+      row.beneficiary_mode === "etablissement"
+        ? null
+        : row.beneficiary_table || DEFAULT_FAMILY_BENEFICIARY_TABLE,
+    beneficiarySql: row.beneficiary_sql_text || "",
     sql: row.sql_text,
     createdAt: row.created_at,
     classes: safeJson(row.classes_json, []),
@@ -472,13 +529,21 @@ async function replaceState(state) {
 
     for (const item of normalized.families) {
       await conn.execute(
-        `INSERT INTO family (id, nom, icon, description, sql_text, created_at, classes_json)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO family (
+          id, nom, icon, description, beneficiary_mode, beneficiary_table,
+          beneficiary_sql_text, sql_text, created_at, classes_json
+        )
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           item.id,
           item.nom || "",
           item.icon || "",
           item.description || "",
+          item.beneficiaryMode || "table",
+          item.beneficiaryMode === "etablissement"
+            ? null
+            : item.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE,
+          item.beneficiarySql || "",
           item.sql || "",
           item.createdAt || null,
           JSON.stringify(item.classes || []),

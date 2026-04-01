@@ -1048,6 +1048,7 @@
       let selFamId = null,
         selTplId = null,
         selPersonId = null;
+      let currentBeneficiaries = [];
       let openSteps = { 1: true, 2: false, 3: false };
       let zoomLv = 100;
 
@@ -1105,10 +1106,16 @@
       function updatePbar() {
         const fam = selFamId ? DB.getFamily(selFamId) : null;
         const tpl = selTplId ? DB.getTemplate(selTplId) : null;
-        const pers = selPersonId ? DB.getPerson(selPersonId) : null;
+        const beneficiary = currentBeneficiaries.find(
+          (item) => String(item.id) === String(selPersonId),
+        );
         const ps1 = document.getElementById("ps1"),
           ps2 = document.getElementById("ps2"),
           ps3 = document.getElementById("ps3");
+        const step3Default =
+          fam?.beneficiaryMode === "etablissement"
+            ? "Établissement"
+            : "Bénéficiaire";
         ps1.className = "pb-step" + (selFamId ? " done" : " cur");
         ps1.textContent = fam
           ? fam.icon + " " + fam.nom.substring(0, 16)
@@ -1118,10 +1125,32 @@
         ps2.textContent = tpl ? tpl.nom.substring(0, 16) : "Template";
         ps3.className =
           "pb-step" + (selPersonId ? " done" : selTplId ? " cur" : "");
-        ps3.textContent = pers ? pers.nom_prenom.substring(0, 14) : "Personne";
+        ps3.textContent = beneficiary
+          ? (
+              beneficiary._displayLabel ||
+              beneficiary.nom_prenom ||
+              beneficiary.nom ||
+              step3Default
+            ).substring(0, 14)
+          : step3Default;
       }
 
       /* ── ÉTAPE 1 ── */
+      function refreshBeneficiaryLabels() {
+        const fam = selFamId ? DB.getFamily(selFamId) : null;
+        const sl3 = document.getElementById("sl3");
+        const ps3 = document.getElementById("ps3");
+        if (!sl3 || !ps3) return;
+        if (fam?.beneficiaryMode === "etablissement") {
+          sl3.textContent = "Établissement bénéficiaire";
+          if (!selPersonId) ps3.textContent = "Établissement";
+          return;
+        }
+        const tableName = fam?.beneficiaryTable || "personnel";
+        sl3.textContent = `Bénéficiaire (${tableName})`;
+        if (!selPersonId) ps3.textContent = "Bénéficiaire";
+      }
+
       function buildFamGrid() {
         const grid = document.getElementById("famGrid");
         grid.innerHTML = "";
@@ -1142,7 +1171,9 @@
         selFamId = famId;
         selTplId = null;
         selPersonId = null;
+        currentBeneficiaries = [];
         buildFamGrid();
+        refreshBeneficiaryLabels();
         const fam = DB.getFamily(famId);
         const sv1 = document.getElementById("sv1");
         sv1.textContent = fam.icon + " " + fam.nom;
@@ -1175,17 +1206,20 @@
           c.appendChild(card);
         });
       }
-      function selectTemplate(tplId) {
+      async function selectTemplate(tplId) {
         selTplId = tplId;
         selPersonId = null;
+        currentBeneficiaries = [];
         buildTplList(selFamId);
         const tpl = DB.getTemplate(tplId);
+        const fam = DB.getFamily(selFamId);
+        refreshBeneficiaryLabels();
         const sv2 = document.getElementById("sv2");
         sv2.textContent = tpl.nom;
         sv2.className = "step-val ok";
         setStepState(2, "done");
         setStepState(3, "cur");
-        buildPersonList();
+        await buildPersonList();
         openStep(3);
         closeStep(2);
         updatePbar();
@@ -1255,6 +1289,119 @@
       }
 
       /* ── CANVAS A4 (pages paginées avec variables bleues) ── */
+      async function selectTemplate(tplId) {
+        selTplId = tplId;
+        selPersonId = null;
+        currentBeneficiaries = [];
+        buildTplList(selFamId);
+        const tpl = DB.getTemplate(tplId);
+        const fam = DB.getFamily(selFamId);
+        refreshBeneficiaryLabels();
+        const sv2 = document.getElementById("sv2");
+        sv2.textContent = tpl.nom;
+        sv2.className = "step-val ok";
+        setStepState(2, "done");
+        setStepState(3, "cur");
+        await buildPersonList();
+        openStep(3);
+        closeStep(2);
+        updatePbar();
+        if (
+          fam?.beneficiaryMode === "etablissement" &&
+          currentBeneficiaries.length === 1
+        ) {
+          await selectPerson(currentBeneficiaries[0].id);
+          return;
+        }
+        showWait(
+          fam?.beneficiaryMode === "etablissement"
+            ? "Document lié à l'établissement"
+            : "Sélectionnez le bénéficiaire concerné",
+        );
+      }
+
+      async function buildPersonList() {
+        const c = document.getElementById("personList");
+        c.innerHTML = "";
+        currentBeneficiaries = await DB.getBeneficiariesForFamily(
+          selFamId,
+          ETAB_ID,
+        );
+        if (!currentBeneficiaries.length) {
+          c.innerHTML =
+            '<div style="font-size:11px;color:#aaa;text-align:center;padding:14px">Aucun bénéficiaire disponible</div>';
+          return;
+        }
+        currentBeneficiaries.forEach((p) => {
+          const label =
+            p._displayLabel || p.nom_prenom || p.nom || "Bénéficiaire";
+          const subtitle =
+            p._displaySubtitle ||
+            (p._sourceTable === "etablissement"
+              ? "Document établissement"
+              : p._sourceTable || "");
+          const initials = label
+            .split(" ")
+            .map((n) => n[0] || "")
+            .join("")
+            .substring(0, 2)
+            .toUpperCase();
+          const item = document.createElement("div");
+          item.className =
+            "person-item" + (String(selPersonId) === String(p.id) ? " sel" : "");
+          item.innerHTML = `<div class="p-av">${initials}</div><div><div class="p-name">${label}</div><div class="p-meta">${subtitle}</div></div>`;
+          item.onclick = () => selectPerson(p.id);
+          c.appendChild(item);
+        });
+      }
+
+      async function selectPerson(personId) {
+        selPersonId = personId;
+        await buildPersonList();
+        const beneficiary = currentBeneficiaries.find(
+          (item) => String(item.id) === String(personId),
+        );
+        const sv3 = document.getElementById("sv3");
+        sv3.textContent =
+          beneficiary?._displayLabel ||
+          beneficiary?.nom_prenom ||
+          beneficiary?.nom ||
+          "Bénéficiaire";
+        sv3.className = "step-val ok";
+        setStepState(3, "done");
+        closeStep(3);
+        updatePbar();
+        await generateDocument();
+      }
+
+      async function generateDocument() {
+        const tpl = DB.getTemplate(selTplId);
+        const person = await DB.getDocumentDataForFamily(
+          selFamId,
+          selPersonId,
+          ETAB_ID,
+        );
+        if (!tpl || !person) return;
+
+        buildA4Canvas(tpl, person);
+
+        document.getElementById("zoomBar").style.display = "flex";
+        const actions = document.getElementById("docActions");
+        actions.innerHTML = "";
+        const mkBtn = (label, cls, fn) => {
+          const b = document.createElement("button");
+          b.className = "btn " + cls;
+          b.textContent = label;
+          b.onclick = fn;
+          actions.appendChild(b);
+        };
+        mkBtn("ðŸ‘ AperÃ§u final", "primary", () => previewDocument(tpl, person));
+        mkBtn("ðŸ–¨ Imprimer", "primary", () => printDocPaginated(tpl, person));
+        mkBtn("Nouveau", "ghost", resetAll);
+
+        toast("Document gÃ©nÃ©rÃ© !", "success");
+      }
+
       function buildA4Canvas(tpl, person) {
         const wait = document.getElementById("docWait");
         const canvas = document.getElementById("a4Canvas");

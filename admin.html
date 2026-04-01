@@ -3405,7 +3405,10 @@
             flex-wrap: wrap;
           "
         >
-          <div style="font-size: 12px; color: var(--text2); font-weight: 600">
+          <div
+            id="prevTargetLabel"
+            style="font-size: 12px; color: var(--text2); font-weight: 600"
+          >
             Bénéficiaire :
           </div>
           <select
@@ -6454,6 +6457,153 @@
           pageNum.textContent = `Page ${idx + 1}`;
           prevPage.appendChild(pageNum);
         });
+      };
+
+      async function populatePreviewBeneficiaries() {
+        const fam = curFamId ? DB.getFamily(curFamId) : null;
+        const sel = document.getElementById("prevPerson");
+        const label = document.getElementById("prevTargetLabel");
+        if (!sel || !fam) return [];
+        const beneficiaries = await DB.getBeneficiariesForFamily(
+          curFamId,
+          getActiveEtabId(),
+        );
+        sel.innerHTML = "";
+        beneficiaries.forEach((item) => {
+          const o = document.createElement("option");
+          o.value = item.id;
+          o.textContent = item._displaySubtitle
+            ? `${item._displayLabel} — ${item._displaySubtitle}`
+            : item._displayLabel;
+          sel.appendChild(o);
+        });
+        if (beneficiaries.length) {
+          sel.value = beneficiaries[0].id;
+        }
+        if (label) {
+          label.textContent =
+            fam.beneficiaryMode === "etablissement"
+              ? "Établissement :"
+              : `Bénéficiaire (${fam.beneficiaryTable || "personnel"}) :`;
+        }
+        return beneficiaries;
+      }
+
+      window.openPreviewModal = async function () {
+        if (!curTplId || !editorBody) {
+          toast("Ouvrez d'abord un template", "error");
+          return;
+        }
+        await populatePreviewBeneficiaries();
+        await window.refreshPrev();
+        openModal("modalPreview");
+      };
+
+      window.refreshPrev = async function () {
+        const beneficiaryId =
+          document.getElementById("prevPerson")?.value || null;
+        const person = await DB.getDocumentDataForFamily(
+          curFamId,
+          beneficiaryId,
+          getActiveEtabId(),
+        );
+        const liveTpl = buildLivePreviewTemplate();
+        if (!person || !liveTpl) return;
+        const prevPage = document.getElementById("prevContent");
+        prevPage.innerHTML = "";
+        prevPage.className = "preview-pages";
+
+        const result = paginateWithVariablesBlue(liveTpl, person);
+        adminPreviewState = null;
+        if (!result.pages.length) {
+          prevPage.innerHTML =
+            '<div style="font-size:12px;color:var(--text3);text-align:center;padding:30px 20px">Aucun contenu à afficher</div>';
+          return;
+        }
+
+        adminPreviewState = {
+          tplId: curTplId,
+          beneficiaryId,
+          pages: result.pages,
+        };
+
+        result.pages.forEach((page, idx) => {
+          const pageEl = document.createElement("div");
+          pageEl.className = "preview-page";
+          const noHeaderClass = !result.hasHeader ? " no-header" : "";
+          const noFooterClass = !result.hasFooter ? " no-footer" : "";
+          let pageHtml = "";
+
+          if (result.hasHeader && page.header) {
+            pageHtml += `<div class="prev-header">${page.header}</div>`;
+          }
+
+          pageHtml += `<div class="prev-body${noHeaderClass}${noFooterClass}">${page.content}</div>`;
+
+          if (result.hasFooter && page.footer) {
+            pageHtml += `<div class="prev-footer">${page.footer}</div>`;
+          }
+
+          pageEl.innerHTML = pageHtml;
+          prevPage.appendChild(pageEl);
+
+          const pageNum = document.createElement("div");
+          pageNum.className = "preview-page-num";
+          pageNum.textContent = `Page ${idx + 1}`;
+          prevPage.appendChild(pageNum);
+        });
+      };
+
+      window.doPreviewFromPreview = async function () {
+        const beneficiaryId =
+          document.getElementById("prevPerson")?.value || null;
+        const person = await DB.getDocumentDataForFamily(
+          curFamId,
+          beneficiaryId,
+          getActiveEtabId(),
+        );
+        const liveTpl = buildLivePreviewTemplate();
+        if (!liveTpl) {
+          toast("Aucun template actif", "error");
+          return;
+        }
+        if (!person) {
+          toast(
+            "Sélectionnez un bénéficiaire ou l'établissement pour afficher l'aperçu",
+            "error",
+          );
+          return;
+        }
+        previewDocument(liveTpl, person);
+      };
+
+      window.doPrintFromPreview = async function () {
+        const beneficiaryId =
+          document.getElementById("prevPerson")?.value || null;
+        const person = await DB.getDocumentDataForFamily(
+          curFamId,
+          beneficiaryId,
+          getActiveEtabId(),
+        );
+        const liveTpl = buildLivePreviewTemplate();
+        if (!liveTpl) {
+          toast("Aucun template actif", "error");
+          return;
+        }
+        if (!person) {
+          toast(
+            "Sélectionnez un bénéficiaire ou l'établissement pour imprimer",
+            "error",
+          );
+          return;
+        }
+        const cachedPages =
+          adminPreviewState &&
+          adminPreviewState.tplId === curTplId &&
+          adminPreviewState.beneficiaryId === beneficiaryId
+            ? adminPreviewState.pages
+            : null;
+        printDocPaginated(liveTpl, person, cachedPages);
       };
 
       // ── Zoom ──

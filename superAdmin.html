@@ -1534,10 +1534,14 @@
             .filter((f) => f.nom.toLowerCase().includes(search))
             .forEach((fam) => {
               const tplCount = DB.getTemplates(fam.id).length;
+              const beneficiaryMeta =
+                fam.beneficiaryMode === "etablissement"
+                  ? "lié à l'établissement"
+                  : `bénéficiaire: ${fam.beneficiaryTable || "personnel"}`;
               const item = document.createElement("div");
               item.className =
                 "list-item" + (selectedFamId === fam.id ? " active" : "");
-              item.innerHTML = `<div class="list-item-icon">${fam.icon}</div><div class="list-item-body"><div class="list-item-name">${fam.nom}</div><div class="list-item-meta">${fam.classes?.length || 0} classes · ${tplCount} templates</div></div><span class="list-item-badge">${tplCount}</span>`;
+              item.innerHTML = `<div class="list-item-icon">${fam.icon}</div><div class="list-item-body"><div class="list-item-name">${fam.nom}</div><div class="list-item-meta">${fam.classes?.length || 0} classes · ${tplCount} templates · ${beneficiaryMeta}</div></div><span class="list-item-badge">${tplCount}</span>`;
               item.onclick = () => {
                 selectedFamId = fam.id;
                 renderLeftPanel();
@@ -1595,6 +1599,9 @@
           nom: "Nouvelle famille",
           icon: "📄",
           description: "",
+          beneficiaryMode: "table",
+          beneficiaryTable: DEFAULT_FAMILY_BENEFICIARY_TABLE,
+          beneficiarySql: "",
           classes: [],
           sql: "",
           createdAt: new Date().toISOString(),
@@ -1667,6 +1674,45 @@
       <div class="form-row" style="margin:0"><label class="form-label">Description</label><input class="form-input" id="fDesc" value="${fam.description || ""}" placeholder="Description courte"></div>
       <div class="form-row" style="margin:0"><label class="form-label">Icône (emoji)</label><input class="form-input" id="fIcon" value="${fam.icon}" placeholder="📋" style="text-align:center;font-size:20px"></div>
     </div>
+    <div class="form-grid c3" style="margin-top:14px">
+      <div class="form-row" style="margin:0">
+        <label class="form-label">Cible du document</label>
+        <select class="form-input" id="fBeneficiaryMode" onchange="updateFamilyBeneficiaryMode('${famId}', this.value)">
+          <option value="table" ${fam.beneficiaryMode !== "etablissement" ? "selected" : ""}>Bénéficiaire d'une table</option>
+          <option value="etablissement" ${fam.beneficiaryMode === "etablissement" ? "selected" : ""}>Lié à l'établissement</option>
+        </select>
+      </div>
+      <div class="form-row" style="margin:0" id="familyBeneficiaryTableWrap">
+        <label class="form-label">Table bénéficiaire</label>
+        <div class="text-muted" style="padding-top:9px">Chargement...</div>
+      </div>
+      <div class="form-row" style="margin:0">
+        <label class="form-label">Tables masquées</label>
+        <div class="text-muted" id="familyHiddenTablesHint" style="padding-top:9px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18"/><path d="M6 12h12"/><path d="M10 17h4"/></svg>
+      Requête SQL bénéficiaires
+    </div>
+    <span class="chip chip-teal">Liste pour aperçu / impression</span>
+  </div>
+  <div class="card-body">
+    <p class="text-muted" style="margin-bottom:10px">Quand la cible du document est une table, ce SELECT sert à afficher les bénéficiaires disponibles avant l'aperçu et l'impression.</p>
+    <div class="flex gap-8" style="margin-bottom:10px">
+      <button class="btn sm" onclick="regenerateFamilyBeneficiarySql('${famId}')">Régénérer SELECT bénéficiaires</button>
+      <button class="btn sm" onclick="testFamilyBeneficiaryQuery('${famId}')">Tester la liste</button>
+    </div>
+    <div class="sql-wrap">
+      <textarea class="sql-input" id="fBeneficiarySql" rows="7" ${fam.beneficiaryMode === "etablissement" ? "disabled" : ""}>${fam.beneficiarySql || ""}</textarea>
+      <div class="sql-badge">BENEF</div>
+    </div>
+    <pre id="beneficiaryPreviewBox" style="margin-top:10px;white-space:pre-wrap;font-size:11px;color:var(--text2);background:#fbfcfe;border:1px solid var(--line);border-radius:12px;padding:12px">Cliquez sur "Tester la liste" pour voir un bénéficiaire retourné.</pre>
   </div>
 </div>
 
@@ -1722,8 +1768,94 @@
   </div>
 </div>`;
         renderClassesContainer(famId);
+        renderFamilyBeneficiaryTableSelect(famId);
         renderSchemaAssistant(famId);
       }
+
+      async function renderFamilyBeneficiaryTableSelect(famId) {
+        const fam = DB.getFamily(famId);
+        const wrap = document.getElementById("familyBeneficiaryTableWrap");
+        const hiddenHint = document.getElementById("familyHiddenTablesHint");
+        if (hiddenHint) {
+          hiddenHint.textContent = getSuperadminHiddenFamilyTables().join(", ");
+        }
+        if (!fam || !wrap) return;
+
+        if (fam.beneficiaryMode === "etablissement") {
+          wrap.innerHTML = `
+        <label class="form-label">Table bénéficiaire</label>
+        <div class="text-muted" style="padding-top:9px">Aucune table requise : ce document sera généré à partir du contexte de l'établissement.</div>`;
+          return;
+        }
+
+        wrap.innerHTML = `
+      <label class="form-label">Table bénéficiaire</label>
+      <div class="text-muted" style="padding-top:9px">Chargement du schéma...</div>`;
+
+        try {
+          const schema = await ensureSchemaMeta();
+          const visibleTables = getFamilyVisibleTables(schema, fam);
+          if (!fam.beneficiarySql) {
+            fam.beneficiarySql = buildBeneficiarySqlFromFamily(famId);
+            DB.saveFamily(fam);
+            const sqlInput = document.getElementById("fBeneficiarySql");
+            if (sqlInput) sqlInput.value = fam.beneficiarySql || "";
+          }
+          wrap.innerHTML = `
+        <label class="form-label">Table bénéficiaire</label>
+        <select class="form-input" id="fBeneficiaryTable" onchange="updateFamilyBeneficiaryTable('${famId}', this.value)">
+          ${visibleTables
+            .map(
+              (table) =>
+                `<option value="${escAttr(table.name)}" ${table.name === getFamilyBeneficiaryTable(fam) ? "selected" : ""}>${escHtml(table.name)}${table.comment ? ` - ${escHtml(table.comment)}` : ""}</option>`,
+            )
+            .join("")}
+        </select>`;
+        } catch (error) {
+          wrap.innerHTML = `
+        <label class="form-label">Table bénéficiaire</label>
+        <div class="text-danger" style="padding-top:9px">${escHtml(error.message)}</div>`;
+        }
+      }
+
+      window.updateFamilyBeneficiaryMode = function (famId, mode) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        fam.beneficiaryMode = mode === "etablissement" ? "etablissement" : "table";
+        if (fam.beneficiaryMode === "table") {
+          fam.beneficiaryTable =
+            fam.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
+          fam.beneficiarySql =
+            fam.beneficiarySql || buildBeneficiarySqlFromFamily(famId);
+        } else {
+          fam.beneficiaryTable = null;
+          fam.beneficiarySql = "";
+        }
+        DB.saveFamily(fam);
+        renderLeftPanel();
+        renderFamilyBeneficiaryTableSelect(famId);
+        renderSchemaAssistant(famId);
+        renderFamilyEditor(famId);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.updateFamilyBeneficiaryTable = function (famId, tableName) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        fam.beneficiaryMode = "table";
+        fam.beneficiaryTable = tableName || DEFAULT_FAMILY_BENEFICIARY_TABLE;
+        fam.beneficiarySql = buildBeneficiarySqlFromFamily(famId);
+        DB.saveFamily(fam);
+        const state = schemaMetaCache
+          ? getBuilderState(famId, fam, schemaMetaCache)
+          : null;
+        if (state && !state.baseTable) {
+          state.baseTable = fam.beneficiaryTable;
+        }
+        renderLeftPanel();
+        renderFamilyEditor(famId);
+        regenerateFamilySql(famId, true);
+      };
 
       // ── Render classes container ──────────────────────────────────
       function renderClassesContainer(famId) {
@@ -1836,28 +1968,152 @@
         );
       }
 
+      function getFamilyVisibleTables(schema, fam) {
+        return getVisibleFamilySchemaTables(schema, [
+          fam?.beneficiaryTable,
+          inferBaseTable(fam, schema),
+        ]);
+      }
+
+      function getFamilyBeneficiaryTable(fam) {
+        return fam?.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
+      }
+
+      function buildBeneficiarySqlFromFamily(famId) {
+        const fam = DB.getFamily(famId);
+        if (!fam || !schemaMetaCache || fam.beneficiaryMode === "etablissement") {
+          return "";
+        }
+        const tableName = getFamilyBeneficiaryTable(fam);
+        const columns = getColumnsForTable(schemaMetaCache, tableName);
+        if (!columns.length) return "";
+        const pk = getPrimaryColumn(schemaMetaCache, tableName);
+        const labelColumn =
+          columns.find((column) =>
+            [
+              "nom_prenom",
+              "nom_complet",
+              "display_name",
+              "full_name",
+              "nom",
+              "libelle",
+              "intitule",
+            ].includes(column.name),
+          )?.name || pk;
+        const subtitleColumn = columns.find((column) =>
+          [
+            "poste",
+            "fonction",
+            "grade",
+            "departement",
+            "service",
+            "email",
+            "code",
+            "matricule",
+          ].includes(column.name),
+        )?.name;
+        const hasEtabColumn = columns.some(
+          (column) => column.name === "etablissement_id",
+        );
+        return [
+          "SELECT",
+          `  ${sqlId(pk)} AS id,`,
+          `  ${sqlId(labelColumn)} AS libelle${
+            subtitleColumn ? "," : ""
+          }`,
+          subtitleColumn
+            ? `  ${sqlId(subtitleColumn)} AS sous_libelle`
+            : "",
+          `FROM ${sqlId(tableName)}`,
+          hasEtabColumn ? `WHERE ${sqlId("etablissement_id")} = :etablissementId` : "",
+          `ORDER BY ${sqlId(labelColumn)} ASC`,
+          "LIMIT 500",
+        ]
+          .filter(Boolean)
+          .join("\n");
+      }
+
+      function getFamilyFilterClause(fam, schema, baseTable, baseAlias) {
+        const basePk = getPrimaryColumn(schema, baseTable);
+
+        if (fam?.beneficiaryMode === "etablissement") {
+          if (baseTable === "etablissement") {
+            return `${baseAlias}.${sqlId(basePk)} = :etablissementId`;
+          }
+          if (getColumnsForTable(schema, baseTable).some((c) => c.name === "etablissement_id")) {
+            return `${baseAlias}.${sqlId("etablissement_id")} = :etablissementId`;
+          }
+          const etabRelation = schema.relations.find(
+            (rel) =>
+              rel.table === baseTable && rel.referencedTable === "etablissement",
+          );
+          if (etabRelation) {
+            return `${baseAlias}.${sqlId(etabRelation.column)} = :etablissementId`;
+          }
+          return `${baseAlias}.${sqlId(basePk)} = :etablissementId`;
+        }
+
+        const beneficiaryTable = getFamilyBeneficiaryTable(fam);
+        if (baseTable === beneficiaryTable) {
+          return `${baseAlias}.${sqlId(basePk)} = :beneficiaryId`;
+        }
+
+        const beneficiaryPk = getPrimaryColumn(schema, beneficiaryTable);
+        const relation = getJoinPlan(schema, baseTable, beneficiaryTable);
+        if (relation) {
+          if (
+            relation.table === baseTable &&
+            relation.referencedTable === beneficiaryTable
+          ) {
+            return `${baseAlias}.${sqlId(relation.column)} = :beneficiaryId`;
+          }
+          if (
+            relation.table === beneficiaryTable &&
+            relation.referencedTable === baseTable
+          ) {
+            return `EXISTS (SELECT 1 FROM ${sqlId(beneficiaryTable)} bf WHERE bf.${sqlId(relation.column)} = ${baseAlias}.${sqlId(relation.referencedColumn)} AND bf.${sqlId(beneficiaryPk)} = :beneficiaryId)`;
+          }
+        }
+
+        return `${baseAlias}.${sqlId(basePk)} = :beneficiaryId`;
+      }
+
       function inferBaseTable(fam, schema) {
         const fromMatch = /\bfrom\s+([a-zA-Z0-9_]+)/i.exec(fam.sql || "");
         if (fromMatch) return fromMatch[1];
+        if (fam?.beneficiaryMode !== "etablissement" && fam?.beneficiaryTable) {
+          return fam.beneficiaryTable;
+        }
         const generatedVar = (fam.classes || [])
           .flatMap((c) => c.vars || [])
           .find((v) => v.sourceTable);
+        const visibleTables = getVisibleFamilySchemaTables(schema, [
+          fam?.beneficiaryTable,
+        ]);
         return (
           generatedVar?.baseTable ||
           generatedVar?.sourceTable ||
-          schema.tables.find((t) => !["family", "template"].includes(t.name))
-            ?.name ||
+          visibleTables[0]?.name ||
           schema.tables[0]?.name ||
           ""
         );
       }
 
       function getBuilderState(famId, fam, schema) {
+        const visibleTables = getFamilyVisibleTables(schema, fam);
         if (!schemaBuilderState[famId]) {
           schemaBuilderState[famId] = {
             baseTable: inferBaseTable(fam, schema),
             selectedColumns: {},
           };
+        }
+        if (
+          visibleTables.length &&
+          !visibleTables.some(
+            (table) => table.name === schemaBuilderState[famId].baseTable,
+          )
+        ) {
+          schemaBuilderState[famId].baseTable = visibleTables[0].name;
         }
         return schemaBuilderState[famId];
       }
@@ -1936,14 +2192,41 @@
         return `\`${String(name || "").replace(/`/g, "``")}\``;
       }
 
+      function getValidGeneratedVars(schema, baseTable, vars) {
+        return (vars || []).filter((v) => {
+          if (!v?.sourceTable) return false;
+          const tableColumns = getColumnsForTable(schema, v.sourceTable);
+          if (!tableColumns.length) return false;
+          if (
+            v.sourceTable !== baseTable &&
+            !getJoinPlan(schema, baseTable, v.sourceTable)
+          ) {
+            return false;
+          }
+          if (v.type === "list-object") {
+            return (v.sourceColumns || []).every((col) =>
+              tableColumns.some((tableCol) => tableCol.name === col.column),
+            );
+          }
+          return tableColumns.some(
+            (tableCol) => tableCol.name === v.sourceColumn,
+          );
+        });
+      }
+
       function buildSqlFromFamily(famId) {
         const fam = DB.getFamily(famId);
         if (!fam || !schemaMetaCache) return fam?.sql || "";
 
         const builder = getBuilderState(famId, fam, schemaMetaCache);
-        const generatedVars = (fam.classes || [])
+        const allGeneratedVars = (fam.classes || [])
           .flatMap((c) => c.vars || [])
           .filter((v) => v.sourceTable);
+        const generatedVars = getValidGeneratedVars(
+          schemaMetaCache,
+          builder.baseTable,
+          allGeneratedVars,
+        );
         if (!generatedVars.length || !builder.baseTable) return fam.sql || "";
 
         const baseTable = builder.baseTable;
@@ -1991,7 +2274,7 @@
           selects.join(",\n"),
           `FROM ${sqlId(baseTable)} ${baseAlias}`,
           ...joins,
-          `WHERE ${baseAlias}.${sqlId(basePk)} = :id`,
+          `WHERE ${getFamilyFilterClause(fam, schemaMetaCache, baseTable, baseAlias)}`,
           `GROUP BY ${baseAlias}.${sqlId(basePk)}`,
         ].join("\n");
       }
@@ -2007,6 +2290,45 @@
         if (sqlInput) sqlInput.value = generatedSql;
         if (!silent) toast("Requête SELECT régénérée", "success");
       }
+
+      window.regenerateFamilyBeneficiarySql = function (famId, silent = false) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        fam.beneficiarySql = buildBeneficiarySqlFromFamily(famId);
+        DB.saveFamily(fam);
+        const sqlInput = document.getElementById("fBeneficiarySql");
+        if (sqlInput) sqlInput.value = fam.beneficiarySql || "";
+        if (!silent) toast("SELECT bénéficiaires régénéré", "success");
+      };
+
+      window.testFamilyBeneficiaryQuery = async function (famId) {
+        const fam = DB.getFamily(famId);
+        const box = document.getElementById("beneficiaryPreviewBox");
+        if (!box || !fam) return;
+        if (fam.beneficiaryMode === "etablissement") {
+          box.textContent =
+            "Mode établissement : aucun SELECT bénéficiaires n'est nécessaire.";
+          return;
+        }
+        const sql =
+          document.getElementById("fBeneficiarySql")?.value?.trim() ||
+          fam.beneficiarySql ||
+          "";
+        if (!sql) {
+          box.textContent = "Aucun SELECT bénéficiaires défini.";
+          return;
+        }
+        box.textContent = "Test en cours...";
+        try {
+          const rows = await DB.runSelect(sql, {
+            etablissementId: 1,
+            etabId: 1,
+          });
+          box.textContent = JSON.stringify(rows[0] || {}, null, 2);
+        } catch (error) {
+          box.textContent = error.message;
+        }
+      };
 
       window.setFamilyBaseTable = function (famId, tableName) {
         const fam = DB.getFamily(famId);
@@ -2115,7 +2437,13 @@
         if (!fam?.sql || !box) return;
         box.textContent = "Test en cours...";
         try {
-          const rows = await DB.runSelect(fam.sql, { id: 1, personId: 1 });
+          const rows = await DB.runSelect(fam.sql, {
+            id: 1,
+            personId: 1,
+            beneficiaryId: 1,
+            etablissementId: 1,
+            etabId: 1,
+          });
           box.textContent = JSON.stringify(rows[0] || {}, null, 2);
         } catch (error) {
           box.textContent = error.message;
@@ -2132,14 +2460,20 @@
           const fam = DB.getFamily(famId);
           if (!fam) return;
           const state = getBuilderState(famId, fam, schema);
-          const visibleTables = getReachableTables(schema, state.baseTable);
+          const visibleTables = getReachableTables(schema, state.baseTable).filter(
+            (tableName) =>
+              getFamilyVisibleTables(schema, fam).some(
+                (table) => table.name === tableName,
+              ),
+          );
+          const baseTableOptions = getFamilyVisibleTables(schema, fam);
+          const hiddenTables = getSuperadminHiddenFamilyTables();
           wrap.innerHTML = `
 <div class="form-grid c3" style="margin-bottom:14px">
   <div class="form-row" style="margin:0">
     <label class="form-label">Table principale</label>
     <select class="form-input" onchange="setFamilyBaseTable('${famId}', this.value)">
-      ${schema.tables
-        .filter((t) => !["family", "template"].includes(t.name))
+      ${baseTableOptions
         .map(
           (t) =>
             `<option value="${escAttr(t.name)}" ${t.name === state.baseTable ? "selected" : ""}>${escHtml(t.name)}${t.comment ? ` - ${escHtml(t.comment)}` : ""}</option>`,
@@ -2149,7 +2483,7 @@
   </div>
   <div class="form-row" style="margin:0">
     <label class="form-label">Aide</label>
-    <div class="text-muted" style="padding-top:9px">Les descriptions de colonnes alimentent automatiquement les libellés métier.</div>
+    <div class="text-muted" style="padding-top:9px">Les descriptions de colonnes alimentent automatiquement les libellés métier. Tables masquées au superadmin : ${hiddenTables.map((name) => escHtml(name)).join(", ")}.</div>
   </div>
   <div class="form-row" style="margin:0">
     <label class="form-label">Actions</label>
@@ -2329,6 +2663,8 @@
       function saveFamily(famId) {
         const fam = DB.getFamily(famId);
         const sqlValue = document.getElementById("fSql")?.value?.trim() || "";
+        const beneficiarySqlValue =
+          document.getElementById("fBeneficiarySql")?.value?.trim() || "";
         if (sqlValue && !/^select\b/i.test(sqlValue)) {
           toast(
             "La requête principale doit rester une requête SELECT",
@@ -2336,9 +2672,22 @@
           );
           return;
         }
+        if (
+          fam.beneficiaryMode !== "etablissement" &&
+          beneficiarySqlValue &&
+          !/^select\b/i.test(beneficiarySqlValue)
+        ) {
+          toast(
+            "La requête de liste des bénéficiaires doit rester une requête SELECT",
+            "error",
+          );
+          return;
+        }
         fam.nom = document.getElementById("fNom")?.value || fam.nom;
         fam.description = document.getElementById("fDesc")?.value || "";
         fam.icon = document.getElementById("fIcon")?.value || "📄";
+        fam.beneficiarySql =
+          fam.beneficiaryMode === "etablissement" ? "" : beneficiarySqlValue;
         fam.sql = sqlValue;
         DB.saveFamily(fam);
         renderLeftPanel();

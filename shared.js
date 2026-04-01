@@ -22,6 +22,53 @@ function cloneData(data) {
   return JSON.parse(JSON.stringify(data));
 }
 
+const DEFAULT_FAMILY_BENEFICIARY_TABLE = "personnel";
+const SUPERADMIN_FAMILY_HIDDEN_TABLES = Object.freeze([
+  "family",
+  "template",
+  "etablissement",
+  "admin_user",
+  "graphic_charter",
+  "admin_account",
+  "charte",
+]);
+
+function normalizeFamilyRecord(record = {}) {
+  const next = cloneData(record || {}) || {};
+  next.beneficiaryMode =
+    next.beneficiaryMode === "etablissement" ? "etablissement" : "table";
+  next.beneficiaryTable =
+    next.beneficiaryMode === "table"
+      ? String(
+          next.beneficiaryTable ||
+            next.beneficiaireTable ||
+            DEFAULT_FAMILY_BENEFICIARY_TABLE,
+        )
+      : null;
+  next.beneficiarySql = String(
+    next.beneficiarySql || next.beneficiarySqlText || "",
+  ).trim();
+  delete next.beneficiaireTable;
+  delete next.beneficiarySqlText;
+  return next;
+}
+
+function getSuperadminHiddenFamilyTables() {
+  return [...SUPERADMIN_FAMILY_HIDDEN_TABLES];
+}
+
+function isSuperadminFamilyTableHidden(tableName) {
+  return SUPERADMIN_FAMILY_HIDDEN_TABLES.includes(String(tableName || ""));
+}
+
+function getVisibleFamilySchemaTables(schema, extraTables = []) {
+  const extras = new Set((extraTables || []).filter(Boolean));
+  return (schema?.tables || []).filter(
+    (table) =>
+      !isSuperadminFamilyTableHidden(table.name) || extras.has(table.name),
+  );
+}
+
 function normalizeState(state) {
   const next = state && typeof state === "object" ? state : {};
   return {
@@ -31,7 +78,9 @@ function normalizeState(state) {
         )
       : [],
     admins: Array.isArray(next.admins) ? cloneData(next.admins) : [],
-    families: Array.isArray(next.families) ? cloneData(next.families) : [],
+    families: Array.isArray(next.families)
+      ? next.families.map((fam) => normalizeFamilyRecord(cloneData(fam)))
+      : [],
     templates: Array.isArray(next.templates)
       ? next.templates.map((tpl) => normalizeTemplateRecord(cloneData(tpl)))
       : [],
@@ -44,6 +93,86 @@ function notifySyncError(message, error) {
   if (typeof window !== "undefined" && typeof window.toast === "function") {
     window.toast(message, "error");
   }
+}
+
+function quoteSqlIdentifier(name) {
+  return `\`${String(name || "").replace(/`/g, "``")}\``;
+}
+
+function getSchemaColumnsForTable(schema, tableName) {
+  return (schema?.columns || []).filter((column) => column.table === tableName);
+}
+
+function getSchemaPrimaryColumn(schema, tableName) {
+  return (
+    getSchemaColumnsForTable(schema, tableName).find(
+      (column) => column.key === "PRI",
+    )?.name || "id"
+  );
+}
+
+function getSchemaColumn(schema, tableName, columnName) {
+  return getSchemaColumnsForTable(schema, tableName).find(
+    (column) => column.name === columnName,
+  );
+}
+
+function guessBeneficiaryLabel(row = {}) {
+  const directKeys = [
+    "nom_prenom",
+    "nom_complet",
+    "display_name",
+    "full_name",
+    "libelle",
+    "intitule",
+    "titre",
+    "nom",
+  ];
+  for (const key of directKeys) {
+    const value = row[key];
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value).trim();
+    }
+  }
+  const fullName = [row.prenom, row.nom]
+    .filter(
+      (value) => value !== undefined && value !== null && String(value).trim(),
+    )
+    .join(" ")
+    .trim();
+  if (fullName) return fullName;
+
+  const fallbackKey = Object.keys(row).find((key) => {
+    const value = row[key];
+    return (
+      !key.startsWith("_") &&
+      value !== undefined &&
+      value !== null &&
+      typeof value !== "object" &&
+      String(value).trim()
+    );
+  });
+  return fallbackKey ? String(row[fallbackKey]).trim() : "Bénéficiaire";
+}
+
+function guessBeneficiarySubtitle(row = {}, label = "") {
+  const candidates = [
+    row.sous_libelle,
+    row.poste,
+    row.fonction,
+    row.grade,
+    row.departement,
+    row.service,
+    row.email,
+    row.code,
+    row.matricule,
+  ];
+  const subtitle = candidates.find(
+    (value) => value !== undefined && value !== null && String(value).trim(),
+  );
+  if (!subtitle) return "";
+  const normalized = String(subtitle).trim();
+  return normalized === label ? "" : normalized;
 }
 
 const DB = {
@@ -108,15 +237,203 @@ const DB = {
 
   async getPersonDataForFamily(familyId, personId) {
     const basePerson = this.getPerson(personId);
+    return this.getDocumentDataForFamily(
+      familyId,
+      personId,
+      basePerson?.etablissementId || null,
+    );
+  },
+
+  async getBeneficiariesForFamily(familyId, etablissementId = null) {
     const family = this.getFamily(familyId);
-    if (!family?.sql || !personId) return basePerson;
+    if (!family) return [];
+
+    if (family.beneficiaryMode === "etablissement") {
+      const etab = etablissementId
+        ? this.getEtablissement(etablissementId)
+        : null;
+      if (!etab) return [];
+      return [
+        {
+          ...cloneData(etab),
+          id: String(etab.id),
+          _displayLabel: etab.nom || "Établissement",
+          _displaySubtitle: etab.ville || "",
+          _sourceTable: "etablissement",
+        },
+      ];
+    }
+
+    const tableName =
+      family.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
+    if (family.beneficiarySql) {
+      try {
+        const rows = await this.runSelect(family.beneficiarySql, {
+          etablissementId,
+          etabId: etablissementId,
+        });
+        return rows
+          .filter(
+            (row) =>
+              row &&
+              row.id !== undefined &&
+              row.id !== null &&
+              String(row.id).trim(),
+          )
+          .map((row) => {
+            const label = guessBeneficiaryLabel(row);
+            return {
+              ...row,
+              id: String(row.id),
+              _displayLabel: label,
+              _displaySubtitle: guessBeneficiarySubtitle(row, label),
+              _sourceTable: tableName,
+            };
+          });
+      } catch (error) {
+        notifySyncError(
+          `Impossible de charger les bénéficiaires via le SELECT de la famille ${family.nom || family.id || ""}.`,
+          error,
+        );
+        return [];
+      }
+    }
+    if (tableName === "personnel") {
+      return this.getPersonnel(etablissementId).map((person) => ({
+        ...cloneData(person),
+        id: String(person.id),
+        _displayLabel: person.nom_prenom || guessBeneficiaryLabel(person),
+        _displaySubtitle:
+          [person.poste, person.departement]
+            .filter(
+              (value) =>
+                value !== undefined && value !== null && String(value).trim(),
+            )
+            .join(" · ") || "",
+        _sourceTable: tableName,
+      }));
+    }
+
     try {
-      const rows = await this.runSelect(family.sql, { id: personId, personId });
+      const schema = await this.getSchema();
+      const columns = getSchemaColumnsForTable(schema, tableName);
+      if (!columns.length) return [];
+      const pk = getSchemaPrimaryColumn(schema, tableName);
+      const defaultOrderColumn =
+        columns.find((column) =>
+          [
+            "nom_prenom",
+            "nom_complet",
+            "display_name",
+            "full_name",
+            "nom",
+            "libelle",
+            "intitule",
+          ].includes(column.name),
+        )?.name || pk;
+      const etabColumn = getSchemaColumn(schema, tableName, "etablissement_id");
+      const fallbackSql = family.beneficiarySql
+        ? family.beneficiarySql
+        : `SELECT * FROM ${quoteSqlIdentifier(tableName)}${
+            etabColumn && etablissementId
+              ? ` WHERE ${quoteSqlIdentifier(etabColumn.name)} = :etablissementId`
+              : ""
+          } ORDER BY ${quoteSqlIdentifier(defaultOrderColumn)} ASC LIMIT 500`;
+      const rows = await this.runSelect(fallbackSql, {
+        etablissementId,
+        etabId: etablissementId,
+      });
+      return rows
+        .filter(
+          (row) =>
+            row &&
+            (row.id !== undefined && row.id !== null
+              ? String(row.id).trim()
+              : row[pk] !== undefined && row[pk] !== null
+                ? String(row[pk]).trim()
+                : ""),
+        )
+        .map((row) => {
+          const label = guessBeneficiaryLabel(row);
+          return {
+            ...row,
+            id: String(row.id ?? row[pk]),
+            _displayLabel: label,
+            _displaySubtitle: guessBeneficiarySubtitle(row, label),
+            _sourceTable: tableName,
+          };
+        });
+    } catch (error) {
+      notifySyncError(
+        `Impossible de charger les bénéficiaires depuis la table ${tableName}.`,
+        error,
+      );
+      return [];
+    }
+  },
+
+  async getDocumentDataForFamily(
+    familyId,
+    beneficiaryId = null,
+    etablissementId = null,
+  ) {
+    const family = this.getFamily(familyId);
+    if (!family) return null;
+    if (family.beneficiaryMode !== "etablissement" && !beneficiaryId) {
+      return null;
+    }
+
+    let baseRecord = {};
+    const tableName =
+      family.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
+
+    if (family.beneficiaryMode === "etablissement") {
+      const etab = etablissementId
+        ? this.getEtablissement(etablissementId)
+        : null;
+      baseRecord = etab ? cloneData(etab) : {};
+    } else if (beneficiaryId) {
+      if (tableName === "personnel") {
+        baseRecord = cloneData(this.getPerson(beneficiaryId) || {});
+      } else {
+        try {
+          const schema = await this.getSchema();
+          const columns = getSchemaColumnsForTable(schema, tableName);
+          if (columns.length) {
+            const pk = getSchemaPrimaryColumn(schema, tableName);
+            const rows = await this.runSelect(
+              `SELECT * FROM ${quoteSqlIdentifier(tableName)} WHERE ${quoteSqlIdentifier(pk)} = :beneficiaryId LIMIT 1`,
+              { beneficiaryId },
+            );
+            baseRecord = cloneData(rows?.[0] || {});
+          }
+        } catch (error) {
+          notifySyncError(
+            `Impossible de charger le bénéficiaire depuis la table ${tableName}.`,
+            error,
+          );
+        }
+      }
+    }
+
+    if (!family.sql) return baseRecord;
+
+    try {
+      const rows = await this.runSelect(family.sql, {
+        id:
+          family.beneficiaryMode === "etablissement"
+            ? etablissementId
+            : beneficiaryId,
+        personId: beneficiaryId,
+        beneficiaryId,
+        etablissementId,
+        etabId: etablissementId,
+      });
       const row = rows?.[0];
-      return row ? { ...(basePerson || {}), ...row } : basePerson;
+      return row ? { ...(baseRecord || {}), ...row } : baseRecord;
     } catch (error) {
       notifySyncError("La requete SELECT de la famille a echoue.", error);
-      return basePerson;
+      return baseRecord;
     }
   },
 
@@ -1441,6 +1758,8 @@ class PagePaginator {
     this.pages = [];
     this.headerHeight = 0;
     this.footerHeight = 0;
+    this.headerHeight = 0;
+    this.footerHeight = 0;
   }
 
   _applyMeasureStyles(el) {
@@ -1551,6 +1870,7 @@ class PagePaginator {
     tempContainer.style.left = "-99999px";
     tempContainer.style.top = "0";
     this._applyMeasureStyles(tempContainer);
+    document.body.appendChild(tempContainer);
 
     // Mesurer hauteur du header
     if (headerHtml) {
@@ -1559,7 +1879,6 @@ class PagePaginator {
       hdrEl.style.padding = "5mm 25mm 3mm 25mm";
       this._applyMeasureContentStyles(hdrEl);
       tempContainer.appendChild(hdrEl);
-      document.body.appendChild(tempContainer);
       this.headerHeight = hdrEl.offsetHeight;
       tempContainer.removeChild(hdrEl);
     }
@@ -1571,12 +1890,13 @@ class PagePaginator {
       ftrEl.style.padding = "3mm 25mm 5mm 25mm";
       this._applyMeasureContentStyles(ftrEl);
       tempContainer.appendChild(ftrEl);
-      document.body.appendChild(tempContainer);
       this.footerHeight = ftrEl.offsetHeight;
       tempContainer.removeChild(ftrEl);
     }
 
-    document.body.removeChild(tempContainer);
+    if (tempContainer.parentNode) {
+      tempContainer.parentNode.removeChild(tempContainer);
+    }
 
     // Hauteur disponible pour le contenu = hauteur page - headers/footers
     const availableHeightPx =
