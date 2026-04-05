@@ -1850,6 +1850,29 @@
       #print-render-area {
         display: none;
       }
+
+      /* ── Mini-toolbar charte graphique ── */
+      .gc-mini-tb {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1px;
+        padding: 4px 6px;
+        background: var(--surface2);
+        border-bottom: 1px solid var(--border);
+      }
+      .gc-mini-tb .tb-btn {
+        width: 26px;
+        height: 26px;
+        font-size: 11px;
+      }
+      .gc-mini-tb .tb-sel {
+        height: 26px;
+        font-size: 11px;
+      }
+      .gc-mini-tb .tb-grp {
+        padding: 0 3px;
+      }
     </style>
   </head>
   <body>
@@ -3331,24 +3354,58 @@
             Aucune image de fond sélectionnée.
           </div>
         </div>
-        <div class="fgrid2" style="margin-top: 14px">
-          <div class="frow" style="margin: 0">
+        <div style="margin-top: 14px">
+          <div class="frow" style="margin-bottom: 12px">
             <label class="flabel">En-tête par défaut</label>
-            <textarea
-              class="finput"
-              id="gc-header-html"
-              rows="6"
-              placeholder="HTML de l'en-tête"
-            ></textarea>
+            <div
+              id="gc-header-editor-wrap"
+              style="
+                border: 1px solid var(--border);
+                border-radius: var(--r);
+                overflow: hidden;
+                background: #fff;
+              "
+            >
+              <!-- Mini-toolbar en-tête charte -->
+              <div class="gc-mini-tb" id="gc-header-tb"></div>
+              <div
+                style="
+                  padding: 8px 12px;
+                  min-height: 80px;
+                  max-height: 160px;
+                  overflow-y: auto;
+                "
+              >
+                <div class="tiptap-wrapper" id="gc-ck-header"></div>
+              </div>
+            </div>
+            <!-- Champ caché pour la persistance HTML -->
+            <input type="hidden" id="gc-header-html" />
           </div>
           <div class="frow" style="margin: 0">
             <label class="flabel">Pied de page par défaut</label>
-            <textarea
-              class="finput"
-              id="gc-footer-html"
-              rows="6"
-              placeholder="HTML du pied de page"
-            ></textarea>
+            <div
+              id="gc-footer-editor-wrap"
+              style="
+                border: 1px solid var(--border);
+                border-radius: var(--r);
+                overflow: hidden;
+                background: #fff;
+              "
+            >
+              <div class="gc-mini-tb" id="gc-footer-tb"></div>
+              <div
+                style="
+                  padding: 8px 12px;
+                  min-height: 80px;
+                  max-height: 160px;
+                  overflow-y: auto;
+                "
+              >
+                <div class="tiptap-wrapper" id="gc-ck-footer"></div>
+              </div>
+            </div>
+            <input type="hidden" id="gc-footer-html" />
           </div>
         </div>
         <div class="fgrid2" style="margin-top: 14px">
@@ -4450,6 +4507,8 @@
       let editorHeader = null,
         editorBody = null,
         editorFooter = null;
+      let gcEditorHeader = null,
+        gcEditorFooter = null;
       let activeEditor = null;
       let zoomLv = 100;
       let headerEnabled = false,
@@ -4716,6 +4775,195 @@
       ];
 
       // ── TIPTAP FACTORY ──
+      function buildGcMiniToolbar(tbId, getEd) {
+        const tb = document.getElementById(tbId);
+        if (!tb) return;
+        tb.innerHTML = "";
+
+        function mkBtn(tip, html, cmd) {
+          const b = document.createElement("button");
+          b.className = "tb-btn";
+          b.dataset.tip = tip;
+          b.innerHTML = html;
+          b.type = "button";
+          b.onclick = (e) => {
+            e.preventDefault();
+            const ed = getEd();
+            if (ed) ed.chain().focus()[cmd]().run();
+          };
+          return b;
+        }
+
+        const grp0 = document.createElement("div");
+        grp0.className = "tb-grp";
+        const fontSel = document.createElement("select");
+        fontSel.className = "tb-sel";
+        fontSel.style.minWidth = "100px";
+        [
+          ["", "— Police —"],
+          ["Arial,Helvetica,sans-serif", "Arial"],
+          ["'Times New Roman',Times,serif", "Times New Roman"],
+          ["Georgia,serif", "Georgia"],
+          ["Amiri,serif", "Amiri"],
+          ["Cairo,sans-serif", "Cairo"],
+        ].forEach(([v, l]) => {
+          const o = document.createElement("option");
+          o.value = v;
+          o.textContent = l;
+          fontSel.appendChild(o);
+        });
+        fontSel.onchange = () => {
+          const ed = getEd();
+          if (ed && fontSel.value)
+            ed.chain().focus().setFontFamily(fontSel.value).run();
+        };
+        grp0.appendChild(fontSel);
+
+        const szSel = document.createElement("select");
+        szSel.className = "tb-sel";
+        szSel.style.minWidth = "54px";
+        [
+          ["", "pt"],
+          ["8pt", "8"],
+          ["9pt", "9"],
+          ["10pt", "10"],
+          ["11pt", "11"],
+          ["12pt", "12"],
+          ["14pt", "14"],
+          ["16pt", "16"],
+          ["18pt", "18"],
+          ["20pt", "20"],
+          ["24pt", "24"],
+        ].forEach(([v, l]) => {
+          const o = document.createElement("option");
+          o.value = v;
+          o.textContent = l;
+          szSel.appendChild(o);
+        });
+        szSel.onchange = () => {
+          const ed = getEd();
+          if (ed && szSel.value) {
+            try {
+              ed.chain().focus().setFontSize(szSel.value).run();
+            } catch (_) {}
+          }
+        };
+        grp0.appendChild(szSel);
+        tb.appendChild(grp0);
+
+        const grp1 = document.createElement("div");
+        grp1.className = "tb-grp";
+        grp1.appendChild(
+          mkBtn(
+            "Gras",
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 4h8a4 4 0 010 8H6z"/><path d="M6 12h9a4 4 0 010 8H6z"/></svg>',
+            "toggleBold",
+          ),
+        );
+        grp1.appendChild(
+          mkBtn(
+            "Italique",
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>',
+            "toggleItalic",
+          ),
+        );
+        grp1.appendChild(
+          mkBtn(
+            "Souligné",
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v7a6 6 0 0012 0V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>',
+            "toggleUnderline",
+          ),
+        );
+        tb.appendChild(grp1);
+
+        const grp2 = document.createElement("div");
+        grp2.className = "tb-grp";
+        [
+          [
+            "Gauche",
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>',
+            "left",
+          ],
+          [
+            "Centre",
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>',
+            "center",
+          ],
+          [
+            "Droite",
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg>',
+            "right",
+          ],
+        ].forEach(([tip, svg, dir]) => {
+          const b = document.createElement("button");
+          b.className = "tb-btn";
+          b.dataset.tip = tip;
+          b.innerHTML = svg;
+          b.type = "button";
+          b.onclick = (e) => {
+            e.preventDefault();
+            const ed = getEd();
+            if (ed) ed.chain().focus().setTextAlign(dir).run();
+          };
+          grp2.appendChild(b);
+        });
+        tb.appendChild(grp2);
+
+        const grp3 = document.createElement("div");
+        grp3.className = "tb-grp";
+        const clrInp = document.createElement("input");
+        clrInp.type = "color";
+        clrInp.value = "#000000";
+        clrInp.title = "Couleur du texte";
+        clrInp.style.cssText =
+          "width:26px;height:26px;border:1px solid var(--border);border-radius:3px;cursor:pointer;padding:1px;background:transparent";
+        clrInp.onchange = () => {
+          const ed = getEd();
+          if (ed) ed.chain().focus().setColor(clrInp.value).run();
+        };
+        grp3.appendChild(clrInp);
+
+        const imgBtn = document.createElement("button");
+        imgBtn.className = "tb-btn";
+        imgBtn.title = "Image";
+        imgBtn.type = "button";
+        imgBtn.innerHTML =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+        imgBtn.onclick = (e) => {
+          e.preventDefault();
+          const fi = document.createElement("input");
+          fi.type = "file";
+          fi.accept = "image/*";
+          fi.onchange = () => {
+            const f = fi.files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = (ev) => {
+              const ed = getEd();
+              if (ed)
+                ed.chain().focus().setImage({ src: ev.target.result }).run();
+            };
+            r.readAsDataURL(f);
+          };
+          fi.click();
+        };
+        grp3.appendChild(imgBtn);
+
+        const varBtn = document.createElement("button");
+        varBtn.className = "tb-btn";
+        varBtn.title = "Insérer une variable";
+        varBtn.type = "button";
+        varBtn.innerHTML =
+          '<span style="font-size:10px;font-weight:700">{{x}}</span>';
+        varBtn.onclick = (e) => {
+          e.preventDefault();
+          showGcVarPicker(getEd, varBtn);
+        };
+        grp3.appendChild(varBtn);
+
+        tb.appendChild(grp3);
+      }
+
       function createEditor(elementId, placeholder, onUpdate, onFocus) {
         const el = document.getElementById(elementId);
         if (!el) return null;
@@ -6043,6 +6291,48 @@
             ? "Modifier la charte graphique"
             : "Nouvelle charte graphique";
         fillGraphicCharterForm(charter);
+
+        try {
+          gcEditorHeader?.destroy();
+        } catch (_) {}
+        try {
+          gcEditorFooter?.destroy();
+        } catch (_) {}
+
+        gcEditorHeader = createEditor(
+          "gc-ck-header",
+          "En-tête de la charte…",
+          () => {
+            document.getElementById("gc-header-html").value =
+              gcEditorHeader?.getHTML() || "";
+          },
+          () => {},
+        );
+        gcEditorFooter = createEditor(
+          "gc-ck-footer",
+          "Pied de page de la charte…",
+          () => {
+            document.getElementById("gc-footer-html").value =
+              gcEditorFooter?.getHTML() || "";
+          },
+          () => {},
+        );
+
+        const config = normalizeGraphicCharterConfig(charter?.config || {});
+        if (gcEditorHeader && config.header.html)
+          gcEditorHeader.commands.setContent(config.header.html, false);
+        if (gcEditorFooter && config.footer.html)
+          gcEditorFooter.commands.setContent(config.footer.html, false);
+
+        // Historiser aussi caché pour sauvegarde immédiate
+        document.getElementById("gc-header-html").value =
+          config.header.html || "";
+        document.getElementById("gc-footer-html").value =
+          config.footer.html || "";
+
+        buildGcMiniToolbar("gc-header-tb", () => gcEditorHeader);
+        buildGcMiniToolbar("gc-footer-tb", () => gcEditorFooter);
+
         openModal("modalGraphicCharter");
       };
 

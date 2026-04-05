@@ -2,18 +2,38 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
-const mysql = require("mysql2/promise");
+const sql = require("mssql");
 
-const PORT = Number(process.env.PORT || 3000);
-const DB_URL =
-  process.env.SIRHDOC_DATABASE_URL ||
-  "mysql://sirhdoc_user:%40Mamoudou123@localhost:3306/sirhdoc";
+const PORT = Number(3000);
 const ROOT_DIR = __dirname;
 const DEFAULT_FAMILY_BENEFICIARY_TABLE = "personnel";
 
-const pool = mysql.createPool(DB_URL);
+const config = {
+  user: "sa",
+  password: "N7vR2pXk9Lm4Qz8T",
+  server: "92.222.230.31",
+  database: "UnivAdENIMDB",
+  options: {
+    encrypt: false,
+    trustServerCertificate: true,
+  },
+  port: 1433,
+};
+
+let poolPromise = null;
+
+async function getPool() {
+  if (!poolPromise) {
+    poolPromise = sql.connect(config);
+  }
+  return poolPromise;
+}
 
 let schemaReadyPromise = null;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function clone(data) {
   return JSON.parse(JSON.stringify(data));
@@ -46,13 +66,17 @@ function normalizeState(state) {
   };
 }
 
-function parseNamedSql(sql, params = {}) {
-  const values = [];
-  const compiled = sql.replace(/:([a-zA-Z_]\w*)/g, (_, key) => {
-    values.push(params[key] ?? null);
-    return "?";
+/**
+ * Convert named placeholders (:param) to @param for mssql,
+ * and return { sql, params } where params is a flat map.
+ */
+function parseNamedSql(querySql, params = {}) {
+  const usedParams = {};
+  const compiled = querySql.replace(/:([a-zA-Z_]\w*)/g, (_, key) => {
+    usedParams[key] = params[key] ?? null;
+    return `@${key}`;
   });
-  return { sql: compiled, values };
+  return { sql: compiled, params: usedParams };
 }
 
 function parseMaybeJsonValue(value) {
@@ -144,17 +168,545 @@ function inferSchemaRelations(tables, columns, existingRelations) {
   return inferred;
 }
 
+function safeJson(value, fallback) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function serializeDateValue(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString();
+  }
+  const trimmed = String(value).trim();
+  return trimmed || null;
+}
+
+function quoteSqlServerIdentifier(name) {
+  return `[${String(name || "").replace(/]/g, "]]")}]`;
+}
+
+function normalizeSqlIdentifier(raw) {
+  const value = String(raw || "").trim();
+  if (
+    (value.startsWith("[") && value.endsWith("]")) ||
+    (value.startsWith("`") && value.endsWith("`")) ||
+    (value.startsWith('"') && value.endsWith('"'))
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+function isWordBoundaryChar(char) {
+  return !char || !/[a-z0-9_]/i.test(char);
+}
+
+function splitTopLevelSql(text, delimiter = ",") {
+  const parts = [];
+  let depth = 0;
+  let quote = null;
+  let start = 0;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (quote === "'") {
+      if (char === "'" && next === "'") {
+        i += 1;
+        continue;
+      }
+      if (char === "'") quote = null;
+      continue;
+    }
+    if (quote === '"') {
+      if (char === '"') quote = null;
+      continue;
+    }
+    if (quote === "`") {
+      if (char === "`") quote = null;
+      continue;
+    }
+    if (quote === "]") {
+      if (char === "]") quote = null;
+      continue;
+    }
+
+    if (char === "'") {
+      quote = "'";
+      continue;
+    }
+    if (char === '"') {
+      quote = '"';
+      continue;
+    }
+    if (char === "`") {
+      quote = "`";
+      continue;
+    }
+    if (char === "[") {
+      quote = "]";
+      continue;
+    }
+
+    if (char === "(") {
+      depth += 1;
+      continue;
+    }
+    if (char === ")") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+
+    if (depth === 0 && char === delimiter) {
+      parts.push(text.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+
+  const tail = text.slice(start).trim();
+  if (tail) parts.push(tail);
+  return parts;
+}
+
+function findTopLevelKeyword(text, keyword, startIndex = 0) {
+  const upper = text.toUpperCase();
+  const target = keyword.toUpperCase();
+  let depth = 0;
+  let quote = null;
+
+  for (let i = startIndex; i <= text.length - target.length; i += 1) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (quote === "'") {
+      if (char === "'" && next === "'") {
+        i += 1;
+        continue;
+      }
+      if (char === "'") quote = null;
+      continue;
+    }
+    if (quote === '"') {
+      if (char === '"') quote = null;
+      continue;
+    }
+    if (quote === "`") {
+      if (char === "`") quote = null;
+      continue;
+    }
+    if (quote === "]") {
+      if (char === "]") quote = null;
+      continue;
+    }
+
+    if (char === "'") {
+      quote = "'";
+      continue;
+    }
+    if (char === '"') {
+      quote = '"';
+      continue;
+    }
+    if (char === "`") {
+      quote = "`";
+      continue;
+    }
+    if (char === "[") {
+      quote = "]";
+      continue;
+    }
+
+    if (char === "(") {
+      depth += 1;
+      continue;
+    }
+    if (char === ")") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+
+    if (depth !== 0) continue;
+    if (upper.slice(i, i + target.length) !== target) continue;
+    if (!isWordBoundaryChar(upper[i - 1])) continue;
+    if (!isWordBoundaryChar(upper[i + target.length])) continue;
+    return i;
+  }
+
+  return -1;
+}
+
+function stripOuterParentheses(text) {
+  let value = String(text || "").trim();
+  while (value.startsWith("(") && value.endsWith(")")) {
+    let depth = 0;
+    let quote = null;
+    let wraps = true;
+    for (let i = 0; i < value.length; i += 1) {
+      const char = value[i];
+      const next = value[i + 1];
+      if (quote === "'") {
+        if (char === "'" && next === "'") {
+          i += 1;
+          continue;
+        }
+        if (char === "'") quote = null;
+        continue;
+      }
+      if (quote === '"') {
+        if (char === '"') quote = null;
+        continue;
+      }
+      if (quote === "`") {
+        if (char === "`") quote = null;
+        continue;
+      }
+      if (quote === "]") {
+        if (char === "]") quote = null;
+        continue;
+      }
+      if (char === "'") {
+        quote = "'";
+        continue;
+      }
+      if (char === '"') {
+        quote = '"';
+        continue;
+      }
+      if (char === "`") {
+        quote = "`";
+        continue;
+      }
+      if (char === "[") {
+        quote = "]";
+        continue;
+      }
+      if (char === "(") depth += 1;
+      if (char === ")") depth -= 1;
+      if (depth === 0 && i < value.length - 1) {
+        wraps = false;
+        break;
+      }
+    }
+    if (!wraps) break;
+    value = value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+function parseSelectStatement(querySql) {
+  const sqlText = String(querySql || "")
+    .trim()
+    .replace(/;+\s*$/, "");
+  if (!/^\s*select\b/i.test(sqlText)) return null;
+
+  const fromIndex = findTopLevelKeyword(sqlText, "FROM", 6);
+  if (fromIndex < 0) {
+    return {
+      select: sqlText.replace(/^\s*select\b/i, "").trim(),
+      from: "",
+      where: "",
+      groupBy: "",
+      orderBy: "",
+      limit: "",
+      sql: sqlText,
+    };
+  }
+
+  const whereIndex = findTopLevelKeyword(sqlText, "WHERE", fromIndex + 4);
+  const groupIndex = findTopLevelKeyword(sqlText, "GROUP BY", fromIndex + 4);
+  const orderIndex = findTopLevelKeyword(sqlText, "ORDER BY", fromIndex + 4);
+  const limitIndex = findTopLevelKeyword(sqlText, "LIMIT", fromIndex + 4);
+
+  const cuts = [whereIndex, groupIndex, orderIndex, limitIndex].filter(
+    (idx) => idx >= 0,
+  );
+  const afterFromIndex = cuts.length ? Math.min(...cuts) : sqlText.length;
+
+  const nextAfterWhere = [groupIndex, orderIndex, limitIndex]
+    .filter((idx) => idx > whereIndex)
+    .sort((a, b) => a - b)[0];
+  const nextAfterGroup = [orderIndex, limitIndex]
+    .filter((idx) => idx > groupIndex)
+    .sort((a, b) => a - b)[0];
+  const nextAfterOrder = [limitIndex]
+    .filter((idx) => idx > orderIndex)
+    .sort((a, b) => a - b)[0];
+
+  return {
+    select: sqlText.slice(6, fromIndex).trim(),
+    from: sqlText.slice(fromIndex, afterFromIndex).trim(),
+    where:
+      whereIndex >= 0
+        ? sqlText.slice(whereIndex, nextAfterWhere || sqlText.length).trim()
+        : "",
+    groupBy:
+      groupIndex >= 0
+        ? sqlText.slice(groupIndex, nextAfterGroup || sqlText.length).trim()
+        : "",
+    orderBy:
+      orderIndex >= 0
+        ? sqlText.slice(orderIndex, nextAfterOrder || sqlText.length).trim()
+        : "",
+    limit: limitIndex >= 0 ? sqlText.slice(limitIndex).trim() : "",
+    sql: sqlText,
+  };
+}
+
+function parseSelectItem(itemSql) {
+  const item = String(itemSql || "").trim();
+  const asIndex = findTopLevelKeyword(item, "AS");
+  if (asIndex < 0) return { expr: item, alias: null };
+  return {
+    expr: item.slice(0, asIndex).trim(),
+    alias: normalizeSqlIdentifier(item.slice(asIndex + 2).trim()),
+  };
+}
+
+function unquoteSqlStringLiteral(token) {
+  const value = String(token || "").trim();
+  if (value.startsWith("'") && value.endsWith("'")) {
+    return value.slice(1, -1).replace(/''/g, "'");
+  }
+  return normalizeSqlIdentifier(value);
+}
+
+function convertIdentifierQuotes(sqlText) {
+  return String(sqlText || "").replace(/`([^`]+)`/g, (_, name) =>
+    quoteSqlServerIdentifier(name),
+  );
+}
+
+function convertLegacyFunctions(sqlText) {
+  return convertIdentifierQuotes(sqlText)
+    .replace(/\bIFNULL\s*\(/gi, "ISNULL(")
+    .replace(/\bNOW\s*\(\s*\)/gi, "GETDATE()")
+    .replace(/\bCURDATE\s*\(\s*\)/gi, "CAST(GETDATE() AS DATE)");
+}
+
+function stripDanglingSelectCommas(sqlText) {
+  return String(sqlText || "")
+    .replace(/,\s*(\r?\n\s*FROM\b)/gi, "$1")
+    .replace(/,\s*(\r?\n\s*FOR\s+JSON\b)/gi, "$1");
+}
+
+function applyTopLevelLimit(sqlText) {
+  const parts = parseSelectStatement(sqlText);
+  if (!parts?.limit) return sqlText;
+  const match = /\bLIMIT\s+(\d+)\s*$/i.exec(parts.limit);
+  if (!match) return sqlText;
+  const limit = Number(match[1]);
+  if (!Number.isFinite(limit) || limit <= 0) return sqlText;
+
+  const body = [
+    parts.select,
+    parts.from,
+    parts.where,
+    parts.groupBy,
+    parts.orderBy,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  if (/^\s*DISTINCT\b/i.test(body)) {
+    return `SELECT DISTINCT TOP (${limit}) ${body.replace(/^\s*DISTINCT\b/i, "").trim()}`;
+  }
+  return `SELECT TOP (${limit}) ${body}`;
+}
+
+function isLegacyAggregateExpression(exprSql) {
+  const expr = String(exprSql || "").trim();
+  return (
+    /^JSON_ARRAYAGG\s*\(/i.test(expr) ||
+    /^MAX\s*\(/i.test(expr) ||
+    /^MIN\s*\(/i.test(expr) ||
+    /^COUNT\s*\(/i.test(expr)
+  );
+}
+
+function compileLegacyAggregateQuery(exprSql, fromClause, whereClause) {
+  const expr = String(exprSql || "").trim();
+  const fromWhere = [
+    convertLegacyFunctions(fromClause),
+    convertLegacyFunctions(whereClause),
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const jsonObjectMatch =
+    /^JSON_ARRAYAGG\s*\(\s*JSON_OBJECT\s*\(([\s\S]*)\)\s*\)$/i.exec(expr);
+  if (jsonObjectMatch) {
+    const args = splitTopLevelSql(jsonObjectMatch[1]);
+    const fields = [];
+    for (let i = 0; i < args.length; i += 2) {
+      const keyToken = args[i];
+      const valueToken = args[i + 1];
+      if (!keyToken || !valueToken) continue;
+      fields.push(
+        `${convertLegacyFunctions(valueToken)} AS ${quoteSqlServerIdentifier(
+          unquoteSqlStringLiteral(keyToken),
+        )}`,
+      );
+    }
+    return [
+      `SELECT ${fields.join(", ")}`,
+      fromWhere,
+      "FOR JSON PATH, INCLUDE_NULL_VALUES",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  const jsonArrayMatch = /^JSON_ARRAYAGG\s*\(([\s\S]*)\)$/i.exec(expr);
+  if (jsonArrayMatch) {
+    const valueExpr = convertLegacyFunctions(jsonArrayMatch[1]);
+    return [
+      "SELECT COALESCE(",
+      `  '[' + STRING_AGG('\"' + STRING_ESCAPE(CONVERT(NVARCHAR(MAX), ${valueExpr}), 'json') + '\"', ',') + ']',`,
+      "  '[]'",
+      ")",
+      fromWhere,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  const maxMatch = /^(MAX|MIN|COUNT)\s*\(([\s\S]*)\)$/i.exec(expr);
+  if (maxMatch) {
+    return [
+      `SELECT ${maxMatch[1].toUpperCase()}(${convertLegacyFunctions(maxMatch[2])})`,
+      fromWhere,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  return [`SELECT ${convertLegacyFunctions(expr)}`, fromWhere]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function translateLegacySelectQuery(querySql) {
+  const original = String(querySql || "")
+    .trim()
+    .replace(/;+\s*$/, "");
+  if (!original) return original;
+
+  const parsed = parseSelectStatement(original);
+  if (!parsed) {
+    return convertLegacyFunctions(original);
+  }
+
+  const selectItems = splitTopLevelSql(parsed.select);
+  const parsedItems = selectItems.map(parseSelectItem);
+  const hasSubqueryItem = parsedItems.some((item) => {
+    const inner = stripOuterParentheses(item.expr);
+    return /^\s*select\b/i.test(inner);
+  });
+  const hasAggregateItem = parsedItems.some((item) =>
+    isLegacyAggregateExpression(item.expr),
+  );
+
+  if (hasSubqueryItem) {
+    const rewrittenItems = parsedItems.map((item) => {
+      const inner = stripOuterParentheses(item.expr);
+      const compiledExpr = /^\s*select\b/i.test(inner)
+        ? `(${translateLegacySelectQuery(inner)})`
+        : convertLegacyFunctions(item.expr);
+      return item.alias
+        ? `${compiledExpr} AS ${quoteSqlServerIdentifier(item.alias)}`
+        : compiledExpr;
+    });
+
+    const rebuilt = [
+      "SELECT",
+      rewrittenItems.map((item) => `  ${item}`).join(",\n"),
+      convertLegacyFunctions(parsed.from),
+      convertLegacyFunctions(parsed.where),
+      convertLegacyFunctions(parsed.groupBy),
+      convertLegacyFunctions(parsed.orderBy),
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    return applyTopLevelLimit(rebuilt);
+  }
+
+  if (hasAggregateItem) {
+    if (parsedItems.length === 1 && !parsedItems[0].alias) {
+      return compileLegacyAggregateQuery(
+        parsedItems[0].expr,
+        parsed.from,
+        parsed.where,
+      );
+    }
+
+    return [
+      "SELECT",
+      parsedItems
+        .map((item) => {
+          const compiled = compileLegacyAggregateQuery(
+            item.expr,
+            parsed.from,
+            parsed.where,
+          );
+          return `  (${compiled}) AS ${quoteSqlServerIdentifier(
+            item.alias || "value",
+          )}`;
+        })
+        .join(",\n"),
+    ].join("\n");
+  }
+
+  return applyTopLevelLimit(convertLegacyFunctions(original));
+}
+
+function normalizeSelectQueryForSqlServer(querySql) {
+  const raw = String(querySql || "").trim();
+  if (!raw) return raw;
+  if (!/^\s*select\b/i.test(raw)) return raw;
+  if (/JSON_ARRAYAGG|JSON_OBJECT|`|\bLIMIT\s+\d+\b/i.test(raw)) {
+    return stripDanglingSelectCommas(translateLegacySelectQuery(raw));
+  }
+  return stripDanglingSelectCommas(convertLegacyFunctions(raw));
+}
+
+// ---------------------------------------------------------------------------
+// Schema helpers (SQL Server)
+// ---------------------------------------------------------------------------
+
 async function tableExists(tableName) {
-  const [rows] = await pool.query("SHOW TABLES LIKE ?", [tableName]);
-  return rows.length > 0;
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input("tname", sql.NVarChar, tableName)
+    .query(
+      `SELECT COUNT(*) AS cnt
+       FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_NAME = @tname AND TABLE_TYPE = 'BASE TABLE'`,
+    );
+  return result.recordset[0].cnt > 0;
 }
 
 async function tableHasColumn(tableName, columnName) {
-  const [rows] = await pool.query("SHOW COLUMNS FROM ?? LIKE ?", [
-    tableName,
-    columnName,
-  ]);
-  return rows.length > 0;
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input("tname", sql.NVarChar, tableName)
+    .input("cname", sql.NVarChar, columnName)
+    .query(
+      `SELECT COUNT(*) AS cnt
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_NAME = @tname AND COLUMN_NAME = @cname`,
+    );
+  return result.recordset[0].cnt > 0;
 }
 
 async function ensureSchema() {
@@ -162,73 +714,43 @@ async function ensureSchema() {
   schemaReadyPromise = (async () => {
     const schemaPath = path.join(ROOT_DIR, "schema.sql");
     if (!fs.existsSync(schemaPath)) return;
-    const sql = fs.readFileSync(schemaPath, "utf8");
-    const statements = sql
-      .split(/;\s*(?:\r?\n|$)/)
-      .map((statement) => statement.trim())
-      .filter(Boolean);
-    for (const statement of statements) {
-      await pool.query(statement);
-    }
 
-    if (await tableExists("template")) {
-      if (!(await tableHasColumn("template", "graphic_charter_id"))) {
-        await pool.query(
-          "ALTER TABLE template ADD COLUMN graphic_charter_id VARCHAR(64) NULL AFTER etablissement_id",
-        );
-      }
-      if (!(await tableHasColumn("template", "orientation"))) {
-        await pool.query(
-          "ALTER TABLE template ADD COLUMN orientation VARCHAR(16) NULL AFTER has_footer",
-        );
-      }
-    }
+    const sqlText = fs.readFileSync(schemaPath, "utf8");
+    const pool = await getPool();
 
-    if (await tableExists("family")) {
-      if (!(await tableHasColumn("family", "beneficiary_mode"))) {
-        await pool.query(
-          "ALTER TABLE family ADD COLUMN beneficiary_mode VARCHAR(32) NULL AFTER description",
-        );
-      }
-      if (!(await tableHasColumn("family", "beneficiary_table"))) {
-        await pool.query(
-          "ALTER TABLE family ADD COLUMN beneficiary_table VARCHAR(128) NULL AFTER beneficiary_mode",
-        );
-      }
-      if (!(await tableHasColumn("family", "beneficiary_sql_text"))) {
-        await pool.query(
-          "ALTER TABLE family ADD COLUMN beneficiary_sql_text LONGTEXT NULL AFTER beneficiary_table",
-        );
-      }
-    }
+    await pool.request().query(sqlText);
   })();
+
   return schemaReadyPromise;
 }
 
+// ---------------------------------------------------------------------------
+// Data loaders
+// ---------------------------------------------------------------------------
+
 async function loadFamilies() {
   if (!(await tableExists("family"))) return [];
-  const [rows] = await pool.query(
+  const hasBeneficiaryMode = await tableHasColumn("family", "beneficiary_mode");
+  const hasBeneficiaryTable = await tableHasColumn(
+    "family",
+    "beneficiary_table",
+  );
+  const hasBeneficiarySql = await tableHasColumn(
+    "family",
+    "beneficiary_sql_text",
+  );
+
+  const pool = await getPool();
+  const result = await pool.request().query(
     `SELECT id, nom, icon, description,
-            ${
-              (await tableHasColumn("family", "beneficiary_mode"))
-                ? "beneficiary_mode,"
-                : "'table' AS beneficiary_mode,"
-            }
-            ${
-              (await tableHasColumn("family", "beneficiary_table"))
-                ? "beneficiary_table,"
-                : "NULL AS beneficiary_table,"
-            }
-            ${
-              (await tableHasColumn("family", "beneficiary_sql_text"))
-                ? "beneficiary_sql_text,"
-                : "NULL AS beneficiary_sql_text,"
-            }
+            ${hasBeneficiaryMode ? "beneficiary_mode," : "'table' AS beneficiary_mode,"}
+            ${hasBeneficiaryTable ? "beneficiary_table," : "NULL AS beneficiary_table,"}
+            ${hasBeneficiarySql ? "beneficiary_sql_text," : "NULL AS beneficiary_sql_text,"}
             sql_text, created_at, classes_json
      FROM family
      ORDER BY nom`,
   );
-  return rows.map((row) => ({
+  return result.recordset.map((row) => ({
     id: String(row.id),
     nom: row.nom,
     icon: row.icon,
@@ -256,7 +778,9 @@ async function loadEtablissements() {
     : await tableHasColumn("etablissement", "branding_json");
   const hasCreatedAt = await tableHasColumn("etablissement", "created_at");
   const hasUpdatedAt = await tableHasColumn("etablissement", "updated_at");
-  const [rows] = await pool.query(
+
+  const pool = await getPool();
+  const result = await pool.request().query(
     `SELECT id, nom, ville, adresse, tel,
             ${
               hasGraphicCharterJson
@@ -270,7 +794,7 @@ async function loadEtablissements() {
      FROM etablissement
      ORDER BY nom`,
   );
-  return rows.map((row) => ({
+  return result.recordset.map((row) => ({
     id: String(row.id),
     nom: row.nom || "",
     ville: row.ville || "",
@@ -284,12 +808,13 @@ async function loadEtablissements() {
 
 async function loadGraphicCharters() {
   if (!(await tableExists("graphic_charter"))) return [];
-  const [rows] = await pool.query(
+  const pool = await getPool();
+  const result = await pool.request().query(
     `SELECT id, etablissement_id, nom, description, is_default, config_json, created_at, updated_at
      FROM graphic_charter
      ORDER BY etablissement_id, is_default DESC, nom ASC`,
   );
-  return rows.map((row) => ({
+  return result.recordset.map((row) => ({
     id: String(row.id),
     etablissementId: row.etablissement_id ? String(row.etablissement_id) : null,
     name: row.nom || "",
@@ -303,12 +828,13 @@ async function loadGraphicCharters() {
 
 async function loadAdmins() {
   if (!(await tableExists("admin_user"))) return [];
-  const [rows] = await pool.query(
-    `SELECT id, etablissement_id, nom, email
-     FROM admin_user
-     ORDER BY nom`,
-  );
-  return rows.map((row) => ({
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .query(
+      "SELECT id, etablissement_id, nom, email FROM admin_user ORDER BY nom",
+    );
+  return result.recordset.map((row) => ({
     id: String(row.id),
     etablissementId: row.etablissement_id ? String(row.etablissement_id) : null,
     nom: row.nom || "",
@@ -323,7 +849,8 @@ async function loadTemplates() {
     "template",
     "graphic_charter_id",
   );
-  const [rows] = await pool.query(
+  const pool = await getPool();
+  const result = await pool.request().query(
     `SELECT id, family_id, etablissement_id, nom, updated_at, has_header, has_footer,
             ${hasGraphicCharterId ? "graphic_charter_id," : "NULL AS graphic_charter_id,"}
             ${hasOrientation ? "orientation," : "'portrait' AS orientation,"}
@@ -331,7 +858,7 @@ async function loadTemplates() {
      FROM template
      ORDER BY updated_at DESC, nom ASC`,
   );
-  return rows.map((row) => ({
+  return result.recordset.map((row) => ({
     id: String(row.id),
     familyId: String(row.family_id),
     etablissementId: row.etablissement_id ? String(row.etablissement_id) : null,
@@ -353,30 +880,75 @@ async function loadTemplates() {
 async function loadPersonnel() {
   if (!(await tableExists("personnel"))) return [];
 
-  let hasDepartementId = false;
-  try {
-    const [columns] = await pool.query(
-      "SHOW COLUMNS FROM personnel LIKE 'departement_id'",
-    );
-    hasDepartementId = columns.length > 0;
-  } catch (_) {}
+  const columns = new Set(
+    (await getTableColumns("personnel")).map((column) => column.name),
+  );
+  const hasDepartementId = columns.has("departement_id");
+  const hasDepartementLabel = columns.has("departement");
+  const hasDepartementTable =
+    hasDepartementId && (await tableExists("departement"));
+  const hasEtablissementId = columns.has("etablissement_id");
+  const hasPoste = columns.has("poste");
+  const hasService = columns.has("service");
+  const hasEmail = columns.has("email");
+  const hasMatricule = columns.has("matricule");
+  const hasNomPrenom = columns.has("nom_prenom");
+  const hasNom = columns.has("nom");
+  const hasPrenom = columns.has("prenom");
 
-  const sql = hasDepartementId
-    ? `SELECT p.id, p.nom_prenom, p.departement_id, d.libelle AS departement
-       FROM personnel p
-       LEFT JOIN departement d ON d.id = p.departement_id
-       ORDER BY p.nom_prenom`
-    : "SELECT id, nom_prenom FROM personnel ORDER BY nom_prenom";
+  const displayNameExpr = hasNomPrenom
+    ? "p.nom_prenom"
+    : hasNom && hasPrenom
+      ? "LTRIM(RTRIM(CONCAT(ISNULL(p.prenom, ''), CASE WHEN p.prenom IS NOT NULL AND p.nom IS NOT NULL THEN ' ' ELSE '' END, ISNULL(p.nom, ''))))"
+      : hasNom
+        ? "p.nom"
+        : hasPrenom
+          ? "p.prenom"
+          : "CAST(p.id AS NVARCHAR(255))";
 
-  const [rows] = await pool.query(sql);
-  return rows.map((row) => ({
+  const selectParts = [
+    "p.id",
+    `${displayNameExpr} AS nom_prenom`,
+    hasEtablissementId ? "p.etablissement_id" : "NULL AS etablissement_id",
+    hasPoste ? "p.poste" : "NULL AS poste",
+    hasService ? "p.service" : "NULL AS service",
+    hasEmail ? "p.email" : "NULL AS email",
+    hasMatricule ? "p.matricule" : "NULL AS matricule",
+    hasDepartementId ? "p.departement_id" : "NULL AS departement_id",
+    hasDepartementLabel
+      ? "p.departement"
+      : hasDepartementTable
+        ? "d.libelle AS departement"
+        : "NULL AS departement",
+  ];
+
+  const joinSql =
+    hasDepartementTable && !hasDepartementLabel
+      ? "LEFT JOIN departement d ON d.id = p.departement_id"
+      : "";
+  const pool = await getPool();
+  const result = await pool.request().query(
+    `SELECT ${selectParts.join(", ")}
+     FROM personnel p
+     ${joinSql}
+     ORDER BY nom_prenom`,
+  );
+  return result.recordset.map((row) => ({
     id: String(row.id),
     nom_prenom: row.nom_prenom || "",
     departement: row.departement || "",
+    etablissementId:
+      row.etablissement_id === undefined || row.etablissement_id === null
+        ? null
+        : String(row.etablissement_id),
+    poste: row.poste || "",
+    service: row.service || "",
+    email: row.email || "",
+    matricule: row.matricule || "",
     departement_id:
       row.departement_id === undefined || row.departement_id === null
         ? null
-        : row.departement_id,
+        : String(row.departement_id),
   }));
 }
 
@@ -405,42 +977,77 @@ async function loadState() {
 }
 
 async function loadSchema() {
-  const [tables] = await pool.query(
-    `SELECT table_name, table_comment
-     FROM information_schema.tables
-     WHERE table_schema = DATABASE()
-     ORDER BY table_name`,
-  );
-  const [columns] = await pool.query(
-    `SELECT table_name, column_name, data_type, column_comment, is_nullable, column_key
-     FROM information_schema.columns
-     WHERE table_schema = DATABASE()
-     ORDER BY table_name, ordinal_position`,
-  );
-  const [relations] = await pool.query(
-    `SELECT table_name, column_name, referenced_table_name, referenced_column_name
-     FROM information_schema.key_column_usage
-     WHERE table_schema = DATABASE() AND referenced_table_name IS NOT NULL
-     ORDER BY table_name, ordinal_position`,
+  const pool = await getPool();
+
+  const tablesResult = await pool.request().query(
+    `SELECT t.TABLE_NAME AS table_name,
+            ISNULL(CAST(ep.value AS NVARCHAR(MAX)), '') AS table_comment
+     FROM INFORMATION_SCHEMA.TABLES t
+     LEFT JOIN sys.extended_properties ep
+       ON ep.major_id = OBJECT_ID(t.TABLE_NAME)
+      AND ep.minor_id = 0
+      AND ep.name = 'MS_Description'
+     WHERE t.TABLE_TYPE = 'BASE TABLE'
+     ORDER BY t.TABLE_NAME`,
   );
 
-  const normalizedTables = tables.map((row) => ({
-    name: row.table_name || row.TABLE_NAME,
-    comment: row.table_comment || row.TABLE_COMMENT || "",
+  const columnsResult = await pool.request().query(
+    `SELECT c.TABLE_NAME AS table_name,
+            c.COLUMN_NAME AS column_name,
+            c.DATA_TYPE AS data_type,
+            ISNULL(CAST(ep.value AS NVARCHAR(MAX)), '') AS column_comment,
+            c.IS_NULLABLE AS is_nullable,
+            CASE WHEN kcu.COLUMN_NAME IS NOT NULL THEN 'PRI' ELSE '' END AS column_key
+     FROM INFORMATION_SCHEMA.COLUMNS c
+     LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+       ON kcu.TABLE_NAME = c.TABLE_NAME
+      AND kcu.COLUMN_NAME = c.COLUMN_NAME
+      AND kcu.CONSTRAINT_NAME IN (
+        SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+        WHERE CONSTRAINT_TYPE = 'PRIMARY KEY'
+      )
+     LEFT JOIN sys.extended_properties ep
+       ON ep.major_id = OBJECT_ID(c.TABLE_NAME)
+      AND ep.minor_id = COLUMNPROPERTY(OBJECT_ID(c.TABLE_NAME), c.COLUMN_NAME, 'ColumnId')
+      AND ep.name = 'MS_Description'
+     ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION`,
+  );
+
+  const relationsResult = await pool.request().query(
+    `SELECT
+       fk_tab.name AS table_name,
+       fk_col.name AS column_name,
+       pk_tab.name AS referenced_table_name,
+       pk_col.name AS referenced_column_name
+     FROM sys.foreign_key_columns fkc
+     JOIN sys.tables fk_tab ON fkc.parent_object_id = fk_tab.object_id
+     JOIN sys.columns fk_col
+       ON fkc.parent_object_id = fk_col.object_id
+      AND fkc.parent_column_id = fk_col.column_id
+     JOIN sys.tables pk_tab ON fkc.referenced_object_id = pk_tab.object_id
+     JOIN sys.columns pk_col
+       ON fkc.referenced_object_id = pk_col.object_id
+      AND fkc.referenced_column_id = pk_col.column_id
+     ORDER BY fk_tab.name`,
+  );
+
+  const normalizedTables = tablesResult.recordset.map((row) => ({
+    name: row.table_name,
+    comment: row.table_comment || "",
   }));
-  const normalizedColumns = columns.map((row) => ({
-    table: row.table_name || row.TABLE_NAME,
-    name: row.column_name || row.COLUMN_NAME,
-    type: row.data_type || row.DATA_TYPE,
-    comment: row.column_comment || row.COLUMN_COMMENT || "",
-    nullable: (row.is_nullable || row.IS_NULLABLE) === "YES",
-    key: row.column_key || row.COLUMN_KEY || "",
+  const normalizedColumns = columnsResult.recordset.map((row) => ({
+    table: row.table_name,
+    name: row.column_name,
+    type: row.data_type,
+    comment: row.column_comment || "",
+    nullable: row.is_nullable === "YES",
+    key: row.column_key || "",
   }));
-  const normalizedRelations = relations.map((row) => ({
-    table: row.table_name || row.TABLE_NAME,
-    column: row.column_name || row.COLUMN_NAME,
-    referencedTable: row.referenced_table_name || row.REFERENCED_TABLE_NAME,
-    referencedColumn: row.referenced_column_name || row.REFERENCED_COLUMN_NAME,
+  const normalizedRelations = relationsResult.recordset.map((row) => ({
+    table: row.table_name,
+    column: row.column_name,
+    referencedTable: row.referenced_table_name,
+    referencedColumn: row.referenced_column_name,
   }));
   const inferredRelations = inferSchemaRelations(
     normalizedTables,
@@ -455,24 +1062,63 @@ async function loadSchema() {
   };
 }
 
-async function runSelectQuery(sql, params = {}) {
-  const cleanedSql = String(sql || "")
-    .trim()
-    .replace(/;+\s*$/, "");
+// ---------------------------------------------------------------------------
+// SELECT query runner (named :param → @param)
+// ---------------------------------------------------------------------------
+
+async function runSelectQuery(querySql, params = {}) {
+  const cleanedSql = normalizeSelectQueryForSqlServer(
+    String(querySql || "")
+      .trim()
+      .replace(/;+\s*$/, ""),
+  );
   if (!/^\s*select\b/i.test(cleanedSql)) {
     throw new Error("Seules les requetes SELECT sont autorisees.");
   }
-  const { sql: compiledSql, values } = parseNamedSql(cleanedSql, params);
-  const [rows] = await pool.query(compiledSql, values);
-  return rows.map(cleanQueryRow);
+  const { sql: compiledSql, params: namedParams } = parseNamedSql(
+    cleanedSql,
+    params,
+  );
+  const pool = await getPool();
+  const request = pool.request();
+  for (const [key, value] of Object.entries(namedParams)) {
+    request.input(key, value);
+  }
+  const result = await request.query(compiledSql);
+  return result.recordset.map(cleanQueryRow);
 }
+
+function buildRequest(transaction) {
+  return new sql.Request(transaction);
+}
+
+async function getTableColumns(tableName) {
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input("tname", sql.NVarChar, tableName)
+    .query(
+      `SELECT COLUMN_NAME AS name, DATA_TYPE AS type
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_NAME = @tname
+       ORDER BY ORDINAL_POSITION`,
+    );
+  return result.recordset.map((row) => ({
+    name: row.name,
+    type: row.type,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// State replacement (full replace in a transaction)
+// ---------------------------------------------------------------------------
 
 async function replaceState(state) {
   const normalized = normalizeState(state);
 
   if (!(await tableExists("family")) || !(await tableExists("template"))) {
     throw new Error(
-      "Les tables MySQL 'family' et 'template' doivent exister avant le lancement.",
+      "Les tables SQL Server 'family' et 'template' doivent exister avant le lancement.",
     );
   }
 
@@ -497,116 +1143,206 @@ async function replaceState(state) {
     "template",
     "graphic_charter_id",
   );
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
-    if (hasGraphicCharterTable) await conn.query("DELETE FROM graphic_charter");
-    if (hasAdmins) await conn.query("DELETE FROM admin_user");
-    if (hasEtablissements) await conn.query("DELETE FROM etablissement");
-    await conn.query("DELETE FROM template");
-    await conn.query("DELETE FROM family");
 
+  const pool = await getPool();
+  const transaction = new sql.Transaction(pool);
+  try {
+    await transaction.begin();
+
+    const req = () => buildRequest(transaction);
+
+    if (hasGraphicCharterTable)
+      await req().query("DELETE FROM graphic_charter");
+    if (hasAdmins) await req().query("DELETE FROM admin_user");
+    if (hasEtablissements) await req().query("DELETE FROM etablissement");
+    await req().query("DELETE FROM template");
+    await req().query("DELETE FROM family");
+
+    // --- etablissements ---
     if (hasEtablissements) {
       for (const item of normalized.etablissements) {
-        const columns = ["id", "nom", "ville", "adresse", "tel"];
-        const placeholders = ["?", "?", "?", "?", "?"];
-        const values = [
-          item.id,
-          item.nom || "",
-          item.ville || "",
-          item.adresse || "",
-          item.tel || "",
-        ];
+        const r = req();
+        r.input("id", sql.NVarChar, item.id);
+        r.input("nom", sql.NVarChar, item.nom || "");
+        r.input("ville", sql.NVarChar, item.ville || "");
+        r.input("adresse", sql.NVarChar, item.adresse || "");
+        r.input("tel", sql.NVarChar, item.tel || "");
+
+        const extraCols = [];
+        const extraVals = [];
+
         if (hasGraphicCharterJson || hasBrandingJson) {
-          columns.push(
-            hasGraphicCharterJson ? "graphic_charter_json" : "branding_json",
-          );
-          placeholders.push("?");
-          values.push(
+          const colName = hasGraphicCharterJson
+            ? "graphic_charter_json"
+            : "branding_json";
+          r.input(
+            "gcj",
+            sql.NVarChar,
             JSON.stringify(item.graphicCharters || item.graphicCharter || []),
           );
+          extraCols.push(colName);
+          extraVals.push("@gcj");
         }
         if (hasEtabCreatedAt) {
-          columns.push("created_at");
-          placeholders.push("?");
-          values.push(item.createdAt || null);
+          r.input(
+            "created_at",
+            sql.NVarChar,
+            serializeDateValue(item.createdAt),
+          );
+          extraCols.push("created_at");
+          extraVals.push("@created_at");
         }
         if (hasEtabUpdatedAt) {
-          columns.push("updated_at");
-          placeholders.push("?");
-          values.push(item.updatedAt || item.createdAt || null);
+          r.input(
+            "updated_at",
+            sql.NVarChar,
+            serializeDateValue(item.updatedAt || item.createdAt),
+          );
+          extraCols.push("updated_at");
+          extraVals.push("@updated_at");
         }
-        await conn.execute(
-          `INSERT INTO etablissement (${columns.join(", ")})
-           VALUES (${placeholders.join(", ")})`,
-          values,
-        );
+
+        const cols = [
+          "id",
+          "nom",
+          "ville",
+          "adresse",
+          "tel",
+          ...extraCols,
+        ].join(", ");
+        const vals = [
+          "@id",
+          "@nom",
+          "@ville",
+          "@adresse",
+          "@tel",
+          ...extraVals,
+        ].join(", ");
+        await r.query(`INSERT INTO etablissement (${cols}) VALUES (${vals})`);
       }
     }
 
+    // --- graphic_charter ---
     if (hasGraphicCharterTable) {
       for (const etab of normalized.etablissements) {
         for (const charter of etab.graphicCharters || []) {
-          await conn.execute(
-            `INSERT INTO graphic_charter (
-              id, etablissement_id, nom, description, is_default, config_json, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              charter.id,
-              etab.id,
-              charter.name || "",
-              charter.description || "",
-              charter.isDefault ? 1 : 0,
-              JSON.stringify(charter.config || {}),
-              charter.createdAt || null,
-              charter.updatedAt || charter.createdAt || null,
-            ],
+          const r = req();
+          r.input("id", sql.NVarChar, charter.id);
+          r.input("etablissement_id", sql.NVarChar, etab.id);
+          r.input("nom", sql.NVarChar, charter.name || "");
+          r.input("description", sql.NVarChar, charter.description || "");
+          r.input("is_default", sql.Bit, charter.isDefault ? 1 : 0);
+          r.input(
+            "config_json",
+            sql.NVarChar,
+            JSON.stringify(charter.config || {}),
+          );
+          r.input(
+            "created_at",
+            sql.NVarChar,
+            serializeDateValue(charter.createdAt),
+          );
+          r.input(
+            "updated_at",
+            sql.NVarChar,
+            serializeDateValue(charter.updatedAt || charter.createdAt),
+          );
+          await r.query(
+            `INSERT INTO graphic_charter
+               (id, etablissement_id, nom, description, is_default, config_json, created_at, updated_at)
+             VALUES
+               (@id, @etablissement_id, @nom, @description, @is_default, @config_json, @created_at, @updated_at)`,
           );
         }
       }
     }
 
+    // --- admins ---
     if (hasAdmins) {
       for (const item of normalized.admins) {
-        await conn.execute(
+        const r = req();
+        r.input("id", sql.NVarChar, item.id);
+        r.input("etablissement_id", sql.NVarChar, item.etablissementId || null);
+        r.input("nom", sql.NVarChar, item.nom || "");
+        r.input("email", sql.NVarChar, item.email || "");
+        await r.query(
           `INSERT INTO admin_user (id, etablissement_id, nom, email)
-           VALUES (?, ?, ?, ?)`,
-          [
-            item.id,
-            item.etablissementId || null,
-            item.nom || "",
-            item.email || "",
-          ],
+           VALUES (@id, @etablissement_id, @nom, @email)`,
         );
       }
     }
 
+    // --- families ---
     for (const item of normalized.families) {
-      await conn.execute(
-        `INSERT INTO family (
-          id, nom, icon, description, beneficiary_mode, beneficiary_table,
-          beneficiary_sql_text, sql_text, created_at, classes_json
-        )
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          item.id,
-          item.nom || "",
-          item.icon || "",
-          item.description || "",
-          item.beneficiaryMode || "table",
-          item.beneficiaryMode === "etablissement"
-            ? null
-            : item.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE,
-          item.beneficiarySql || "",
-          item.sql || "",
-          item.createdAt || null,
-          JSON.stringify(item.classes || []),
-        ],
+      const r = req();
+      r.input("id", sql.NVarChar, item.id);
+      r.input("nom", sql.NVarChar, item.nom || "");
+      r.input("icon", sql.NVarChar, item.icon || "");
+      r.input("description", sql.NVarChar, item.description || "");
+      r.input(
+        "beneficiary_mode",
+        sql.NVarChar,
+        item.beneficiaryMode || "table",
+      );
+      r.input(
+        "beneficiary_table",
+        sql.NVarChar,
+        item.beneficiaryMode === "etablissement"
+          ? null
+          : item.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE,
+      );
+      r.input("beneficiary_sql_text", sql.NVarChar, item.beneficiarySql || "");
+      r.input("sql_text", sql.NVarChar, item.sql || "");
+      r.input("created_at", sql.NVarChar, serializeDateValue(item.createdAt));
+      r.input("classes_json", sql.NVarChar, JSON.stringify(item.classes || []));
+      await r.query(
+        `INSERT INTO family
+           (id, nom, icon, description, beneficiary_mode, beneficiary_table,
+            beneficiary_sql_text, sql_text, created_at, classes_json)
+         VALUES
+           (@id, @nom, @icon, @description, @beneficiary_mode, @beneficiary_table,
+            @beneficiary_sql_text, @sql_text, @created_at, @classes_json)`,
       );
     }
 
+    // --- templates ---
     for (const item of normalized.templates) {
-      const columns = [
+      const r = req();
+      r.input("id", sql.NVarChar, item.id);
+      r.input("family_id", sql.NVarChar, item.familyId);
+      r.input("etablissement_id", sql.NVarChar, item.etablissementId || null);
+      r.input("nom", sql.NVarChar, item.nom || "");
+      r.input("updated_at", sql.NVarChar, serializeDateValue(item.updatedAt));
+      r.input("has_header", sql.Bit, item.hasHeader ? 1 : 0);
+      r.input("has_footer", sql.Bit, item.hasFooter ? 1 : 0);
+      r.input(
+        "page_margins_json",
+        sql.NVarChar,
+        JSON.stringify(item.pageMargins || {}),
+      );
+      r.input("header_html", sql.NVarChar, item.header || "");
+      r.input("body_html", sql.NVarChar, item.body || "");
+      r.input("footer_html", sql.NVarChar, item.footer || "");
+
+      const extraCols = [];
+      const extraVals = [];
+
+      if (hasOrientation) {
+        r.input("orientation", sql.NVarChar, item.orientation || "portrait");
+        extraCols.push("orientation");
+        extraVals.push("@orientation");
+      }
+      if (hasGraphicCharterId) {
+        r.input(
+          "graphic_charter_id",
+          sql.NVarChar,
+          item.graphicCharterId || null,
+        );
+        extraCols.push("graphic_charter_id");
+        extraVals.push("@graphic_charter_id");
+      }
+
+      const baseCols = [
         "id",
         "family_id",
         "etablissement_id",
@@ -614,67 +1350,40 @@ async function replaceState(state) {
         "updated_at",
         "has_header",
         "has_footer",
-      ];
-      const placeholders = ["?", "?", "?", "?", "?", "?", "?"];
-      const values = [
-        item.id,
-        item.familyId,
-        item.etablissementId || null,
-        item.nom || "",
-        item.updatedAt || null,
-        item.hasHeader ? 1 : 0,
-        item.hasFooter ? 1 : 0,
-      ];
-
-      if (hasOrientation) {
-        columns.push("orientation");
-        placeholders.push("?");
-        values.push(item.orientation || "portrait");
-      }
-
-      if (hasGraphicCharterId) {
-        columns.push("graphic_charter_id");
-        placeholders.push("?");
-        values.push(item.graphicCharterId || null);
-      }
-
-      columns.push(
         "page_margins_json",
         "header_html",
         "body_html",
         "footer_html",
-      );
-      placeholders.push("?", "?", "?", "?");
-      values.push(
-        JSON.stringify(item.pageMargins || {}),
-        item.header || "",
-        item.body || "",
-        item.footer || "",
-      );
+      ];
+      const baseVals = [
+        "@id",
+        "@family_id",
+        "@etablissement_id",
+        "@nom",
+        "@updated_at",
+        "@has_header",
+        "@has_footer",
+        "@page_margins_json",
+        "@header_html",
+        "@body_html",
+        "@footer_html",
+      ];
 
-      await conn.execute(
-        `INSERT INTO template (${columns.join(", ")})
-         VALUES (${placeholders.join(", ")})`,
-        values,
-      );
+      const cols = [...baseCols, ...extraCols].join(", ");
+      const vals = [...baseVals, ...extraVals].join(", ");
+      await r.query(`INSERT INTO template (${cols}) VALUES (${vals})`);
     }
 
-    await conn.commit();
+    await transaction.commit();
   } catch (error) {
-    await conn.rollback();
+    await transaction.rollback();
     throw error;
-  } finally {
-    conn.release();
   }
 }
 
-function safeJson(value, fallback) {
-  try {
-    return value ? JSON.parse(value) : fallback;
-  } catch (_) {
-    return fallback;
-  }
-}
+// ---------------------------------------------------------------------------
+// HTTP helpers
+// ---------------------------------------------------------------------------
 
 function sendJson(res, status, payload) {
   res.writeHead(status, {
@@ -719,6 +1428,10 @@ function readBody(req) {
     req.on("error", reject);
   });
 }
+
+// ---------------------------------------------------------------------------
+// API router
+// ---------------------------------------------------------------------------
 
 async function handleApi(req, res, url) {
   await ensureSchema();
@@ -787,6 +1500,10 @@ async function handleStatic(req, res, url) {
   });
   fs.createReadStream(filePath).pipe(res);
 }
+
+// ---------------------------------------------------------------------------
+// Server bootstrap
+// ---------------------------------------------------------------------------
 
 const server = http.createServer(async (req, res) => {
   try {

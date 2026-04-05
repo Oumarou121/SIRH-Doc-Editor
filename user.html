@@ -1395,11 +1395,11 @@
           b.onclick = fn;
           actions.appendChild(b);
         };
-        mkBtn("ðŸ‘ AperÃ§u final", "primary", () => previewDocument(tpl, person));
-        mkBtn("ðŸ–¨ Imprimer", "primary", () => printDocPaginated(tpl, person));
+        mkBtn("Aperçu final", "primary", () => previewDocument(tpl, person));
+        mkBtn("Imprimer", "primary", () => printDocPaginated(tpl, person));
         mkBtn("Nouveau", "ghost", resetAll);
 
-        toast("Document gÃ©nÃ©rÃ© !", "success");
+        toast("Document généré !", "success");
       }
 
       function buildA4Canvas(tpl, person) {

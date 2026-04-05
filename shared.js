@@ -24,13 +24,13 @@ function cloneData(data) {
 
 const DEFAULT_FAMILY_BENEFICIARY_TABLE = "personnel";
 const SUPERADMIN_FAMILY_HIDDEN_TABLES = Object.freeze([
-  "family",
-  "template",
-  "etablissement",
-  "admin_user",
-  "graphic_charter",
-  "admin_account",
-  "charte",
+  // "family",
+  // "template",
+  // "etablissement",
+  // "admin_user",
+  // "graphic_charter",
+  // "admin_account",
+  // "charte",
 ]);
 
 function normalizeFamilyRecord(record = {}) {
@@ -96,7 +96,7 @@ function notifySyncError(message, error) {
 }
 
 function quoteSqlIdentifier(name) {
-  return `\`${String(name || "").replace(/`/g, "``")}\``;
+  return `[${String(name || "").replace(/]/g, "]]")}]`;
 }
 
 function getSchemaColumnsForTable(schema, tableName) {
@@ -197,7 +197,7 @@ const DB = {
         return this.get();
       } catch (error) {
         this._cache = normalizeState();
-        notifySyncError("Connexion MySQL indisponible.", error);
+        notifySyncError("Connexion SQL Server indisponible.", error);
         return this.get();
       }
     })();
@@ -334,11 +334,11 @@ const DB = {
       const etabColumn = getSchemaColumn(schema, tableName, "etablissement_id");
       const fallbackSql = family.beneficiarySql
         ? family.beneficiarySql
-        : `SELECT * FROM ${quoteSqlIdentifier(tableName)}${
+        : `SELECT TOP (500) * FROM ${quoteSqlIdentifier(tableName)}${
             etabColumn && etablissementId
               ? ` WHERE ${quoteSqlIdentifier(etabColumn.name)} = :etablissementId`
               : ""
-          } ORDER BY ${quoteSqlIdentifier(defaultOrderColumn)} ASC LIMIT 500`;
+          } ORDER BY ${quoteSqlIdentifier(defaultOrderColumn)} ASC`;
       const rows = await this.runSelect(fallbackSql, {
         etablissementId,
         etabId: etablissementId,
@@ -402,7 +402,7 @@ const DB = {
           if (columns.length) {
             const pk = getSchemaPrimaryColumn(schema, tableName);
             const rows = await this.runSelect(
-              `SELECT * FROM ${quoteSqlIdentifier(tableName)} WHERE ${quoteSqlIdentifier(pk)} = :beneficiaryId LIMIT 1`,
+              `SELECT TOP (1) * FROM ${quoteSqlIdentifier(tableName)} WHERE ${quoteSqlIdentifier(pk)} = :beneficiaryId`,
               { beneficiaryId },
             );
             baseRecord = cloneData(rows?.[0] || {});
@@ -445,7 +445,7 @@ const DB = {
       body: JSON.stringify({ state: this._cache }),
     }).catch((error) => {
       notifySyncError(
-        "Impossible de synchroniser les donnees avec MySQL.",
+        "Impossible de synchroniser les donnees avec SQL Server.",
         error,
       );
       this.init(true).catch(() => {});

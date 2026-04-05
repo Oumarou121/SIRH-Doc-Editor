@@ -1134,7 +1134,7 @@
   </head>
   <body>
     <div id="loading">
-      <div class="load-icon">âš™ï¸</div>
+      <div class="load-icon">&#9881;</div>
       <div class="load-title">SIRH<span>-Doc</span></div>
       <div class="load-sub">Interface Super Administrateur</div>
       <div class="load-bar"><div class="load-fill"></div></div>
@@ -1556,7 +1556,7 @@
             .forEach((etab) => {
               const item = document.createElement("div");
               item.className = "list-item";
-              item.innerHTML = `<div class="list-item-icon">ðŸ›ï¸</div><div class="list-item-body"><div class="list-item-name">${etab.nom}</div><div class="list-item-meta">${etab.ville}</div></div>`;
+              item.innerHTML = `<div class="list-item-icon">&#127963;</div><div class="list-item-body"><div class="list-item-name">${etab.nom}</div><div class="list-item-meta">${etab.ville}</div></div>`;
               list.appendChild(item);
             });
         }
@@ -1648,7 +1648,7 @@
   <div class="card-header">
     <div class="card-title">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-      Assistant schéma MySQL
+      Assistant schéma SQL Server
     </div>
     <span class="chip chip-teal">Variables pilotées par la base</span>
   </div>
@@ -1891,7 +1891,7 @@
 </div>
 
 <div style="margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;background:#fafbfd;font-size:11px;color:var(--text2)">
-  Variables pilotées par le schéma MySQL. Utilisez l'assistant ci-dessus pour ajouter des champs, listes et tableaux d'objets.
+  Variables pilotées par le schéma SQL Server. Utilisez l'assistant ci-dessus pour ajouter des champs, listes et tableaux d'objets.
 </div>
 
 </div>`;
@@ -2059,6 +2059,81 @@
         return fam?.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
       }
 
+      function sqlId(name) {
+        return `[${String(name || "").replace(/]/g, "]]")}]`;
+      }
+
+      function indentSql(text, spaces = 2) {
+        const pad = " ".repeat(spaces);
+        return String(text || "")
+          .split("\n")
+          .map((line) => (line ? pad + line : line))
+          .join("\n");
+      }
+
+      function buildScalarArraySubquery(valueExpr, fromLines) {
+        return `(\n${indentSql(
+          [
+            "SELECT COALESCE(",
+            `  '[' + STRING_AGG('\"' + STRING_ESCAPE(CONVERT(NVARCHAR(MAX), ${valueExpr}), 'json') + '\"', ',') + ']',`,
+            "  '[]'",
+            ")",
+            ...fromLines,
+          ].join("\n"),
+        )}\n)`;
+      }
+
+      function buildObjectArraySubquery(selectEntries, fromLines) {
+        return `(\n${indentSql(
+          [
+            "SELECT",
+            `  ${selectEntries.join(",\n  ")}`,
+            ...fromLines,
+            "FOR JSON PATH, INCLUDE_NULL_VALUES",
+          ].join("\n"),
+        )}\n)`;
+      }
+
+      function buildAggregateSubquery(fnName, valueExpr, fromLines) {
+        return `(\n${indentSql(
+          [`SELECT ${fnName}(${valueExpr})`, ...fromLines].join("\n"),
+        )}\n)`;
+      }
+
+      function buildVarSelectExpr(varDef, valueAlias, fromLines, tableColumns) {
+        if (varDef.type === "list-object") {
+          const sourceCols = varDef.sourceColumns || [];
+          if (
+            !sourceCols.length ||
+            sourceCols.some(
+              (col) =>
+                !tableColumns.some((tableCol) => tableCol.name === col.column),
+            )
+          ) {
+            return null;
+          }
+          return buildObjectArraySubquery(
+            sourceCols.map(
+              (col) =>
+                `${valueAlias}.${sqlId(col.column)} AS ${sqlId(col.key)}`,
+            ),
+            fromLines,
+          );
+        }
+
+        if (
+          !tableColumns.some((column) => column.name === varDef.sourceColumn)
+        ) {
+          return null;
+        }
+
+        const valueExpr = `${valueAlias}.${sqlId(varDef.sourceColumn)}`;
+        if (varDef.type === "list") {
+          return buildScalarArraySubquery(valueExpr, fromLines);
+        }
+        return buildAggregateSubquery("MAX", valueExpr, fromLines);
+      }
+
       function buildBeneficiarySqlFromFamily(famId) {
         const fam = DB.getFamily(famId);
         if (
@@ -2125,7 +2200,7 @@
                 : "";
         return [
           "SELECT",
-          `  ${sourceAlias}.${sqlId(pk)} AS id,`,
+          `  TOP (500) ${sourceAlias}.${sqlId(pk)} AS id,`,
           `  ${sourceAlias}.${sqlId(labelColumn)} AS libelle${
             subtitleColumn ? "," : ""
           }`,
@@ -2136,10 +2211,40 @@
           ...joinParts,
           etabFilter ? `WHERE ${etabFilter}` : "",
           `ORDER BY ${sourceAlias}.${sqlId(labelColumn)} ASC`,
-          "LIMIT 500",
         ]
           .filter(Boolean)
           .join("\n");
+      }
+
+      function buildPathExistsClause(
+        schema,
+        sourceTable,
+        sourceAlias,
+        targetTable,
+        paramName,
+        rootAlias = "bf",
+      ) {
+        const path = getRelationPath(schema, targetTable, sourceTable);
+        if (!path?.length) return null;
+
+        let currentAlias = rootAlias;
+        const joins = [];
+        path.forEach((step, index) => {
+          const nextAlias = `${rootAlias}${index + 1}`;
+          joins.push(
+            `LEFT JOIN ${sqlId(step.toTable)} ${nextAlias} ON ${buildRelationCondition(step, currentAlias, nextAlias)}`,
+          );
+          currentAlias = nextAlias;
+        });
+
+        return [
+          "EXISTS (",
+          `  SELECT 1 FROM ${sqlId(targetTable)} ${rootAlias}`,
+          ...joins.map((joinSql) => `  ${joinSql}`),
+          `  WHERE ${rootAlias}.${sqlId(getPrimaryColumn(schema, targetTable))} = :${paramName}`,
+          `    AND ${currentAlias}.${sqlId(getPrimaryColumn(schema, sourceTable))} = ${sourceAlias}.${sqlId(getPrimaryColumn(schema, sourceTable))}`,
+          ")",
+        ].join("\n");
       }
 
       function getFamilyFilterClause(fam, schema, baseTable, baseAlias) {
@@ -2156,14 +2261,15 @@
           ) {
             return `${baseAlias}.${sqlId("etablissement_id")} = :etablissementId`;
           }
-          const etabRelation = schema.relations.find(
-            (rel) =>
-              rel.table === baseTable &&
-              rel.referencedTable === "etablissement",
+          const etabPathClause = buildPathExistsClause(
+            schema,
+            baseTable,
+            baseAlias,
+            "etablissement",
+            "etablissementId",
+            "etf",
           );
-          if (etabRelation) {
-            return `${baseAlias}.${sqlId(etabRelation.column)} = :etablissementId`;
-          }
+          if (etabPathClause) return etabPathClause;
           return `${baseAlias}.${sqlId(basePk)} = :etablissementId`;
         }
 
@@ -2172,29 +2278,24 @@
           return `${baseAlias}.${sqlId(basePk)} = :beneficiaryId`;
         }
 
-        const beneficiaryPk = getPrimaryColumn(schema, beneficiaryTable);
-        const relation = getJoinPlan(schema, baseTable, beneficiaryTable);
-        if (relation) {
-          if (
-            relation.table === baseTable &&
-            relation.referencedTable === beneficiaryTable
-          ) {
-            return `${baseAlias}.${sqlId(relation.column)} = :beneficiaryId`;
-          }
-          if (
-            relation.table === beneficiaryTable &&
-            relation.referencedTable === baseTable
-          ) {
-            return `EXISTS (SELECT 1 FROM ${sqlId(beneficiaryTable)} bf WHERE bf.${sqlId(relation.column)} = ${baseAlias}.${sqlId(relation.referencedColumn)} AND bf.${sqlId(beneficiaryPk)} = :beneficiaryId)`;
-          }
-        }
+        const beneficiaryPathClause = buildPathExistsClause(
+          schema,
+          baseTable,
+          baseAlias,
+          beneficiaryTable,
+          "beneficiaryId",
+        );
+        if (beneficiaryPathClause) return beneficiaryPathClause;
 
         return `${baseAlias}.${sqlId(basePk)} = :beneficiaryId`;
       }
 
       function inferBaseTable(fam, schema) {
-        const fromMatch = /\bfrom\s+([a-zA-Z0-9_]+)/i.exec(fam.sql || "");
-        if (fromMatch) return fromMatch[1];
+        const fromMatch =
+          /\bfrom\s+(?:\[([^\]]+)\]|`([^`]+)`|([a-zA-Z0-9_]+))/i.exec(
+            fam.sql || "",
+          );
+        if (fromMatch) return fromMatch[1] || fromMatch[2] || fromMatch[3];
         if (fam?.beneficiaryMode !== "etablissement" && fam?.beneficiaryTable) {
           return fam.beneficiaryTable;
         }
@@ -2289,15 +2390,7 @@
         return getRelationPath(schema, baseTable, tableName);
       }
 
-      function sqlId(name) {
-        return `\`${String(name || "").replace(/`/g, "``")}\``;
-      }
-
-      function buildEtablissementScopedVarExpr(
-        schema,
-        varDef,
-        outerAlias = "e",
-      ) {
+      function buildEtablissementScopedVarExpr(schema, varDef) {
         const sourceTable = varDef?.sourceTable;
         if (!sourceTable) return null;
         const sourceColumns = getColumnsForTable(schema, sourceTable);
@@ -2308,11 +2401,11 @@
         let etabMatcher = "";
 
         if (sourceTable === "etablissement") {
-          etabMatcher = `${sourceAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))} = ${outerAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))}`;
+          etabMatcher = `${sourceAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))} = :etablissementId`;
         } else if (
           sourceColumns.some((column) => column.name === "etablissement_id")
         ) {
-          etabMatcher = `${sourceAlias}.${sqlId("etablissement_id")} = ${outerAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))}`;
+          etabMatcher = `${sourceAlias}.${sqlId("etablissement_id")} = :etablissementId`;
         } else {
           const pathToEtab = getRelationPath(
             schema,
@@ -2332,54 +2425,21 @@
               currentAlias = nextAlias;
               etabAlias = nextAlias;
             });
-            etabMatcher = `${etabAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))} = ${outerAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))}`;
+            etabMatcher = `${etabAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))} = :etablissementId`;
           }
         }
 
-        if (varDef.type === "list-object") {
-          const sourceCols = varDef.sourceColumns || [];
-          if (
-            !sourceCols.length ||
-            sourceCols.some(
-              (col) =>
-                !sourceColumns.some((tableCol) => tableCol.name === col.column),
-            )
-          ) {
-            return null;
-          }
-          const objectArgs = sourceCols.flatMap((col) => [
-            `'${col.key}'`,
-            `${sourceAlias}.${sqlId(col.column)}`,
-          ]);
-          return `(
-  SELECT JSON_ARRAYAGG(JSON_OBJECT(${objectArgs.join(", ")}))
-  FROM ${sqlId(sourceTable)} ${sourceAlias}
-  ${joins.join("\n  ")}
-  WHERE ${etabMatcher}
-)`;
-        }
-
-        if (
-          !sourceColumns.some((column) => column.name === varDef.sourceColumn)
-        ) {
-          return null;
-        }
-
-        if (varDef.type === "list") {
-          return `(
-  SELECT JSON_ARRAYAGG(${sourceAlias}.${sqlId(varDef.sourceColumn)})
-  FROM ${sqlId(sourceTable)} ${sourceAlias}
-  ${joins.join("\n  ")}
-  WHERE ${etabMatcher}
-)`;
-        }
-
-        return `(
-  SELECT MAX(${sourceAlias}.${sqlId(varDef.sourceColumn)})
-  FROM ${sqlId(sourceTable)} ${sourceAlias}
-  ${joins.join("\n  ")}
-  WHERE ${etabMatcher}
-)`;
+        const fromLines = [
+          `FROM ${sqlId(sourceTable)} ${sourceAlias}`,
+          ...joins,
+          `WHERE ${etabMatcher}`,
+        ];
+        return buildVarSelectExpr(
+          varDef,
+          sourceAlias,
+          fromLines,
+          sourceColumns,
+        );
       }
 
       function buildEtablissementFamilySql(fam) {
@@ -2388,21 +2448,12 @@
           .filter((v) => v.sourceTable);
         const exprs = vars
           .map((v) => {
-            const expr = buildEtablissementScopedVarExpr(
-              schemaMetaCache,
-              v,
-              "e",
-            );
+            const expr = buildEtablissementScopedVarExpr(schemaMetaCache, v);
             return expr ? `  ${expr} AS ${sqlId(v.tech)}` : null;
           })
           .filter(Boolean);
         if (!exprs.length) return fam.sql || "";
-        return [
-          "SELECT",
-          exprs.join(",\n"),
-          `FROM ${sqlId("etablissement")} e`,
-          `WHERE e.${sqlId(getPrimaryColumn(schemaMetaCache, "etablissement"))} = :etablissementId`,
-        ].join("\n");
+        return ["SELECT", exprs.join(",\n")].join("\n");
       }
 
       function getValidGeneratedVars(schema, baseTable, vars) {
@@ -2447,63 +2498,45 @@
 
         const baseTable = builder.baseTable;
         const baseAlias = "b";
-        const aliasByTable = { [baseTable]: baseAlias };
-        const joins = [];
-        let aliasIndex = 1;
-        const basePk = getPrimaryColumn(schemaMetaCache, baseTable);
-
-        [...new Set(generatedVars.map((v) => v.sourceTable))]
-          .filter((table) => table !== baseTable)
-          .forEach((table) => {
-            const relPath = getJoinPlan(schemaMetaCache, baseTable, table);
-            if (!relPath?.length) return;
+        const selects = generatedVars.map((v) => {
+          const joins = [];
+          let alias = baseAlias;
+          if (v.sourceTable !== baseTable) {
+            const relPath = getJoinPlan(schemaMetaCache, baseTable, v.sourceTable);
+            if (!relPath?.length) return null;
             let currentAlias = baseAlias;
             let currentTable = baseTable;
-            relPath.forEach((step) => {
-              const nextTable = step.toTable;
-              if (!aliasByTable[nextTable]) {
-                const nextAlias = `j${aliasIndex++}`;
-                aliasByTable[nextTable] = nextAlias;
-                joins.push(
-                  `LEFT JOIN ${sqlId(nextTable)} ${nextAlias} ON ${buildRelationCondition(
-                    {
-                      fromTable: currentTable,
-                      toTable: nextTable,
-                      relation: step.relation,
-                    },
-                    currentAlias,
-                    nextAlias,
-                  )}`,
-                );
-              }
-              currentAlias = aliasByTable[nextTable];
-              currentTable = nextTable;
+            relPath.forEach((step, index) => {
+              const nextAlias = `j${index + 1}`;
+              joins.push(
+                `LEFT JOIN ${sqlId(step.toTable)} ${nextAlias} ON ${buildRelationCondition(
+                  {
+                    fromTable: currentTable,
+                    toTable: step.toTable,
+                    relation: step.relation,
+                  },
+                  currentAlias,
+                  nextAlias,
+                )}`,
+              );
+              currentAlias = nextAlias;
+              currentTable = step.toTable;
             });
-          });
-
-        const selects = generatedVars.map((v) => {
-          const alias = aliasByTable[v.sourceTable] || baseAlias;
-          if (v.type === "list-object") {
-            const objectArgs = (v.sourceColumns || []).flatMap((col) => [
-              `'${col.key}'`,
-              `${alias}.${sqlId(col.column)}`,
-            ]);
-            return `  JSON_ARRAYAGG(JSON_OBJECT(${objectArgs.join(", ")})) AS ${sqlId(v.tech)}`;
+            alias = currentAlias;
           }
-          if (v.type === "list") {
-            return `  JSON_ARRAYAGG(${alias}.${sqlId(v.sourceColumn)}) AS ${sqlId(v.tech)}`;
-          }
-          return `  MAX(${alias}.${sqlId(v.sourceColumn)}) AS ${sqlId(v.tech)}`;
+          const tableColumns = getColumnsForTable(schemaMetaCache, v.sourceTable);
+          const fromLines = [
+            `FROM ${sqlId(baseTable)} ${baseAlias}`,
+            ...joins,
+            `WHERE ${getFamilyFilterClause(fam, schemaMetaCache, baseTable, baseAlias)}`,
+          ];
+          const expr = buildVarSelectExpr(v, alias, fromLines, tableColumns);
+          return expr ? `  ${expr} AS ${sqlId(v.tech)}` : null;
         });
 
-        return [
-          "SELECT",
-          selects.join(",\n"),
-          `FROM ${sqlId(baseTable)} ${baseAlias}`,
-          ...joins,
-          `WHERE ${getFamilyFilterClause(fam, schemaMetaCache, baseTable, baseAlias)}`,
-          `GROUP BY ${baseAlias}.${sqlId(basePk)}`,
-        ].join("\n");
+        const filteredSelects = selects.filter(Boolean);
+        if (!filteredSelects.length) return fam.sql || "";
+        return ["SELECT", filteredSelects.join(",\n")].join("\n");
       }
 
       function regenerateFamilySql(famId, silent = false) {
@@ -2681,7 +2714,7 @@
         const wrap = document.getElementById("schemaBuilderWrap");
         if (!wrap) return;
         wrap.innerHTML =
-          '<div class="text-muted" style="padding:8px 0">Chargement du schéma MySQL...</div>';
+          '<div class="text-muted" style="padding:8px 0">Chargement du schéma SQL Server...</div>';
         try {
           const schema = await ensureSchemaMeta();
           const fam = DB.getFamily(famId);

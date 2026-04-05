@@ -1,62 +1,87 @@
-CREATE TABLE IF NOT EXISTS family (
-  id VARCHAR(64) PRIMARY KEY,
-  nom VARCHAR(255) NOT NULL,
-  icon VARCHAR(32) DEFAULT '',
-  description TEXT NULL,
-  beneficiary_mode VARCHAR(32) NULL,
-  beneficiary_table VARCHAR(128) NULL,
-  beneficiary_sql_text LONGTEXT NULL,
-  sql_text LONGTEXT NULL,
-  created_at VARCHAR(64) NULL,
-  classes_json LONGTEXT NOT NULL
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'family')
+BEGIN
+CREATE TABLE [family] (
+  id NVARCHAR(64) PRIMARY KEY,
+  nom NVARCHAR(255) NOT NULL,
+  icon NVARCHAR(32) DEFAULT '',
+  description NVARCHAR(MAX) NULL,
+  beneficiary_mode NVARCHAR(32) NULL,
+  beneficiary_table NVARCHAR(128) NULL,
+  beneficiary_sql_text NVARCHAR(MAX) NULL,
+  sql_text NVARCHAR(MAX) NULL,
+  created_at NVARCHAR(64) NULL,
+  classes_json NVARCHAR(MAX) NOT NULL
 );
+END;
 
-CREATE TABLE IF NOT EXISTS etablissement (
-  id VARCHAR(64) PRIMARY KEY,
-  nom VARCHAR(255) NOT NULL,
-  ville VARCHAR(255) NULL,
-  adresse TEXT NULL,
-  tel VARCHAR(64) NULL,
-  graphic_charter_json LONGTEXT NULL,
-  created_at VARCHAR(64) NULL,
-  updated_at VARCHAR(64) NULL
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'etablissement')
+BEGIN
+CREATE TABLE [etablissement] (
+  id NVARCHAR(64) PRIMARY KEY,
+  nom NVARCHAR(255) NOT NULL,
+  ville NVARCHAR(255) NULL,
+  adresse NVARCHAR(MAX) NULL,
+  tel NVARCHAR(64) NULL,
+  graphic_charter_json NVARCHAR(MAX) NULL,
+  created_at NVARCHAR(64) NULL,
+  updated_at NVARCHAR(64) NULL
 );
+END;
 
-CREATE TABLE IF NOT EXISTS graphic_charter (
-  id VARCHAR(64) PRIMARY KEY,
-  etablissement_id VARCHAR(64) NOT NULL,
-  nom VARCHAR(255) NOT NULL,
-  description TEXT NULL,
-  is_default TINYINT(1) NOT NULL DEFAULT 0,
-  config_json LONGTEXT NOT NULL,
-  created_at VARCHAR(64) NULL,
-  updated_at VARCHAR(64) NULL,
-  INDEX idx_graphic_charter_etab (etablissement_id),
-  INDEX idx_graphic_charter_default (etablissement_id, is_default)
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'graphic_charter')
+BEGIN
+CREATE TABLE [graphic_charter] (
+  id NVARCHAR(64) PRIMARY KEY,
+  etablissement_id NVARCHAR(64) NOT NULL,
+  nom NVARCHAR(255) NOT NULL,
+  description NVARCHAR(MAX) NULL,
+  is_default BIT NOT NULL DEFAULT 0,
+  config_json NVARCHAR(MAX) NOT NULL,
+  created_at NVARCHAR(64) NULL,
+  updated_at NVARCHAR(64) NULL
 );
+END;
 
-CREATE TABLE IF NOT EXISTS admin_user (
-  id VARCHAR(64) PRIMARY KEY,
-  etablissement_id VARCHAR(64) NOT NULL,
-  nom VARCHAR(255) NOT NULL,
-  email VARCHAR(255) NULL,
-  INDEX idx_admin_user_etab (etablissement_id)
-);
+IF NOT EXISTS (SELECT name FROM sys.indexes WHERE name = 'idx_graphic_charter_etab')
+CREATE INDEX idx_graphic_charter_etab ON [graphic_charter](etablissement_id);
 
-CREATE TABLE IF NOT EXISTS template (
-  id VARCHAR(64) PRIMARY KEY,
-  family_id VARCHAR(64) NOT NULL,
-  etablissement_id VARCHAR(64) NULL,
-  graphic_charter_id VARCHAR(64) NULL,
-  nom VARCHAR(255) NOT NULL,
-  updated_at VARCHAR(64) NULL,
-  has_header TINYINT(1) NOT NULL DEFAULT 0,
-  has_footer TINYINT(1) NOT NULL DEFAULT 0,
-  orientation VARCHAR(16) NULL,
-  page_margins_json LONGTEXT NULL,
-  header_html LONGTEXT NULL,
-  body_html LONGTEXT NULL,
-  footer_html LONGTEXT NULL,
-  INDEX idx_template_family (family_id),
-  INDEX idx_template_etab (etablissement_id)
+IF NOT EXISTS (SELECT name FROM sys.indexes WHERE name = 'idx_graphic_charter_default')
+CREATE INDEX idx_graphic_charter_default ON [graphic_charter](etablissement_id, is_default);
+
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'admin_user')
+BEGIN
+CREATE TABLE [admin_user] (
+  id NVARCHAR(64) PRIMARY KEY,
+  etablissement_id NVARCHAR(64) NOT NULL,
+  nom NVARCHAR(255) NOT NULL,
+  email NVARCHAR(255) NULL
 );
+END;
+
+IF NOT EXISTS (SELECT name FROM sys.indexes WHERE name = 'idx_admin_user_etab')
+CREATE INDEX idx_admin_user_etab ON [admin_user](etablissement_id);
+
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'template')
+BEGIN
+CREATE TABLE [template] (
+  id NVARCHAR(64) PRIMARY KEY,
+  family_id NVARCHAR(64) NOT NULL,
+  etablissement_id NVARCHAR(64) NULL,
+  graphic_charter_id NVARCHAR(64) NULL,
+  nom NVARCHAR(255) NOT NULL,
+  updated_at NVARCHAR(64) NULL,
+  has_header BIT NOT NULL DEFAULT 0,
+  has_footer BIT NOT NULL DEFAULT 0,
+  orientation NVARCHAR(16) NULL,
+  page_margins_json NVARCHAR(MAX) NULL,
+  header_html NVARCHAR(MAX) NULL,
+  body_html NVARCHAR(MAX) NULL,
+  footer_html NVARCHAR(MAX) NULL
+);
+END;
+
+IF NOT EXISTS (SELECT name FROM sys.indexes WHERE name = 'idx_template_family')
+CREATE INDEX idx_template_family ON [template](family_id);
+
+IF NOT EXISTS (SELECT name FROM sys.indexes WHERE name = 'idx_template_etab')
+CREATE INDEX idx_template_etab ON [template](etablissement_id);
