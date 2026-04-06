@@ -33,6 +33,272 @@ const SUPERADMIN_FAMILY_HIDDEN_TABLES = Object.freeze([
   // "charte",
 ]);
 
+function normalizeFilterParamName(value, fallback = "filtre") {
+  const normalized = String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_{2,}/g, "_");
+  return normalized || fallback;
+}
+
+function normalizeFilterOption(option, fallbackValue = "") {
+  if (option === undefined || option === null) return null;
+  if (typeof option !== "object" || Array.isArray(option)) {
+    const value = String(option).trim();
+    if (!value) return null;
+    return { value, label: value };
+  }
+  const value = String(
+    option.value ?? option.id ?? option.code ?? fallbackValue ?? "",
+  ).trim();
+  if (!value) return null;
+  const label = String(
+    option.label ?? option.libelle ?? option.nom ?? option.name ?? value,
+  ).trim();
+  return { value, label: label || value };
+}
+
+function normalizeFilterOptions(options) {
+  const seen = new Set();
+  return (Array.isArray(options) ? options : [])
+    .map((option, index) => normalizeFilterOption(option, index + 1))
+    .filter((option) => {
+      if (!option || seen.has(option.value)) return false;
+      seen.add(option.value);
+      return true;
+    });
+}
+
+function parseFilterStaticOptions(raw) {
+  if (Array.isArray(raw)) return normalizeFilterOptions(raw);
+  const text = String(raw || "").trim();
+  if (!text) return [];
+  return normalizeFilterOptions(
+    text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [valuePart, ...labelParts] = line.split("|");
+        const value = String(valuePart || "").trim();
+        const label = String(labelParts.join("|") || value).trim();
+        return value ? { value, label: label || value } : null;
+      })
+      .filter(Boolean),
+  );
+}
+
+function normalizeFilterRoleAccess(raw = {}) {
+  return {
+    admin: raw?.admin !== false,
+    user: raw?.user !== false,
+  };
+}
+
+function normalizeFilterSqlBuilder(builder = {}) {
+  if (!builder || typeof builder !== "object") {
+    return {
+      tableName: "",
+      valueColumn: "",
+      labelColumn: "",
+      distinct: true,
+    };
+  }
+  return {
+    tableName: String(builder.tableName || builder.table || "").trim(),
+    valueColumn: String(builder.valueColumn || builder.value || "").trim(),
+    labelColumn: String(builder.labelColumn || builder.label || "").trim(),
+    distinct: builder.distinct !== false,
+  };
+}
+
+function normalizeFilterColumnBinding(binding = {}) {
+  if (!binding || typeof binding !== "object") {
+    return {
+      tableName: "",
+      columnName: "",
+      mode: "manual",
+    };
+  }
+  const mode = binding.mode === "base-column" ? "base-column" : "manual";
+  return {
+    tableName: String(binding.tableName || binding.table || "").trim(),
+    columnName: String(binding.columnName || binding.column || "").trim(),
+    mode,
+  };
+}
+
+function normalizeFilterDefinition(filter = {}, index = 0) {
+  const label =
+    String(filter.label || filter.name || "").trim() || `Filtre ${index + 1}`;
+  const type = ["text", "number", "date", "select"].includes(filter.type)
+    ? filter.type
+    : "text";
+  const sourceType =
+    type === "select" && filter.sourceType === "sql" ? "sql" : "static";
+  return {
+    id: String(filter.id || genId("flt")),
+    key: normalizeFilterParamName(
+      filter.key || filter.param || filter.paramName || label,
+      `filtre_${index + 1}`,
+    ),
+    label,
+    type,
+    sourceType,
+    placeholder: String(filter.placeholder || "").trim(),
+    helpText: String(filter.helpText || filter.help || "").trim(),
+    roles: normalizeFilterRoleAccess(filter.roles),
+    columnBinding: normalizeFilterColumnBinding(
+      filter.columnBinding || filter.binding || {},
+    ),
+    staticOptions:
+      type === "select"
+        ? parseFilterStaticOptions(
+            filter.staticOptionsText || filter.staticOptions || [],
+          )
+        : [],
+    sqlBuilder:
+      type === "select"
+        ? normalizeFilterSqlBuilder(filter.sqlBuilder || filter.builder || {})
+        : normalizeFilterSqlBuilder({}),
+    sqlQuery:
+      type === "select" && sourceType === "sql"
+        ? String(filter.sqlQuery || filter.query || "").trim()
+        : "",
+  };
+}
+
+function normalizeTemplateFilterProfileEntry(entry = {}, index = 0) {
+  const filterId = String(entry.filterId || entry.id || "").trim();
+  if (!filterId) return null;
+  return {
+    filterId,
+    enabled: entry.enabled !== false,
+    adminEnabled: entry.adminEnabled !== false,
+    userEnabled: entry.userEnabled !== false,
+    required: !!entry.required,
+    locked: !!entry.locked,
+    order: Number.isFinite(Number(entry.order)) ? Number(entry.order) : index,
+    defaultValue:
+      entry.defaultValue === undefined || entry.defaultValue === null
+        ? null
+        : entry.defaultValue,
+    allowedValueMode:
+      entry.allowedValueMode === "subset" ? "subset" : "all",
+    allowedValues: normalizeFilterOptions(entry.allowedValues || []),
+  };
+}
+
+function normalizeFilterCatalog(filters) {
+  return (Array.isArray(filters) ? filters : [])
+    .map((filter, index) => normalizeFilterDefinition(filter, index))
+    .filter(Boolean);
+}
+
+function normalizeTemplateFilterProfile(profile) {
+  return (Array.isArray(profile) ? profile : [])
+    .map((entry, index) => normalizeTemplateFilterProfileEntry(entry, index))
+    .filter(Boolean);
+}
+
+function normalizeFilterInputValue(filter, rawValue) {
+  if (rawValue === undefined || rawValue === null) return null;
+  const text = String(rawValue).trim();
+  if (!text) return null;
+  if (filter?.type === "number") {
+    const numberValue = Number(text);
+    return Number.isFinite(numberValue) ? numberValue : null;
+  }
+  return text;
+}
+
+function buildDocumentFilterParams(values = {}, filterDefs = []) {
+  const params = {};
+  (Array.isArray(filterDefs) ? filterDefs : []).forEach((filter) => {
+    if (!filter?.key) return;
+    const normalized = normalizeFilterInputValue(filter, values?.[filter.id]);
+    params[filter.key] = normalized;
+    params[`filter_${filter.key}`] = normalized;
+  });
+  return params;
+}
+
+function getFamilyFilterCatalog(family) {
+  return normalizeFilterCatalog(family?.filterCatalog || []);
+}
+
+function getTemplateFilterProfile(template) {
+  return normalizeTemplateFilterProfile(template?.filterProfile || []);
+}
+
+function getTemplateFilterProfileMap(template) {
+  return new Map(
+    getTemplateFilterProfile(template).map((entry) => [entry.filterId, entry]),
+  );
+}
+
+function getTemplateFilterBinding(filterDef, template) {
+  const profile = getTemplateFilterProfileMap(template).get(filterDef.id) || {
+    filterId: filterDef.id,
+    enabled: true,
+    adminEnabled: true,
+    userEnabled: true,
+    required: false,
+    locked: false,
+    order: 999,
+    defaultValue: null,
+    allowedValueMode: "all",
+    allowedValues: [],
+  };
+  return {
+    ...cloneData(filterDef),
+    profile: cloneData(profile),
+  };
+}
+
+function buildDistinctFilterSqlQuery(builder, schema = null) {
+  const normalized = normalizeFilterSqlBuilder(builder);
+  if (!normalized.tableName || !normalized.valueColumn) return "";
+  const tableColumns = schema
+    ? getSchemaColumnsForTable(schema, normalized.tableName)
+    : [];
+  const hasEtabColumn = tableColumns.some(
+    (column) => column.name === "etablissement_id",
+  );
+  const labelExpr = normalized.labelColumn
+    ? `COALESCE(CONVERT(NVARCHAR(255), ${quoteSqlIdentifier(normalized.labelColumn)}), CONVERT(NVARCHAR(255), ${quoteSqlIdentifier(normalized.valueColumn)}))`
+    : `CONVERT(NVARCHAR(255), ${quoteSqlIdentifier(normalized.valueColumn)})`;
+  return [
+    "SELECT DISTINCT",
+    `  CONVERT(NVARCHAR(255), ${quoteSqlIdentifier(normalized.valueColumn)}) AS value,`,
+    `  ${labelExpr} AS label`,
+    `FROM ${quoteSqlIdentifier(normalized.tableName)}`,
+    `WHERE ${quoteSqlIdentifier(normalized.valueColumn)} IS NOT NULL${
+      hasEtabColumn ? "\n  AND (:etablissementId IS NULL OR [etablissement_id] = :etablissementId)" : ""
+    }`,
+    "ORDER BY label ASC",
+  ].join("\n");
+}
+
+function getEnabledTemplateFilters(family, template, role = "user") {
+  return getFamilyFilterCatalog(family)
+    .map((filterDef) => getTemplateFilterBinding(filterDef, template))
+    .filter((entry) => {
+      if (!entry.profile.enabled) return false;
+      if (role === "admin" && entry.profile.adminEnabled === false) return false;
+      if (role === "user" && entry.profile.userEnabled === false) return false;
+      return entry.roles?.[role] !== false;
+    })
+    .sort((a, b) => {
+      const orderGap = (a.profile.order || 0) - (b.profile.order || 0);
+      if (orderGap !== 0) return orderGap;
+      return a.label.localeCompare(b.label, "fr");
+    });
+}
+
 function normalizeFamilyRecord(record = {}) {
   const next = cloneData(record || {}) || {};
   next.beneficiaryMode =
@@ -48,8 +314,12 @@ function normalizeFamilyRecord(record = {}) {
   next.beneficiarySql = String(
     next.beneficiarySql || next.beneficiarySqlText || "",
   ).trim();
+  next.filterCatalog = normalizeFilterCatalog(
+    next.filterCatalog || next.filterCatalogJson || [],
+  );
   delete next.beneficiaireTable;
   delete next.beneficiarySqlText;
+  delete next.filterCatalogJson;
   return next;
 }
 
@@ -235,18 +505,30 @@ const DB = {
     return payload.rows || [];
   },
 
-  async getPersonDataForFamily(familyId, personId) {
+  async getPersonDataForFamily(
+    familyId,
+    personId,
+    filters = {},
+    etablissementId = null,
+  ) {
     const basePerson = this.getPerson(personId);
     return this.getDocumentDataForFamily(
       familyId,
       personId,
-      basePerson?.etablissementId || null,
+      etablissementId || basePerson?.etablissementId || null,
+      filters,
     );
   },
 
-  async getBeneficiariesForFamily(familyId, etablissementId = null) {
+  async getBeneficiariesForFamily(
+    familyId,
+    etablissementId = null,
+    filters = {},
+  ) {
     const family = this.getFamily(familyId);
     if (!family) return [];
+    const filterDefs = getFamilyFilterCatalog(family);
+    const filterParams = buildDocumentFilterParams(filters, filterDefs);
 
     if (family.beneficiaryMode === "etablissement") {
       const etab = etablissementId
@@ -271,6 +553,7 @@ const DB = {
         const rows = await this.runSelect(family.beneficiarySql, {
           etablissementId,
           etabId: etablissementId,
+          ...filterParams,
         });
         return rows
           .filter(
@@ -342,6 +625,7 @@ const DB = {
       const rows = await this.runSelect(fallbackSql, {
         etablissementId,
         etabId: etablissementId,
+        ...filterParams,
       });
       return rows
         .filter(
@@ -376,6 +660,7 @@ const DB = {
     familyId,
     beneficiaryId = null,
     etablissementId = null,
+    filters = {},
   ) {
     const family = this.getFamily(familyId);
     if (!family) return null;
@@ -419,6 +704,7 @@ const DB = {
     if (!family.sql) return baseRecord;
 
     try {
+      const filterDefs = getFamilyFilterCatalog(family);
       const rows = await this.runSelect(family.sql, {
         id:
           family.beneficiaryMode === "etablissement"
@@ -428,6 +714,7 @@ const DB = {
         beneficiaryId,
         etablissementId,
         etabId: etablissementId,
+        ...buildDocumentFilterParams(filters, filterDefs),
       });
       const row = rows?.[0];
       return row ? { ...(baseRecord || {}), ...row } : baseRecord;
@@ -481,10 +768,11 @@ const DB = {
   // ── Mutateurs ───────────────────────────────────────────────
   saveFamily(fam) {
     const s = DB.get();
+    const normalized = normalizeFamilyRecord(fam);
     const i = s.families.findIndex((f) => f.id === fam.id);
-    i >= 0 ? (s.families[i] = fam) : s.families.push(fam);
+    i >= 0 ? (s.families[i] = normalized) : s.families.push(normalized);
     DB.save(s);
-    return fam;
+    return normalized;
   },
   deleteFamily(id) {
     const s = DB.get();
@@ -494,10 +782,11 @@ const DB = {
   },
   saveTemplate(t) {
     const s = DB.get();
+    const normalized = normalizeTemplateRecord(t);
     const i = s.templates.findIndex((x) => x.id === t.id);
-    i >= 0 ? (s.templates[i] = t) : s.templates.push(t);
+    i >= 0 ? (s.templates[i] = normalized) : s.templates.push(normalized);
     DB.save(s);
-    return t;
+    return normalized;
   },
   deleteTemplate(id) {
     const s = DB.get();
@@ -558,6 +847,169 @@ const DB = {
     return null;
   },
 };
+
+function makeFilterOptionLabel(row = {}, fallback = "") {
+  const label =
+    row.label ??
+    row.libelle ??
+    row.nom ??
+    row.name ??
+    row.intitule ??
+    row.titre ??
+    row.value ??
+    row.id ??
+    fallback;
+  return String(label ?? fallback ?? "").trim();
+}
+
+function mapRowsToFilterOptions(rows = []) {
+  return normalizeFilterOptions(
+    (Array.isArray(rows) ? rows : []).map((row, index) => {
+      if (row === null || row === undefined) return null;
+      if (typeof row !== "object" || Array.isArray(row)) {
+        return normalizeFilterOption(row, index + 1);
+      }
+      const value = String(
+        row.value ?? row.id ?? row.code ?? row.key ?? index + 1,
+      ).trim();
+      if (!value) return null;
+      return {
+        value,
+        label: makeFilterOptionLabel(row, value),
+      };
+    }),
+  );
+}
+
+function getAllowedFilterOptions(filterEntry, options = []) {
+  const normalizedOptions = normalizeFilterOptions(options);
+  if (
+    !filterEntry?.profile ||
+    filterEntry.profile.allowedValueMode !== "subset" ||
+    !filterEntry.profile.allowedValues?.length
+  ) {
+    return normalizedOptions;
+  }
+
+  const allowedMap = new Map(
+    normalizeFilterOptions(filterEntry.profile.allowedValues).map((option) => [
+      option.value,
+      option,
+    ]),
+  );
+  const subset = normalizedOptions.filter((option) => allowedMap.has(option.value));
+  if (subset.length) return subset;
+  return [...allowedMap.values()];
+}
+
+function getDefaultFilterValues(family, template, role = "user") {
+  return Object.fromEntries(
+    getEnabledTemplateFilters(family, template, role).map((entry) => [
+      entry.id,
+      normalizeFilterInputValue(entry, entry.profile.defaultValue),
+    ]),
+  );
+}
+
+function applyFilterValueDefaults(entries = [], values = {}) {
+  const next = {};
+  (Array.isArray(entries) ? entries : []).forEach((entry) => {
+    const rawValue =
+      values?.[entry.id] !== undefined
+        ? values[entry.id]
+        : entry.profile?.defaultValue ?? null;
+    next[entry.id] = normalizeFilterInputValue(entry, rawValue);
+  });
+  return next;
+}
+
+function validateRuntimeFilterValues(entries = [], values = {}) {
+  const next = applyFilterValueDefaults(entries, values);
+  (Array.isArray(entries) ? entries : []).forEach((entry) => {
+    if (entry.type !== "select") return;
+    const allowed = getAllowedFilterOptions(entry, entry.options || []);
+    if (!allowed.length) return;
+    const currentValue = next[entry.id];
+    if (currentValue === null || currentValue === undefined || currentValue === "")
+      return;
+    if (!allowed.some((option) => option.value === String(currentValue))) {
+      next[entry.id] = normalizeFilterInputValue(
+        entry,
+        entry.profile?.defaultValue ?? null,
+      );
+    }
+  });
+  return next;
+}
+
+async function resolveFilterOptionsForEntry(
+  filterEntry,
+  etablissementId = null,
+  values = {},
+  extraParams = {},
+  filterDefs = [],
+) {
+  if (!filterEntry || filterEntry.type !== "select") return [];
+  let options =
+    filterEntry.sourceType === "sql" && filterEntry.sqlQuery
+      ? []
+      : normalizeFilterOptions(filterEntry.staticOptions);
+
+  if (filterEntry.type === "select" && filterEntry.sourceType === "sql") {
+    if (!String(filterEntry.sqlQuery || "").trim()) {
+      return getAllowedFilterOptions(filterEntry, []);
+    }
+    try {
+      const rows = await DB.runSelect(filterEntry.sqlQuery, {
+        etablissementId,
+        etabId: etablissementId,
+        ...buildDocumentFilterParams(
+          values,
+          filterDefs.length ? filterDefs : [filterEntry],
+        ),
+        ...extraParams,
+      });
+      options = mapRowsToFilterOptions(rows);
+    } catch (error) {
+      notifySyncError(
+        `Impossible de charger les valeurs possibles du filtre ${filterEntry.label}.`,
+        error,
+      );
+      options = [];
+    }
+  }
+
+  return getAllowedFilterOptions(filterEntry, options);
+}
+
+async function resolveTemplateFiltersForRole(
+  familyId,
+  templateId,
+  role = "user",
+  etablissementId = null,
+  values = {},
+  extraParams = {},
+) {
+  const family = DB.getFamily(familyId);
+  const template = DB.getTemplate(templateId);
+  if (!family || !template) return [];
+  const entries = getEnabledTemplateFilters(family, template, role);
+  const filterDefs = getFamilyFilterCatalog(family);
+  const resolved = [];
+  for (const entry of entries) {
+    resolved.push({
+      ...entry,
+      options: await resolveFilterOptionsForEntry(
+        entry,
+        etablissementId,
+        values,
+        extraParams,
+        filterDefs,
+      ),
+    });
+  }
+  return resolved;
+}
 
 const DEFAULT_GRAPHIC_CHARTER = Object.freeze({
   identity: {
@@ -674,6 +1126,10 @@ function normalizeTemplateRecord(record = {}) {
   next.graphicCharterId = next.graphicCharterId
     ? String(next.graphicCharterId)
     : null;
+  next.filterProfile = normalizeTemplateFilterProfile(
+    next.filterProfile || next.filterProfileJson || [],
+  );
+  delete next.filterProfileJson;
   return next;
 }
 
@@ -1016,6 +1472,7 @@ function createTemplateFromGraphicCharter(
   name,
   graphicCharterId = null,
 ) {
+  const family = familyId ? DB.getFamily(familyId) : null;
   const charterRecord = getGraphicCharter(etablissementId, graphicCharterId);
   const charter = charterRecord?.config
     ? normalizeGraphicCharterConfig(charterRecord.config)
@@ -1025,6 +1482,23 @@ function createTemplateFromGraphicCharter(
     familyId,
     etablissementId,
     graphicCharterId: charterRecord?.id || null,
+    filterProfile: getFamilyFilterCatalog(family).map((filter, index) =>
+      normalizeTemplateFilterProfileEntry(
+        {
+          filterId: filter.id,
+          enabled: true,
+          adminEnabled: filter.roles?.admin !== false,
+          userEnabled: filter.roles?.user !== false,
+          required: false,
+          locked: false,
+          order: index,
+          defaultValue: null,
+          allowedValueMode: "all",
+          allowedValues: [],
+        },
+        index,
+      ),
+    ),
     nom: name || "Nouveau template",
     updatedAt: new Date().toISOString(),
     hasHeader: !!charter.header.enabledByDefault,

@@ -2110,6 +2110,17 @@
               <span class="charter-bar-note" id="graphicCharterMeta"></span>
             </div>
 
+            <div
+              id="templateFilterProfilePanel"
+              style="
+                padding: 12px 18px;
+                border-bottom: 1px solid var(--border);
+                background: linear-gradient(180deg, #fbfcfe 0%, #f8fafc 100%);
+                overflow: auto;
+                max-height: 240px;
+              "
+            ></div>
+
             <div class="sec-tabs">
               <div
                 class="sec-tab disabled"
@@ -3462,6 +3473,7 @@
             flex-wrap: wrap;
           "
         >
+          <div id="prevFiltersWrap" style="width: 100%"></div>
           <div
             id="prevTargetLabel"
             style="font-size: 12px; color: var(--text2); font-weight: 600"
@@ -4517,6 +4529,8 @@
         _activeResizeImgEl = null;
       let pageGuideRaf = 0;
       let adminPreviewState = null;
+      let adminResolvedFilters = [];
+      let adminFilterValues = {};
 
       window.insertVar = function (tech) {
         const ed = activeEditor || editorBody;
@@ -6456,6 +6470,8 @@
       window.onFamChange = function () {
         curFamId = document.getElementById("famSelAdmin").value;
         curTplId = null;
+        adminResolvedFilters = [];
+        adminFilterValues = {};
         buildVarsPanel(curFamId);
         renderTplList(curFamId);
         clearEditor();
@@ -6487,6 +6503,8 @@
       function clearEditor() {
         document.getElementById("emptyState").style.display = "flex";
         document.getElementById("editorInner").style.display = "none";
+        const filterPanel = document.getElementById("templateFilterProfilePanel");
+        if (filterPanel) filterPanel.innerHTML = "";
         destroyEditors();
       }
       function destroyEditors() {
@@ -6571,7 +6589,402 @@
             if (ed) activateImageResizers(ed);
           });
         }, 300);
+        renderTemplateFilterProfilePanel();
+        refreshAdminFilterRuntime(false);
       }
+
+      function escAttr(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/"/g, "&quot;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function getDefaultTemplateFilterProfileEntry(filterId, order = 0) {
+        return normalizeTemplateFilterProfileEntry({
+          filterId,
+          enabled: true,
+          adminEnabled: true,
+          userEnabled: true,
+          required: false,
+          locked: false,
+          order,
+          defaultValue: null,
+          allowedValueMode: "all",
+          allowedValues: [],
+        });
+      }
+
+      function getTemplateProfileEntry(tpl, filterId, order = 0) {
+        return (
+          getTemplateFilterProfile(tpl).find((entry) => entry.filterId === filterId) ||
+          getDefaultTemplateFilterProfileEntry(filterId, order)
+        );
+      }
+
+      function saveTemplateProfileEntry(filterId, updater) {
+        const tpl = curTplId ? DB.getTemplate(curTplId) : null;
+        const fam = curFamId ? DB.getFamily(curFamId) : null;
+        if (!tpl || !fam) return null;
+        const catalog = getFamilyFilterCatalog(fam);
+        const existingMap = getTemplateFilterProfileMap(tpl);
+        const order =
+          catalog.findIndex((filter) => filter.id === filterId) >= 0
+            ? catalog.findIndex((filter) => filter.id === filterId)
+            : existingMap.size;
+        const current = getTemplateProfileEntry(tpl, filterId, order);
+        const updated = normalizeTemplateFilterProfileEntry(
+          updater(cloneData(current)),
+          order,
+        );
+        if (updated) existingMap.set(filterId, updated);
+        tpl.filterProfile = catalog
+          .map((filter, index) =>
+            existingMap.get(filter.id) ||
+            getDefaultTemplateFilterProfileEntry(filter.id, index),
+          )
+          .filter(Boolean);
+        tpl.updatedAt = new Date().toISOString();
+        DB.saveTemplate(tpl);
+        setSaveState("Modifie", true);
+        return tpl;
+      }
+
+      function formatAllowedFilterOption(option) {
+        return option.label === option.value
+          ? escHtml(option.value)
+          : `${escHtml(option.label)} <span style="color:var(--text3)">(${escHtml(option.value)})</span>`;
+      }
+
+      async function renderTemplateFilterProfilePanel() {
+        const wrap = document.getElementById("templateFilterProfilePanel");
+        const fam = curFamId ? DB.getFamily(curFamId) : null;
+        const tpl = curTplId ? DB.getTemplate(curTplId) : null;
+        if (!wrap) return;
+        if (!fam || !tpl) {
+          wrap.innerHTML = "";
+          return;
+        }
+        const catalog = getFamilyFilterCatalog(fam);
+        if (!catalog.length) {
+          wrap.innerHTML =
+            '<div style="font-size:12px;color:var(--text3)">Aucun filtre de famille défini. Configurez-les côté Super Admin pour activer le filtrage dynamique.</div>';
+          return;
+        }
+
+        const previewDefaults = getDefaultFilterValues(fam, tpl, "admin");
+        const optionSets = await Promise.all(
+          catalog.map(async (filter, index) => ({
+            filter,
+            profile: getTemplateProfileEntry(tpl, filter.id, index),
+            options:
+              filter.type === "select"
+                ? await resolveFilterOptionsForEntry(
+                    {
+                      ...filter,
+                      profile: {
+                        allowedValueMode: "all",
+                        allowedValues: [],
+                      },
+                    },
+                    getActiveEtabId(),
+                    previewDefaults,
+                    {},
+                    catalog,
+                  )
+                : [],
+          })),
+        );
+
+        wrap.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+            <strong style="font-size:13px;color:var(--text)">Filtres du template</strong>
+            <span style="font-size:11px;color:var(--text3)">Activez les filtres utiles pour ce modèle, puis définissez leurs presets et restrictions.</span>
+          </div>
+          ${optionSets
+            .map(({ filter, profile, options }, index) => {
+              const selectOptions = options
+                .map(
+                  (option) =>
+                    `<option value="${escAttr(option.value)}" ${
+                      String(profile.defaultValue ?? "") === String(option.value)
+                        ? "selected"
+                        : ""
+                    }>${escHtml(option.label)}</option>`,
+                )
+                .join("");
+              return `
+                <div style="border:1px solid var(--border);border-radius:14px;padding:12px;background:#fff;margin-bottom:10px">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--text)">
+                      <input type="checkbox" ${profile.enabled ? "checked" : ""} onchange="toggleTemplateFilterEnabled('${filter.id}', this.checked)">
+                      ${escHtml(filter.label)}
+                    </label>
+                    <span style="font-size:10px;color:var(--text3);background:var(--surface2);padding:2px 6px;border-radius:999px;border:1px solid var(--border)">:${escHtml(filter.key)}</span>
+                    <span style="font-size:10px;color:var(--text3)">${escHtml(filter.type)}</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+                    <label style="font-size:12px;color:var(--text2);display:flex;gap:6px;align-items:center"><input type="checkbox" ${profile.adminEnabled ? "checked" : ""} onchange="updateTemplateFilterBool('${filter.id}','adminEnabled',this.checked)"> Utilisable dans l'admin</label>
+                    <label style="font-size:12px;color:var(--text2);display:flex;gap:6px;align-items:center"><input type="checkbox" ${profile.userEnabled ? "checked" : ""} onchange="updateTemplateFilterBool('${filter.id}','userEnabled',this.checked)"> Utilisable côté user</label>
+                    <label style="font-size:12px;color:var(--text2);display:flex;gap:6px;align-items:center"><input type="checkbox" ${profile.required ? "checked" : ""} onchange="updateTemplateFilterBool('${filter.id}','required',this.checked)"> Obligatoire</label>
+                    <label style="font-size:12px;color:var(--text2);display:flex;gap:6px;align-items:center"><input type="checkbox" ${profile.locked ? "checked" : ""} onchange="updateTemplateFilterBool('${filter.id}','locked',this.checked)"> Verrouillé</label>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px">
+                    <div>
+                      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Valeur par défaut</div>
+                      ${
+                        filter.type === "select"
+                          ? `<select class="charter-bar-select" style="width:100%" onchange="updateTemplateFilterDefault('${filter.id}', this.value)">
+                              <option value="">— Aucune —</option>
+                              ${selectOptions}
+                            </select>`
+                          : `<input class="tname-input" style="width:100%;height:34px" value="${escAttr(profile.defaultValue ?? "")}" onchange="updateTemplateFilterDefault('${filter.id}', this.value)" placeholder="${escAttr(filter.placeholder || "Valeur par défaut")}">`
+                      }
+                    </div>
+                    ${
+                      filter.type === "select"
+                        ? `<div>
+                            <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Valeurs autorisées</div>
+                            <select class="charter-bar-select" style="width:100%" onchange="updateTemplateFilterAllowedMode('${filter.id}', this.value)">
+                              <option value="all" ${profile.allowedValueMode !== "subset" ? "selected" : ""}>Toutes les valeurs possibles</option>
+                              <option value="subset" ${profile.allowedValueMode === "subset" ? "selected" : ""}>Sous-ensemble choisi</option>
+                            </select>
+                          </div>`
+                        : `<div style="font-size:11px;color:var(--text3);display:flex;align-items:flex-end">${escHtml(filter.helpText || "Filtre libre sans liste prédéfinie.")}</div>`
+                    }
+                  </div>
+                  ${
+                    filter.type === "select" && profile.allowedValueMode === "subset"
+                      ? `<div style="margin-top:10px;padding:10px;border:1px dashed var(--border);border-radius:12px;background:#fbfcfe">
+                          <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Choisissez les valeurs autorisées pour ce template.</div>
+                          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+                            ${options.length
+                              ? options
+                                  .map(
+                                    (option) =>
+                                      `<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);padding:4px 8px;border:1px solid var(--border);border-radius:999px;background:#fff">
+                                        <input type="checkbox" ${
+                                          (profile.allowedValues || []).some(
+                                            (entry) =>
+                                              entry.value === option.value,
+                                          )
+                                            ? "checked"
+                                            : ""
+                                        } onchange="toggleTemplateFilterAllowedValue('${filter.id}','${escAttr(option.value)}','${escAttr(option.label)}',this.checked)">
+                                        ${option.label === option.value ? escHtml(option.label) : `${escHtml(option.label)} (${escHtml(option.value)})`}
+                                      </label>`,
+                                  )
+                                  .join("")
+                              : '<span style="font-size:11px;color:var(--text3)">Aucune valeur détectée pour le moment.</span>'}
+                          </div>
+                          <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <input id="customAllowedValue_${index}" class="tname-input" style="height:34px;flex:1;min-width:180px" placeholder="Valeur personnalisée">
+                            <input id="customAllowedLabel_${index}" class="tname-input" style="height:34px;flex:1;min-width:180px" placeholder="Libellé (optionnel)">
+                            <button class="btn ghost sm" onclick="addCustomTemplateAllowedValue('${filter.id}', ${index})">Ajouter</button>
+                          </div>
+                          ${
+                            (profile.allowedValues || []).length
+                              ? `<div style="margin-top:8px;font-size:11px;color:var(--text2)">Sélection actuelle : ${(profile.allowedValues || [])
+                                  .map((option) => formatAllowedFilterOption(option))
+                                  .join(" · ")}</div>`
+                              : ""
+                          }
+                        </div>`
+                      : ""
+                  }
+                </div>`;
+            })
+            .join("")}
+        `;
+      }
+
+      async function refreshAdminFilterRuntime(preserveValues = true) {
+        const fam = curFamId ? DB.getFamily(curFamId) : null;
+        const tpl = curTplId ? DB.getTemplate(curTplId) : null;
+        if (!fam || !tpl) {
+          adminResolvedFilters = [];
+          adminFilterValues = {};
+          return [];
+        }
+        const seedValues = preserveValues
+          ? adminFilterValues
+          : getDefaultFilterValues(fam, tpl, "admin");
+        adminResolvedFilters = await resolveTemplateFiltersForRole(
+          curFamId,
+          curTplId,
+          "admin",
+          getActiveEtabId(),
+          seedValues,
+        );
+        adminFilterValues = validateRuntimeFilterValues(
+          adminResolvedFilters,
+          seedValues,
+        );
+        adminResolvedFilters.forEach((entry) => {
+          if (entry.profile.locked) {
+            adminFilterValues[entry.id] = normalizeFilterInputValue(
+              entry,
+              entry.profile.defaultValue,
+            );
+          }
+        });
+        renderAdminPreviewFilters();
+        return adminResolvedFilters;
+      }
+
+      function renderAdminPreviewFilters() {
+        const wrap = document.getElementById("prevFiltersWrap");
+        if (!wrap) return;
+        if (!adminResolvedFilters.length) {
+          wrap.innerHTML = "";
+          return;
+        }
+        wrap.innerHTML = `
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;width:100%;margin-bottom:6px">
+            ${adminResolvedFilters
+              .map((entry) => {
+                const value = adminFilterValues?.[entry.id] ?? "";
+                const help = entry.helpText
+                  ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">${escHtml(entry.helpText)}</div>`
+                  : "";
+                if (entry.type === "select") {
+                  return `
+                    <label style="font-size:11px;color:var(--text2);font-weight:600">
+                      ${escHtml(entry.label)}${entry.profile.required ? " *" : ""}
+                      <select onchange="onAdminPreviewFilterChange('${entry.id}', this.value)" ${
+                        entry.profile.locked ? "disabled" : ""
+                      } style="display:block;width:100%;margin-top:6px;font-size:12px;border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;background:var(--surface2);color:var(--text)">
+                        <option value="">— Toutes / vide —</option>
+                        ${(entry.options || [])
+                          .map(
+                            (option) =>
+                              `<option value="${escAttr(option.value)}" ${
+                                String(value) === String(option.value)
+                                  ? "selected"
+                                  : ""
+                              }>${escHtml(option.label)}</option>`,
+                          )
+                          .join("")}
+                      </select>
+                      ${help}
+                    </label>`;
+                }
+                return `
+                  <label style="font-size:11px;color:var(--text2);font-weight:600">
+                    ${escHtml(entry.label)}${entry.profile.required ? " *" : ""}
+                    <input type="${
+                      entry.type === "number"
+                        ? "number"
+                        : entry.type === "date"
+                          ? "date"
+                          : "text"
+                    }" value="${escAttr(value)}" placeholder="${escAttr(entry.placeholder || "")}" onchange="onAdminPreviewFilterChange('${entry.id}', this.value)" ${
+                      entry.profile.locked ? "readonly" : ""
+                    } style="display:block;width:100%;margin-top:6px;font-size:12px;border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;background:var(--surface2);color:var(--text)">
+                    ${help}
+                  </label>`;
+              })
+              .join("")}
+          </div>`;
+      }
+
+      window.toggleTemplateFilterEnabled = async function (filterId, checked) {
+        saveTemplateProfileEntry(filterId, (entry) => ({
+          ...entry,
+          enabled: checked,
+        }));
+        await renderTemplateFilterProfilePanel();
+        await refreshAdminFilterRuntime(false);
+      };
+
+      window.updateTemplateFilterBool = async function (
+        filterId,
+        field,
+        checked,
+      ) {
+        saveTemplateProfileEntry(filterId, (entry) => ({
+          ...entry,
+          [field]: checked,
+        }));
+        await renderTemplateFilterProfilePanel();
+        await refreshAdminFilterRuntime(true);
+      };
+
+      window.updateTemplateFilterDefault = async function (filterId, value) {
+        saveTemplateProfileEntry(filterId, (entry) => ({
+          ...entry,
+          defaultValue: value || null,
+        }));
+        await renderTemplateFilterProfilePanel();
+        await refreshAdminFilterRuntime(false);
+      };
+
+      window.updateTemplateFilterAllowedMode = async function (filterId, value) {
+        saveTemplateProfileEntry(filterId, (entry) => ({
+          ...entry,
+          allowedValueMode: value === "subset" ? "subset" : "all",
+          allowedValues:
+            value === "subset" ? entry.allowedValues || [] : [],
+        }));
+        await renderTemplateFilterProfilePanel();
+        await refreshAdminFilterRuntime(false);
+      };
+
+      window.toggleTemplateFilterAllowedValue = async function (
+        filterId,
+        value,
+        label,
+        checked,
+      ) {
+        saveTemplateProfileEntry(filterId, (entry) => {
+          const current = normalizeFilterOptions(entry.allowedValues || []);
+          const map = new Map(current.map((option) => [option.value, option]));
+          if (checked) map.set(value, { value, label });
+          else map.delete(value);
+          return {
+            ...entry,
+            allowedValues: [...map.values()],
+          };
+        });
+        await renderTemplateFilterProfilePanel();
+        await refreshAdminFilterRuntime(false);
+      };
+
+      window.addCustomTemplateAllowedValue = async function (filterId, index) {
+        const valueInput = document.getElementById(`customAllowedValue_${index}`);
+        const labelInput = document.getElementById(`customAllowedLabel_${index}`);
+        const value = valueInput?.value?.trim();
+        const label = labelInput?.value?.trim() || value;
+        if (!value) {
+          toast("Saisissez une valeur personnalisée", "error");
+          return;
+        }
+        saveTemplateProfileEntry(filterId, (entry) => {
+          const current = normalizeFilterOptions(entry.allowedValues || []);
+          const map = new Map(current.map((option) => [option.value, option]));
+          map.set(value, { value, label });
+          return {
+            ...entry,
+            allowedValueMode: "subset",
+            allowedValues: [...map.values()],
+          };
+        });
+        if (valueInput) valueInput.value = "";
+        if (labelInput) labelInput.value = "";
+        await renderTemplateFilterProfilePanel();
+        await refreshAdminFilterRuntime(false);
+      };
+
+      window.onAdminPreviewFilterChange = async function (filterId, value) {
+        adminFilterValues = {
+          ...adminFilterValues,
+          [filterId]: value || null,
+        };
+        await refreshAdminFilterRuntime(true);
+        await populatePreviewBeneficiaries();
+        await window.refreshPrev();
+      };
 
       window.newTemplate = function () {
         if (!curFamId) {
@@ -6874,9 +7287,11 @@
         const sel = document.getElementById("prevPerson");
         const label = document.getElementById("prevTargetLabel");
         if (!sel || !fam) return [];
+        const previousValue = sel.value;
         const beneficiaries = await DB.getBeneficiariesForFamily(
           curFamId,
           getActiveEtabId(),
+          adminFilterValues,
         );
         sel.innerHTML = "";
         beneficiaries.forEach((item) => {
@@ -6888,7 +7303,10 @@
           sel.appendChild(o);
         });
         if (beneficiaries.length) {
-          sel.value = beneficiaries[0].id;
+          const preserved = beneficiaries.find(
+            (item) => String(item.id) === String(previousValue),
+          );
+          sel.value = preserved ? preserved.id : beneficiaries[0].id;
         }
         if (label) {
           label.textContent =
@@ -6904,6 +7322,7 @@
           toast("Ouvrez d'abord un template", "error");
           return;
         }
+        await refreshAdminFilterRuntime(true);
         await populatePreviewBeneficiaries();
         await window.refreshPrev();
         openModal("modalPreview");
@@ -6916,10 +7335,17 @@
           curFamId,
           beneficiaryId,
           getActiveEtabId(),
+          adminFilterValues,
         );
         const liveTpl = buildLivePreviewTemplate();
-        if (!person || !liveTpl) return;
         const prevPage = document.getElementById("prevContent");
+        if (!liveTpl || !prevPage) return;
+        if (!person) {
+          prevPage.innerHTML =
+            '<div style="font-size:12px;color:var(--text3);text-align:center;padding:30px 20px">Aucune donnée à afficher avec les filtres actuels.</div>';
+          adminPreviewState = null;
+          return;
+        }
         prevPage.innerHTML = "";
         prevPage.className = "preview-pages";
 
@@ -6971,6 +7397,7 @@
           curFamId,
           beneficiaryId,
           getActiveEtabId(),
+          adminFilterValues,
         );
         const liveTpl = buildLivePreviewTemplate();
         if (!liveTpl) {
@@ -6994,6 +7421,7 @@
           curFamId,
           beneficiaryId,
           getActiveEtabId(),
+          adminFilterValues,
         );
         const liveTpl = buildLivePreviewTemplate();
         if (!liveTpl) {

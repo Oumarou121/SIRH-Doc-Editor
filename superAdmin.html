@@ -1602,6 +1602,7 @@
           beneficiaryMode: "table",
           beneficiaryTable: DEFAULT_FAMILY_BENEFICIARY_TABLE,
           beneficiarySql: "",
+          filterCatalog: [],
           classes: [],
           sql: "",
           createdAt: new Date().toISOString(),
@@ -1719,6 +1720,23 @@
 <div class="card">
   <div class="card-header">
     <div class="card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>
+      Catalogue de filtres
+    </div>
+    <div class="flex gap-8">
+      <span class="chip chip-amber">${(fam.filterCatalog || []).length} filtre(s)</span>
+      <button class="btn sm" onclick="addFamilyFilterDefinition('${famId}')">Ajouter un filtre</button>
+    </div>
+  </div>
+  <div class="card-body">
+    <p class="text-muted" style="margin-bottom:10px">Ces filtres sont définis au niveau de la famille. Les templates pourront ensuite les activer, les verrouiller, fixer une valeur par défaut ou limiter les valeurs autorisées.</p>
+    <div id="familyFilterCatalogWrap"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
       Classes &amp; Variables
     </div>
@@ -1768,6 +1786,7 @@
   </div>
 </div>`;
         renderClassesContainer(famId);
+        renderFamilyFilterCatalog(famId);
         renderFamilyBeneficiaryTableSelect(famId);
         renderSchemaAssistant(famId);
         if (
@@ -1862,6 +1881,425 @@
         renderLeftPanel();
         renderFamilyEditor(famId);
         regenerateFamilySql(famId, true);
+      };
+
+      function createEmptyFamilyFilterDefinition(index = 0) {
+        return normalizeFilterDefinition(
+          {
+            id: genId("flt"),
+            key: `filtre_${index + 1}`,
+            label: `Filtre ${index + 1}`,
+            type: "text",
+            sourceType: "static",
+            placeholder: "",
+            helpText: "",
+            roles: { admin: true, user: true },
+            staticOptions: [],
+            sqlBuilder: {},
+            sqlQuery: "",
+          },
+          index,
+        );
+      }
+
+      function getFamilyFilterById(fam, filterId) {
+        return (fam?.filterCatalog || []).find((filter) => filter.id === filterId);
+      }
+
+      async function renderFamilyFilterCatalog(famId) {
+        const fam = DB.getFamily(famId);
+        const wrap = document.getElementById("familyFilterCatalogWrap");
+        if (!fam || !wrap) return;
+        let schema = null;
+        try {
+          schema = await ensureSchemaMeta();
+        } catch (_) {}
+        const visibleTables = schema ? getVisibleFamilySchemaTables(schema) : [];
+        const baseTable = schema ? getFamilyBaseTableForFilters(famId, fam, schema) : "";
+        const baseColumns = schema && baseTable ? getColumnsForTable(schema, baseTable) : [];
+        const filters = fam.filterCatalog || [];
+        if (!filters.length) {
+          wrap.innerHTML = `
+            <div class="text-muted" style="padding:14px;border:1px dashed var(--line);border-radius:14px;background:#fafbfd">
+              Aucun filtre défini. Ajoutez-en pour permettre un filtrage dynamique au niveau admin et utilisateur.
+            </div>`;
+          return;
+        }
+
+        wrap.innerHTML = filters
+          .map((filter, index) => {
+            const isSelect = filter.type === "select";
+            const staticValue = (filter.staticOptions || [])
+              .map((option) => `${option.value}|${option.label}`)
+              .join("\n");
+            const sqlBuilder = normalizeFilterSqlBuilder(filter.sqlBuilder || {});
+            const columnBinding = normalizeFilterColumnBinding(
+              filter.columnBinding || {},
+            );
+            const tableColumns = schema
+              ? getColumnsForTable(schema, sqlBuilder.tableName)
+              : [];
+            return `
+              <div style="border:1px solid var(--line);border-radius:16px;padding:14px;background:#fbfcfe;margin-bottom:12px">
+                <div class="flex gap-8" style="align-items:center;margin-bottom:12px">
+                  <strong style="font-size:13px;color:var(--text)">${escHtml(filter.label || `Filtre ${index + 1}`)}</strong>
+                  <span class="chip chip-teal">${escHtml(filter.key)}</span>
+                  <span class="chip chip-purple">${escHtml(filter.type)}</span>
+                  <button class="btn sm danger ml-auto" onclick="removeFamilyFilterDefinition('${famId}','${filter.id}')">Supprimer</button>
+                </div>
+                <div class="form-grid c3">
+                  <div class="form-row" style="margin:0">
+                    <label class="form-label">Libellé</label>
+                    <input class="form-input" value="${escAttr(filter.label)}" onchange="updateFamilyFilterField('${famId}','${filter.id}','label',this.value)">
+                  </div>
+                  <div class="form-row" style="margin:0">
+                    <label class="form-label">Paramètre SQL</label>
+                    <input class="form-input" value="${escAttr(filter.key)}" onchange="updateFamilyFilterField('${famId}','${filter.id}','key',this.value)" placeholder="annee_univ">
+                  </div>
+                  <div class="form-row" style="margin:0">
+                    <label class="form-label">Type</label>
+                    <select class="form-input" onchange="updateFamilyFilterField('${famId}','${filter.id}','type',this.value)">
+                      ${["text", "number", "date", "select"]
+                        .map(
+                          (type) =>
+                            `<option value="${type}" ${filter.type === type ? "selected" : ""}>${type}</option>`,
+                        )
+                        .join("")}
+                    </select>
+                  </div>
+                </div>
+                <div class="form-grid c3" style="margin-top:12px">
+                  <div class="form-row" style="margin:0">
+                    <label class="form-label">Liaison SQL</label>
+                    <select class="form-input" onchange="updateFamilyFilterBindingMode('${famId}','${filter.id}',this.value)">
+                      <option value="manual" ${columnBinding.mode !== "base-column" ? "selected" : ""}>Saisie manuelle</option>
+                      <option value="base-column" ${columnBinding.mode === "base-column" ? "selected" : ""}>Colonne table principale</option>
+                    </select>
+                  </div>
+                  <div class="form-row" style="margin:0">
+                    <label class="form-label">Table principale</label>
+                    <div class="text-muted" style="padding-top:9px">${baseTable ? escHtml(baseTable) : "Non définie"}</div>
+                  </div>
+                  <div class="form-row" style="margin:0">
+                    <label class="form-label">Colonne liée</label>
+                    <select class="form-input" ${
+                      columnBinding.mode === "base-column" && baseColumns.length
+                        ? ""
+                        : "disabled"
+                    } onchange="updateFamilyFilterBoundColumn('${famId}','${filter.id}',this.value)">
+                      <option value="">— Aucune —</option>
+                      ${baseColumns
+                        .map(
+                          (column) =>
+                            `<option value="${escAttr(column.name)}" ${
+                              column.name === columnBinding.columnName &&
+                              columnBinding.tableName === baseTable
+                                ? "selected"
+                                : ""
+                            }>${escHtml(column.name)}${column.comment ? ` - ${escHtml(column.comment)}` : ""}</option>`,
+                        )
+                        .join("")}
+                    </select>
+                  </div>
+                </div>
+                <div class="form-grid c3" style="margin-top:12px">
+                  <div class="form-row" style="margin:0">
+                    <label class="form-label">Placeholder</label>
+                    <input class="form-input" value="${escAttr(filter.placeholder || "")}" onchange="updateFamilyFilterField('${famId}','${filter.id}','placeholder',this.value)">
+                  </div>
+                  <div class="form-row" style="margin:0">
+                    <label class="form-label">Visibilité</label>
+                    <div class="flex gap-12" style="padding-top:10px;font-size:12px;color:var(--text2)">
+                      <label><input type="checkbox" ${filter.roles?.admin !== false ? "checked" : ""} onchange="toggleFamilyFilterRole('${famId}','${filter.id}','admin',this.checked)"> Admin</label>
+                      <label><input type="checkbox" ${filter.roles?.user !== false ? "checked" : ""} onchange="toggleFamilyFilterRole('${famId}','${filter.id}','user',this.checked)"> Utilisateur</label>
+                    </div>
+                  </div>
+                  <div class="form-row" style="margin:0">
+                    <label class="form-label">Source valeurs</label>
+                    <select class="form-input" ${!isSelect ? "disabled" : ""} onchange="updateFamilyFilterField('${famId}','${filter.id}','sourceType',this.value)">
+                      <option value="static" ${filter.sourceType !== "sql" ? "selected" : ""}>Liste statique</option>
+                      <option value="sql" ${filter.sourceType === "sql" ? "selected" : ""}>Requête SQL</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-row" style="margin-top:12px">
+                  <label class="form-label">Aide</label>
+                  <input class="form-input" value="${escAttr(filter.helpText || "")}" onchange="updateFamilyFilterField('${famId}','${filter.id}','helpText',this.value)" placeholder="Affiché côté admin/user">
+                </div>
+                ${
+                  !isSelect
+                    ? `<div class="text-muted" style="margin-top:12px">Filtre libre : la valeur sera injectée telle quelle dans les paramètres SQL <strong>:${escHtml(filter.key)}</strong>.</div>`
+                    : filter.sourceType === "sql"
+                      ? `<div style="margin-top:12px;padding:12px;border:1px dashed var(--line);border-radius:14px;background:#fff">
+                          <div class="form-grid c3">
+                            <div class="form-row" style="margin:0">
+                              <label class="form-label">Table source</label>
+                              <select class="form-input" onchange="updateFamilyFilterSqlBuilderField('${famId}','${filter.id}','tableName',this.value)">
+                                <option value="">— Choisir —</option>
+                                ${visibleTables
+                                  .map(
+                                    (table) =>
+                                      `<option value="${escAttr(table.name)}" ${table.name === sqlBuilder.tableName ? "selected" : ""}>${escHtml(table.name)}${table.comment ? ` - ${escHtml(table.comment)}` : ""}</option>`,
+                                  )
+                                  .join("")}
+                              </select>
+                            </div>
+                            <div class="form-row" style="margin:0">
+                              <label class="form-label">Colonne valeur</label>
+                              <select class="form-input" onchange="updateFamilyFilterSqlBuilderField('${famId}','${filter.id}','valueColumn',this.value)">
+                                <option value="">— Choisir —</option>
+                                ${tableColumns
+                                  .map(
+                                    (column) =>
+                                      `<option value="${escAttr(column.name)}" ${column.name === sqlBuilder.valueColumn ? "selected" : ""}>${escHtml(column.name)}${column.comment ? ` - ${escHtml(column.comment)}` : ""}</option>`,
+                                  )
+                                  .join("")}
+                              </select>
+                            </div>
+                            <div class="form-row" style="margin:0">
+                              <label class="form-label">Colonne libellé</label>
+                              <select class="form-input" onchange="updateFamilyFilterSqlBuilderField('${famId}','${filter.id}','labelColumn',this.value)">
+                                <option value="">Même valeur</option>
+                                ${tableColumns
+                                  .map(
+                                    (column) =>
+                                      `<option value="${escAttr(column.name)}" ${column.name === sqlBuilder.labelColumn ? "selected" : ""}>${escHtml(column.name)}${column.comment ? ` - ${escHtml(column.comment)}` : ""}</option>`,
+                                  )
+                                  .join("")}
+                              </select>
+                            </div>
+                          </div>
+                          <div class="text-muted" style="margin-top:8px">La requête générée récupère les valeurs distinctes sans doublons. Exemple : table <strong>Grade</strong>, colonne valeur <strong>CodeUnivad</strong>, colonne libellé <strong>IntituleFR</strong>.</div>
+                          <div class="flex gap-8" style="margin-top:10px">
+                            <button class="btn sm" onclick="regenerateFamilyFilterSqlQuery('${famId}','${filter.id}')">Générer la requête</button>
+                          </div>
+                          <div class="form-row" style="margin-top:12px">
+                          <label class="form-label">Requête SQL des valeurs possibles</label>
+                          <textarea class="form-input" rows="5" style="min-height:120px" onchange="updateFamilyFilterField('${famId}','${filter.id}','sqlQuery',this.value)" placeholder="SELECT code AS value, libelle AS label FROM ... WHERE etablissement_id = :etablissementId">${escHtml(filter.sqlQuery || "")}</textarea>
+                          <div class="text-muted" style="margin-top:8px">La requête doit retourner au minimum les colonnes <strong>value</strong> et idéalement <strong>label</strong>. Les paramètres de la famille et <strong>:etablissementId</strong> sont disponibles.</div>
+                          </div>
+                        </div>`
+                      : `<div class="form-row" style="margin-top:12px">
+                          <label class="form-label">Valeurs possibles</label>
+                          <textarea class="form-input" rows="5" style="min-height:120px" onchange="updateFamilyFilterStaticOptions('${famId}','${filter.id}',this.value)" placeholder="2024|Année 2024&#10;2025|Année 2025">${escHtml(staticValue)}</textarea>
+                          <div class="text-muted" style="margin-top:8px">Une ligne par valeur sous la forme <strong>valeur|libellé</strong>. Si le libellé est omis, la valeur sera réutilisée.</div>
+                        </div>`
+                }
+              </div>`;
+          })
+          .join("");
+      }
+
+      window.addFamilyFilterDefinition = function (famId) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        fam.filterCatalog = [...(fam.filterCatalog || []), createEmptyFamilyFilterDefinition((fam.filterCatalog || []).length)];
+        DB.saveFamily(fam);
+        renderFamilyEditor(famId);
+        toast("Filtre ajouté", "success");
+      };
+
+      window.removeFamilyFilterDefinition = function (famId, filterId) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        fam.filterCatalog = (fam.filterCatalog || []).filter(
+          (filter) => filter.id !== filterId,
+        );
+        DB.saveFamily(fam);
+        renderFamilyEditor(famId);
+        toast("Filtre supprimé", "success");
+      };
+
+      window.updateFamilyFilterField = function (famId, filterId, field, value) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        fam.filterCatalog = (fam.filterCatalog || []).map((filter, index) => {
+          if (filter.id !== filterId) return filter;
+          const next = {
+            ...filter,
+            [field]:
+              field === "key"
+                ? normalizeFilterParamName(value, `filtre_${index + 1}`)
+                : value,
+          };
+          if (field === "type" && value !== "select") {
+            next.sourceType = "static";
+            next.staticOptions = [];
+            next.sqlQuery = "";
+          }
+          if (field === "sourceType" && value !== "sql") {
+            next.sqlQuery = "";
+          }
+          return normalizeFilterDefinition(next, index);
+        });
+        DB.saveFamily(fam);
+        renderFamilyFilterCatalog(famId);
+        regenerateFamilyBeneficiarySql(famId, true);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.updateFamilyFilterBindingMode = async function (
+        famId,
+        filterId,
+        mode,
+      ) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        const schema = await ensureSchemaMeta();
+        const baseTable = getFamilyBaseTableForFilters(famId, fam, schema);
+        fam.filterCatalog = (fam.filterCatalog || []).map((filter, index) => {
+          if (filter.id !== filterId) return filter;
+          const binding = normalizeFilterColumnBinding(filter.columnBinding || {});
+          binding.mode = mode === "base-column" ? "base-column" : "manual";
+          binding.tableName = binding.mode === "base-column" ? baseTable : "";
+          binding.columnName = binding.mode === "base-column" ? binding.columnName : "";
+          return normalizeFilterDefinition(
+            {
+              ...filter,
+              columnBinding: binding,
+            },
+            index,
+          );
+        });
+        DB.saveFamily(fam);
+        renderFamilyFilterCatalog(famId);
+        regenerateFamilyBeneficiarySql(famId, true);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.updateFamilyFilterBoundColumn = async function (
+        famId,
+        filterId,
+        columnName,
+      ) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        const schema = await ensureSchemaMeta();
+        const baseTable = getFamilyBaseTableForFilters(famId, fam, schema);
+        fam.filterCatalog = (fam.filterCatalog || []).map((filter, index) => {
+          if (filter.id !== filterId) return filter;
+          const binding = normalizeFilterColumnBinding(filter.columnBinding || {});
+          binding.mode = "base-column";
+          binding.tableName = baseTable || "";
+          binding.columnName = columnName || "";
+          return normalizeFilterDefinition(
+            {
+              ...filter,
+              key: columnName
+                ? normalizeFilterParamName(columnName, `filtre_${index + 1}`)
+                : filter.key,
+              columnBinding: binding,
+            },
+            index,
+          );
+        });
+        DB.saveFamily(fam);
+        renderFamilyFilterCatalog(famId);
+        regenerateFamilyBeneficiarySql(famId, true);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.updateFamilyFilterSqlBuilderField = async function (
+        famId,
+        filterId,
+        field,
+        value,
+      ) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        const schema = await ensureSchemaMeta();
+        fam.filterCatalog = (fam.filterCatalog || []).map((filter, index) => {
+          if (filter.id !== filterId) return filter;
+          const sqlBuilder = normalizeFilterSqlBuilder(filter.sqlBuilder || {});
+          sqlBuilder[field] = value || "";
+          if (field === "tableName") {
+            sqlBuilder.valueColumn = "";
+            sqlBuilder.labelColumn = "";
+          }
+          const next = normalizeFilterDefinition(
+            {
+              ...filter,
+              type: "select",
+              sourceType: "sql",
+              sqlBuilder,
+              sqlQuery:
+                buildDistinctFilterSqlQuery(sqlBuilder, schema) ||
+                filter.sqlQuery ||
+                "",
+            },
+            index,
+          );
+          return next;
+        });
+        DB.saveFamily(fam);
+        renderFamilyFilterCatalog(famId);
+        regenerateFamilyBeneficiarySql(famId, true);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.regenerateFamilyFilterSqlQuery = async function (famId, filterId) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        const schema = await ensureSchemaMeta();
+        fam.filterCatalog = (fam.filterCatalog || []).map((filter, index) => {
+          if (filter.id !== filterId) return filter;
+          const sqlBuilder = normalizeFilterSqlBuilder(filter.sqlBuilder || {});
+          return normalizeFilterDefinition(
+            {
+              ...filter,
+              type: "select",
+              sourceType: "sql",
+              sqlBuilder,
+              sqlQuery: buildDistinctFilterSqlQuery(sqlBuilder, schema),
+            },
+            index,
+          );
+        });
+        DB.saveFamily(fam);
+        renderFamilyFilterCatalog(famId);
+        toast("Requête de filtre générée", "success");
+        regenerateFamilyBeneficiarySql(famId, true);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.updateFamilyFilterStaticOptions = function (famId, filterId, raw) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        fam.filterCatalog = (fam.filterCatalog || []).map((filter, index) =>
+          filter.id === filterId
+            ? normalizeFilterDefinition(
+                {
+                  ...filter,
+                  staticOptionsText: raw,
+                },
+                index,
+              )
+            : filter,
+        );
+        DB.saveFamily(fam);
+        renderFamilyFilterCatalog(famId);
+        regenerateFamilyBeneficiarySql(famId, true);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.toggleFamilyFilterRole = function (famId, filterId, role, checked) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        fam.filterCatalog = (fam.filterCatalog || []).map((filter, index) =>
+          filter.id === filterId
+            ? normalizeFilterDefinition(
+                {
+                  ...filter,
+                  roles: {
+                    ...(filter.roles || {}),
+                    [role]: checked,
+                  },
+                },
+                index,
+              )
+            : filter,
+        );
+        DB.saveFamily(fam);
       };
 
       // ── Render classes container ──────────────────────────────────
@@ -2059,6 +2497,37 @@
         return fam?.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
       }
 
+      function getFamilyBaseTableForFilters(famId, fam, schema) {
+        try {
+          return getBuilderState(famId, fam, schema).baseTable || "";
+        } catch (_) {
+          return inferBaseTable(fam, schema);
+        }
+      }
+
+      function buildAutoFilterClausesForTable(fam, tableName, alias) {
+        return (fam?.filterCatalog || [])
+          .filter((filter) => {
+            const binding = normalizeFilterColumnBinding(
+              filter.columnBinding || {},
+            );
+            return (
+              binding.mode === "base-column" &&
+              binding.tableName === tableName &&
+              binding.columnName
+            );
+          })
+          .map((filter) => {
+            const binding = normalizeFilterColumnBinding(
+              filter.columnBinding || {},
+            );
+            const paramName = normalizeFilterParamName(
+              filter.key || binding.columnName,
+            );
+            return `(:${paramName} IS NULL OR ${alias}.${sqlId(binding.columnName)} = :${paramName})`;
+          });
+      }
+
       function sqlId(name) {
         return `[${String(name || "").replace(/]/g, "]]")}]`;
       }
@@ -2180,6 +2649,11 @@
         const joinParts = [];
         let currentAlias = sourceAlias;
         let etabAlias = sourceAlias;
+        const extraFilterClauses = buildAutoFilterClausesForTable(
+          fam,
+          tableName,
+          sourceAlias,
+        );
 
         (pathToEtab || []).forEach((step, index) => {
           const nextAlias = `r${index + 1}`;
@@ -2198,6 +2672,10 @@
               : columns.some((column) => column.name === "etablissement_id")
                 ? `${sourceAlias}.${sqlId("etablissement_id")} = :etablissementId`
                 : "";
+        const whereClauses = [
+          etabFilter,
+          ...extraFilterClauses,
+        ].filter(Boolean);
         return [
           "SELECT",
           `  TOP (500) ${sourceAlias}.${sqlId(pk)} AS id,`,
@@ -2209,7 +2687,7 @@
             : "",
           `FROM ${sqlId(tableName)} ${sourceAlias}`,
           ...joinParts,
-          etabFilter ? `WHERE ${etabFilter}` : "",
+          whereClauses.length ? `WHERE ${whereClauses.join("\n  AND ")}` : "",
           `ORDER BY ${sourceAlias}.${sqlId(labelColumn)} ASC`,
         ]
           .filter(Boolean)
@@ -2393,6 +2871,7 @@
       function buildEtablissementScopedVarExpr(schema, varDef) {
         const sourceTable = varDef?.sourceTable;
         if (!sourceTable) return null;
+        const fam = selectedFamId ? DB.getFamily(selectedFamId) : null;
         const sourceColumns = getColumnsForTable(schema, sourceTable);
         if (!sourceColumns.length) return null;
 
@@ -2432,7 +2911,9 @@
         const fromLines = [
           `FROM ${sqlId(sourceTable)} ${sourceAlias}`,
           ...joins,
-          `WHERE ${etabMatcher}`,
+          `WHERE ${[etabMatcher, ...buildAutoFilterClausesForTable(fam, sourceTable, sourceAlias)]
+            .filter(Boolean)
+            .join("\n  AND ")}`,
         ];
         return buildVarSelectExpr(
           varDef,
@@ -2528,7 +3009,12 @@
           const fromLines = [
             `FROM ${sqlId(baseTable)} ${baseAlias}`,
             ...joins,
-            `WHERE ${getFamilyFilterClause(fam, schemaMetaCache, baseTable, baseAlias)}`,
+            `WHERE ${[
+              getFamilyFilterClause(fam, schemaMetaCache, baseTable, baseAlias),
+              ...buildAutoFilterClausesForTable(fam, baseTable, baseAlias),
+            ]
+              .filter(Boolean)
+              .join("\n  AND ")}`,
           ];
           const expr = buildVarSelectExpr(v, alias, fromLines, tableColumns);
           return expr ? `  ${expr} AS ${sqlId(v.tech)}` : null;

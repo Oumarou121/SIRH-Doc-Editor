@@ -39,6 +39,124 @@ function clone(data) {
   return JSON.parse(JSON.stringify(data));
 }
 
+function normalizeFilterOption(option) {
+  if (option === undefined || option === null) return null;
+  if (typeof option !== "object" || Array.isArray(option)) {
+    const value = String(option).trim();
+    return value ? { value, label: value } : null;
+  }
+  const value = String(option.value ?? option.id ?? option.code ?? "").trim();
+  if (!value) return null;
+  const label = String(
+    option.label ?? option.libelle ?? option.nom ?? option.name ?? value,
+  ).trim();
+  return { value, label: label || value };
+}
+
+function normalizeFilterOptions(options) {
+  const seen = new Set();
+  return (Array.isArray(options) ? options : [])
+    .map((option) => normalizeFilterOption(option))
+    .filter((option) => {
+      if (!option || seen.has(option.value)) return false;
+      seen.add(option.value);
+      return true;
+    });
+}
+
+function normalizeFilterSqlBuilder(builder = {}) {
+  if (!builder || typeof builder !== "object") {
+    return {
+      tableName: "",
+      valueColumn: "",
+      labelColumn: "",
+      distinct: true,
+    };
+  }
+  return {
+    tableName: String(builder.tableName || builder.table || "").trim(),
+    valueColumn: String(builder.valueColumn || builder.value || "").trim(),
+    labelColumn: String(builder.labelColumn || builder.label || "").trim(),
+    distinct: builder.distinct !== false,
+  };
+}
+
+function normalizeFilterColumnBinding(binding = {}) {
+  if (!binding || typeof binding !== "object") {
+    return {
+      tableName: "",
+      columnName: "",
+      mode: "manual",
+    };
+  }
+  const mode = binding.mode === "base-column" ? "base-column" : "manual";
+  return {
+    tableName: String(binding.tableName || binding.table || "").trim(),
+    columnName: String(binding.columnName || binding.column || "").trim(),
+    mode,
+  };
+}
+
+function normalizeFilterDefinition(filter = {}, index = 0) {
+  const label =
+    String(filter.label || filter.name || "").trim() || `Filtre ${index + 1}`;
+  const type = ["text", "number", "date", "select"].includes(filter.type)
+    ? filter.type
+    : "text";
+  return {
+    id: String(filter.id || `flt_${index + 1}`),
+    key: String(
+      filter.key || filter.param || filter.paramName || `filtre_${index + 1}`,
+    ).trim(),
+    label,
+    type,
+    sourceType:
+      type === "select" && filter.sourceType === "sql" ? "sql" : "static",
+    placeholder: String(filter.placeholder || "").trim(),
+    helpText: String(filter.helpText || filter.help || "").trim(),
+    roles: {
+      admin: filter?.roles?.admin !== false,
+      user: filter?.roles?.user !== false,
+    },
+    columnBinding: normalizeFilterColumnBinding(
+      filter.columnBinding || filter.binding || {},
+    ),
+    staticOptions:
+      type === "select"
+        ? normalizeFilterOptions(filter.staticOptions || [])
+        : [],
+    sqlBuilder:
+      type === "select"
+        ? normalizeFilterSqlBuilder(filter.sqlBuilder || filter.builder || {})
+        : normalizeFilterSqlBuilder({}),
+    sqlQuery:
+      type === "select" && filter.sourceType === "sql"
+        ? String(filter.sqlQuery || filter.query || "").trim()
+        : "",
+  };
+}
+
+function normalizeTemplateFilterProfileEntry(entry = {}, index = 0) {
+  const filterId = String(entry.filterId || entry.id || "").trim();
+  if (!filterId) return null;
+  return {
+    filterId,
+    enabled: entry.enabled !== false,
+    adminEnabled: entry.adminEnabled !== false,
+    userEnabled: entry.userEnabled !== false,
+    required: !!entry.required,
+    locked: !!entry.locked,
+    order: Number.isFinite(Number(entry.order)) ? Number(entry.order) : index,
+    defaultValue:
+      entry.defaultValue === undefined || entry.defaultValue === null
+        ? null
+        : entry.defaultValue,
+    allowedValueMode:
+      entry.allowedValueMode === "subset" ? "subset" : "all",
+    allowedValues: normalizeFilterOptions(entry.allowedValues || []),
+  };
+}
+
 function normalizeFamilyRecord(record = {}) {
   const next = clone(record || {});
   next.beneficiaryMode =
@@ -48,6 +166,26 @@ function normalizeFamilyRecord(record = {}) {
       ? String(next.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE)
       : null;
   next.beneficiarySql = String(next.beneficiarySql || "").trim();
+  next.filterCatalog = (Array.isArray(next.filterCatalog)
+    ? next.filterCatalog
+    : []
+  )
+    .map((filter, index) => normalizeFilterDefinition(filter, index))
+    .filter(Boolean);
+  return next;
+}
+
+function normalizeTemplateRecord(record = {}) {
+  const next = clone(record || {});
+  next.filterProfile = (Array.isArray(next.filterProfile)
+    ? next.filterProfile
+    : []
+  )
+    .map((entry, index) => normalizeTemplateFilterProfileEntry(entry, index))
+    .filter(Boolean);
+  next.graphicCharterId = next.graphicCharterId
+    ? String(next.graphicCharterId)
+    : null;
   return next;
 }
 
@@ -61,7 +199,9 @@ function normalizeState(state) {
     families: Array.isArray(next.families)
       ? next.families.map((family) => normalizeFamilyRecord(family))
       : [],
-    templates: Array.isArray(next.templates) ? clone(next.templates) : [],
+    templates: Array.isArray(next.templates)
+      ? next.templates.map((template) => normalizeTemplateRecord(template))
+      : [],
     personnel: Array.isArray(next.personnel) ? clone(next.personnel) : [],
   };
 }
@@ -739,6 +879,7 @@ async function loadFamilies() {
     "family",
     "beneficiary_sql_text",
   );
+  const hasFilterCatalog = await tableHasColumn("family", "filter_catalog_json");
 
   const pool = await getPool();
   const result = await pool.request().query(
@@ -746,6 +887,7 @@ async function loadFamilies() {
             ${hasBeneficiaryMode ? "beneficiary_mode," : "'table' AS beneficiary_mode,"}
             ${hasBeneficiaryTable ? "beneficiary_table," : "NULL AS beneficiary_table,"}
             ${hasBeneficiarySql ? "beneficiary_sql_text," : "NULL AS beneficiary_sql_text,"}
+            ${hasFilterCatalog ? "filter_catalog_json," : "'[]' AS filter_catalog_json,"}
             sql_text, created_at, classes_json
      FROM family
      ORDER BY nom`,
@@ -761,6 +903,7 @@ async function loadFamilies() {
         ? null
         : row.beneficiary_table || DEFAULT_FAMILY_BENEFICIARY_TABLE,
     beneficiarySql: row.beneficiary_sql_text || "",
+    filterCatalog: safeJson(row.filter_catalog_json, []),
     sql: row.sql_text,
     createdAt: row.created_at,
     classes: safeJson(row.classes_json, []),
@@ -849,10 +992,12 @@ async function loadTemplates() {
     "template",
     "graphic_charter_id",
   );
+  const hasFilterProfile = await tableHasColumn("template", "filter_profile_json");
   const pool = await getPool();
   const result = await pool.request().query(
     `SELECT id, family_id, etablissement_id, nom, updated_at, has_header, has_footer,
             ${hasGraphicCharterId ? "graphic_charter_id," : "NULL AS graphic_charter_id,"}
+            ${hasFilterProfile ? "filter_profile_json," : "'[]' AS filter_profile_json,"}
             ${hasOrientation ? "orientation," : "'portrait' AS orientation,"}
             page_margins_json, header_html, body_html, footer_html
      FROM template
@@ -869,6 +1014,7 @@ async function loadTemplates() {
     graphicCharterId: row.graphic_charter_id
       ? String(row.graphic_charter_id)
       : null,
+    filterProfile: safeJson(row.filter_profile_json, []),
     orientation: row.orientation || "portrait",
     pageMargins: safeJson(row.page_margins_json, {}),
     header: row.header_html || "",
@@ -1143,6 +1289,8 @@ async function replaceState(state) {
     "template",
     "graphic_charter_id",
   );
+  const hasFilterCatalog = await tableHasColumn("family", "filter_catalog_json");
+  const hasFilterProfile = await tableHasColumn("template", "filter_profile_json");
 
   const pool = await getPool();
   const transaction = new sql.Transaction(pool);
@@ -1292,16 +1440,23 @@ async function replaceState(state) {
           : item.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE,
       );
       r.input("beneficiary_sql_text", sql.NVarChar, item.beneficiarySql || "");
+      if (hasFilterCatalog) {
+        r.input(
+          "filter_catalog_json",
+          sql.NVarChar,
+          JSON.stringify(item.filterCatalog || []),
+        );
+      }
       r.input("sql_text", sql.NVarChar, item.sql || "");
       r.input("created_at", sql.NVarChar, serializeDateValue(item.createdAt));
       r.input("classes_json", sql.NVarChar, JSON.stringify(item.classes || []));
       await r.query(
         `INSERT INTO family
            (id, nom, icon, description, beneficiary_mode, beneficiary_table,
-            beneficiary_sql_text, sql_text, created_at, classes_json)
+            beneficiary_sql_text, ${hasFilterCatalog ? "filter_catalog_json," : ""} sql_text, created_at, classes_json)
          VALUES
            (@id, @nom, @icon, @description, @beneficiary_mode, @beneficiary_table,
-            @beneficiary_sql_text, @sql_text, @created_at, @classes_json)`,
+            @beneficiary_sql_text, ${hasFilterCatalog ? "@filter_catalog_json," : ""} @sql_text, @created_at, @classes_json)`,
       );
     }
 
@@ -1340,6 +1495,15 @@ async function replaceState(state) {
         );
         extraCols.push("graphic_charter_id");
         extraVals.push("@graphic_charter_id");
+      }
+      if (hasFilterProfile) {
+        r.input(
+          "filter_profile_json",
+          sql.NVarChar,
+          JSON.stringify(item.filterProfile || []),
+        );
+        extraCols.push("filter_profile_json");
+        extraVals.push("@filter_profile_json");
       }
 
       const baseCols = [

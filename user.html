@@ -973,6 +973,7 @@
               </svg>
             </div>
             <div class="step-body" id="sb3">
+              <div id="filterPanel" style="margin-bottom: 12px"></div>
               <div class="person-list" id="personList"></div>
             </div>
           </div>
@@ -1049,6 +1050,8 @@
         selTplId = null,
         selPersonId = null;
       let currentBeneficiaries = [];
+      let userResolvedFilters = [];
+      let userFilterValues = {};
       let openSteps = { 1: true, 2: false, 3: false };
       let zoomLv = 100;
 
@@ -1141,15 +1144,142 @@
         const sl3 = document.getElementById("sl3");
         const ps3 = document.getElementById("ps3");
         if (!sl3 || !ps3) return;
+        const hasFilters = !!(selTplId && userResolvedFilters.length);
         if (fam?.beneficiaryMode === "etablissement") {
-          sl3.textContent = "Établissement bénéficiaire";
+          sl3.textContent = hasFilters
+            ? "Filtres du document"
+            : "Établissement bénéficiaire";
           if (!selPersonId) ps3.textContent = "Établissement";
           return;
         }
         const tableName = fam?.beneficiaryTable || "personnel";
-        sl3.textContent = `Bénéficiaire (${tableName})`;
+        sl3.textContent = hasFilters
+          ? `Filtres & bénéficiaire (${tableName})`
+          : `Bénéficiaire (${tableName})`;
         if (!selPersonId) ps3.textContent = "Bénéficiaire";
       }
+
+      function escAttr(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/"/g, "&quot;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function renderUserFilterPanel() {
+        const panel = document.getElementById("filterPanel");
+        if (!panel) return;
+        if (!userResolvedFilters.length) {
+          panel.innerHTML = "";
+          return;
+        }
+        panel.innerHTML = `
+          <div style="border:1px solid var(--line);border-radius:16px;background:#fbfcfe;padding:12px">
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">Filtres du document</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+              ${userResolvedFilters
+                .map((entry) => {
+                  const value = userFilterValues?.[entry.id] ?? "";
+                  const help = entry.helpText
+                    ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">${escHtml(entry.helpText)}</div>`
+                    : "";
+                  if (entry.type === "select") {
+                    return `
+                      <label style="font-size:11px;color:var(--text2);font-weight:600">
+                        ${escHtml(entry.label)}${entry.profile.required ? " *" : ""}
+                        <select onchange="onUserFilterChange('${entry.id}', this.value)" ${
+                          entry.profile.locked ? "disabled" : ""
+                        } style="display:block;width:100%;margin-top:6px;font-size:12px;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:#fff;color:var(--text)">
+                          <option value="">— Toutes / vide —</option>
+                          ${(entry.options || [])
+                            .map(
+                              (option) =>
+                                `<option value="${escAttr(option.value)}" ${
+                                  String(value) === String(option.value)
+                                    ? "selected"
+                                    : ""
+                                }>${escHtml(option.label)}</option>`,
+                            )
+                            .join("")}
+                        </select>
+                        ${help}
+                      </label>`;
+                  }
+                  return `
+                    <label style="font-size:11px;color:var(--text2);font-weight:600">
+                      ${escHtml(entry.label)}${entry.profile.required ? " *" : ""}
+                      <input type="${
+                        entry.type === "number"
+                          ? "number"
+                          : entry.type === "date"
+                            ? "date"
+                            : "text"
+                      }" value="${escAttr(value)}" placeholder="${escAttr(entry.placeholder || "")}" onchange="onUserFilterChange('${entry.id}', this.value)" ${
+                        entry.profile.locked ? "readonly" : ""
+                      } style="display:block;width:100%;margin-top:6px;font-size:12px;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:#fff;color:var(--text)">
+                      ${help}
+                    </label>`;
+                })
+                .join("")}
+            </div>
+          </div>`;
+      }
+
+      function hasMissingRequiredUserFilters() {
+        return userResolvedFilters.some((entry) => {
+          if (!entry.profile.required) return false;
+          const value = userFilterValues?.[entry.id];
+          return value === undefined || value === null || String(value).trim() === "";
+        });
+      }
+
+      async function refreshUserResolvedFilters(preserveValues = true) {
+        const fam = selFamId ? DB.getFamily(selFamId) : null;
+        const tpl = selTplId ? DB.getTemplate(selTplId) : null;
+        if (!fam || !tpl) {
+          userResolvedFilters = [];
+          userFilterValues = {};
+          renderUserFilterPanel();
+          return [];
+        }
+        const baseValues = preserveValues
+          ? userFilterValues
+          : getDefaultFilterValues(fam, tpl, "user");
+        userResolvedFilters = await resolveTemplateFiltersForRole(
+          selFamId,
+          selTplId,
+          "user",
+          ETAB_ID,
+          baseValues,
+        );
+        userFilterValues = validateRuntimeFilterValues(
+          userResolvedFilters,
+          baseValues,
+        );
+        userResolvedFilters.forEach((entry) => {
+          if (entry.profile.locked) {
+            userFilterValues[entry.id] = normalizeFilterInputValue(
+              entry,
+              entry.profile.defaultValue,
+            );
+          }
+        });
+        renderUserFilterPanel();
+        refreshBeneficiaryLabels();
+        return userResolvedFilters;
+      }
+
+      window.onUserFilterChange = async function (filterId, value) {
+        userFilterValues = {
+          ...userFilterValues,
+          [filterId]: value || null,
+        };
+        selPersonId = null;
+        await refreshUserResolvedFilters(true);
+        await buildPersonList();
+        updatePbar();
+      };
 
       function buildFamGrid() {
         const grid = document.getElementById("famGrid");
@@ -1172,7 +1302,10 @@
         selTplId = null;
         selPersonId = null;
         currentBeneficiaries = [];
+        userResolvedFilters = [];
+        userFilterValues = {};
         buildFamGrid();
+        renderUserFilterPanel();
         refreshBeneficiaryLabels();
         const fam = DB.getFamily(famId);
         const sv1 = document.getElementById("sv1");
@@ -1210,6 +1343,7 @@
         selTplId = tplId;
         selPersonId = null;
         currentBeneficiaries = [];
+        await refreshUserResolvedFilters(false);
         buildTplList(selFamId);
         const tpl = DB.getTemplate(tplId);
         const fam = DB.getFamily(selFamId);
@@ -1293,6 +1427,7 @@
         selTplId = tplId;
         selPersonId = null;
         currentBeneficiaries = [];
+        await refreshUserResolvedFilters(false);
         buildTplList(selFamId);
         const tpl = DB.getTemplate(tplId);
         const fam = DB.getFamily(selFamId);
@@ -1314,7 +1449,9 @@
           return;
         }
         showWait(
-          fam?.beneficiaryMode === "etablissement"
+          hasMissingRequiredUserFilters()
+            ? "Renseignez les filtres pour continuer"
+            : fam?.beneficiaryMode === "etablissement"
             ? "Document lié à l'établissement"
             : "Sélectionnez le bénéficiaire concerné",
         );
@@ -1323,9 +1460,15 @@
       async function buildPersonList() {
         const c = document.getElementById("personList");
         c.innerHTML = "";
+        if (hasMissingRequiredUserFilters()) {
+          c.innerHTML =
+            '<div style="font-size:11px;color:#9a3412;text-align:center;padding:14px">Renseignez les filtres obligatoires pour afficher les bénéficiaires.</div>';
+          return;
+        }
         currentBeneficiaries = await DB.getBeneficiariesForFamily(
           selFamId,
           ETAB_ID,
+          userFilterValues,
         );
         if (!currentBeneficiaries.length) {
           c.innerHTML =
@@ -1376,10 +1519,15 @@
 
       async function generateDocument() {
         const tpl = DB.getTemplate(selTplId);
+        if (hasMissingRequiredUserFilters()) {
+          toast("Complétez les filtres obligatoires", "error");
+          return;
+        }
         const person = await DB.getDocumentDataForFamily(
           selFamId,
           selPersonId,
           ETAB_ID,
+          userFilterValues,
         );
         if (!tpl || !person) return;
 
@@ -1501,10 +1649,14 @@
         selFamId = null;
         selTplId = null;
         selPersonId = null;
+        currentBeneficiaries = [];
+        userResolvedFilters = [];
+        userFilterValues = {};
         openSteps = { 1: true, 2: false, 3: false };
         buildFamGrid();
         document.getElementById("tplList").innerHTML = "";
         document.getElementById("personList").innerHTML = "";
+        renderUserFilterPanel();
         ["sv1", "sv2", "sv3"].forEach((id, i) => {
           const el = document.getElementById(id);
           el.textContent = ["Non sélectionné", "En attente", "En attente"][i];

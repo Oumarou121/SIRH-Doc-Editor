@@ -8,10 +8,16 @@ CREATE TABLE [family] (
   beneficiary_mode NVARCHAR(32) NULL,
   beneficiary_table NVARCHAR(128) NULL,
   beneficiary_sql_text NVARCHAR(MAX) NULL,
+  filter_catalog_json NVARCHAR(MAX) NULL,
   sql_text NVARCHAR(MAX) NULL,
   created_at NVARCHAR(64) NULL,
   classes_json NVARCHAR(MAX) NOT NULL
 );
+END;
+
+IF COL_LENGTH('family', 'filter_catalog_json') IS NULL
+BEGIN
+  ALTER TABLE [family] ADD filter_catalog_json NVARCHAR(MAX) NULL;
 END;
 
 IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'etablissement')
@@ -73,11 +79,17 @@ CREATE TABLE [template] (
   has_header BIT NOT NULL DEFAULT 0,
   has_footer BIT NOT NULL DEFAULT 0,
   orientation NVARCHAR(16) NULL,
+  filter_profile_json NVARCHAR(MAX) NULL,
   page_margins_json NVARCHAR(MAX) NULL,
   header_html NVARCHAR(MAX) NULL,
   body_html NVARCHAR(MAX) NULL,
   footer_html NVARCHAR(MAX) NULL
 );
+END;
+
+IF COL_LENGTH('template', 'filter_profile_json') IS NULL
+BEGIN
+  ALTER TABLE [template] ADD filter_profile_json NVARCHAR(MAX) NULL;
 END;
 
 IF NOT EXISTS (SELECT name FROM sys.indexes WHERE name = 'idx_template_family')
