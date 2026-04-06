@@ -186,8 +186,7 @@ function normalizeTemplateFilterProfileEntry(entry = {}, index = 0) {
       entry.defaultValue === undefined || entry.defaultValue === null
         ? null
         : entry.defaultValue,
-    allowedValueMode:
-      entry.allowedValueMode === "subset" ? "subset" : "all",
+    allowedValueMode: entry.allowedValueMode === "subset" ? "subset" : "all",
     allowedValues: normalizeFilterOptions(entry.allowedValues || []),
   };
 }
@@ -241,7 +240,21 @@ function getTemplateFilterProfileMap(template) {
 }
 
 function getTemplateFilterBinding(filterDef, template) {
-  const profile = getTemplateFilterProfileMap(template).get(filterDef.id) || {
+  const rawProfile = getTemplateFilterProfileMap(template).get(filterDef.id);
+  const isLegacyDisabledProfile =
+    !!rawProfile &&
+    rawProfile.enabled === false &&
+    rawProfile.adminEnabled !== false &&
+    rawProfile.userEnabled !== false &&
+    !rawProfile.required &&
+    !rawProfile.locked &&
+    (rawProfile.defaultValue === null ||
+      rawProfile.defaultValue === undefined) &&
+    rawProfile.allowedValueMode !== "subset" &&
+    !(rawProfile.allowedValues || []).length;
+  const profile = (isLegacyDisabledProfile
+    ? { ...rawProfile, enabled: true }
+    : rawProfile) || {
     filterId: filterDef.id,
     enabled: true,
     adminEnabled: true,
@@ -277,7 +290,9 @@ function buildDistinctFilterSqlQuery(builder, schema = null) {
     `  ${labelExpr} AS label`,
     `FROM ${quoteSqlIdentifier(normalized.tableName)}`,
     `WHERE ${quoteSqlIdentifier(normalized.valueColumn)} IS NOT NULL${
-      hasEtabColumn ? "\n  AND (:etablissementId IS NULL OR [etablissement_id] = :etablissementId)" : ""
+      hasEtabColumn
+        ? "\n  AND (:etablissementId IS NULL OR [etablissement_id] = :etablissementId)"
+        : ""
     }`,
     "ORDER BY label ASC",
   ].join("\n");
@@ -288,7 +303,8 @@ function getEnabledTemplateFilters(family, template, role = "user") {
     .map((filterDef) => getTemplateFilterBinding(filterDef, template))
     .filter((entry) => {
       if (!entry.profile.enabled) return false;
-      if (role === "admin" && entry.profile.adminEnabled === false) return false;
+      if (role === "admin" && entry.profile.adminEnabled === false)
+        return false;
       if (role === "user" && entry.profile.userEnabled === false) return false;
       return entry.roles?.[role] !== false;
     })
@@ -897,7 +913,9 @@ function getAllowedFilterOptions(filterEntry, options = []) {
       option,
     ]),
   );
-  const subset = normalizedOptions.filter((option) => allowedMap.has(option.value));
+  const subset = normalizedOptions.filter((option) =>
+    allowedMap.has(option.value),
+  );
   if (subset.length) return subset;
   return [...allowedMap.values()];
 }
@@ -917,7 +935,7 @@ function applyFilterValueDefaults(entries = [], values = {}) {
     const rawValue =
       values?.[entry.id] !== undefined
         ? values[entry.id]
-        : entry.profile?.defaultValue ?? null;
+        : (entry.profile?.defaultValue ?? null);
     next[entry.id] = normalizeFilterInputValue(entry, rawValue);
   });
   return next;
@@ -930,7 +948,11 @@ function validateRuntimeFilterValues(entries = [], values = {}) {
     const allowed = getAllowedFilterOptions(entry, entry.options || []);
     if (!allowed.length) return;
     const currentValue = next[entry.id];
-    if (currentValue === null || currentValue === undefined || currentValue === "")
+    if (
+      currentValue === null ||
+      currentValue === undefined ||
+      currentValue === ""
+    )
       return;
     if (!allowed.some((option) => option.value === String(currentValue))) {
       next[entry.id] = normalizeFilterInputValue(

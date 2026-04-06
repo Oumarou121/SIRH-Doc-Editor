@@ -151,8 +151,7 @@ function normalizeTemplateFilterProfileEntry(entry = {}, index = 0) {
       entry.defaultValue === undefined || entry.defaultValue === null
         ? null
         : entry.defaultValue,
-    allowedValueMode:
-      entry.allowedValueMode === "subset" ? "subset" : "all",
+    allowedValueMode: entry.allowedValueMode === "subset" ? "subset" : "all",
     allowedValues: normalizeFilterOptions(entry.allowedValues || []),
   };
 }
@@ -166,9 +165,8 @@ function normalizeFamilyRecord(record = {}) {
       ? String(next.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE)
       : null;
   next.beneficiarySql = String(next.beneficiarySql || "").trim();
-  next.filterCatalog = (Array.isArray(next.filterCatalog)
-    ? next.filterCatalog
-    : []
+  next.filterCatalog = (
+    Array.isArray(next.filterCatalog) ? next.filterCatalog : []
   )
     .map((filter, index) => normalizeFilterDefinition(filter, index))
     .filter(Boolean);
@@ -177,9 +175,8 @@ function normalizeFamilyRecord(record = {}) {
 
 function normalizeTemplateRecord(record = {}) {
   const next = clone(record || {});
-  next.filterProfile = (Array.isArray(next.filterProfile)
-    ? next.filterProfile
-    : []
+  next.filterProfile = (
+    Array.isArray(next.filterProfile) ? next.filterProfile : []
   )
     .map((entry, index) => normalizeTemplateFilterProfileEntry(entry, index))
     .filter(Boolean);
@@ -879,7 +876,10 @@ async function loadFamilies() {
     "family",
     "beneficiary_sql_text",
   );
-  const hasFilterCatalog = await tableHasColumn("family", "filter_catalog_json");
+  const hasFilterCatalog = await tableHasColumn(
+    "family",
+    "filter_catalog_json",
+  );
 
   const pool = await getPool();
   const result = await pool.request().query(
@@ -992,7 +992,10 @@ async function loadTemplates() {
     "template",
     "graphic_charter_id",
   );
-  const hasFilterProfile = await tableHasColumn("template", "filter_profile_json");
+  const hasFilterProfile = await tableHasColumn(
+    "template",
+    "filter_profile_json",
+  );
   const pool = await getPool();
   const result = await pool.request().query(
     `SELECT id, family_id, etablissement_id, nom, updated_at, has_header, has_footer,
@@ -1289,8 +1292,14 @@ async function replaceState(state) {
     "template",
     "graphic_charter_id",
   );
-  const hasFilterCatalog = await tableHasColumn("family", "filter_catalog_json");
-  const hasFilterProfile = await tableHasColumn("template", "filter_profile_json");
+  const hasFilterCatalog = await tableHasColumn(
+    "family",
+    "filter_catalog_json",
+  );
+  const hasFilterProfile = await tableHasColumn(
+    "template",
+    "filter_profile_json",
+  );
 
   const pool = await getPool();
   const transaction = new sql.Transaction(pool);

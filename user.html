@@ -985,6 +985,10 @@
             <span class="doc-pt">Aperçu A4</span>
             <div class="doc-actions" id="docActions"></div>
           </div>
+          <div
+            id="userPreviewFiltersWrap"
+            style="width: 100%; padding: 10px 18px 0"
+          ></div>
 
           <div class="zoom-bar" id="zoomBar" style="display: none">
             <span style="font-size: 11px; color: var(--text3); font-weight: 600"
@@ -1167,6 +1171,15 @@
           .replace(/>/g, "&gt;");
       }
 
+      function escHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
       function renderUserFilterPanel() {
         const panel = document.getElementById("filterPanel");
         if (!panel) return;
@@ -1175,9 +1188,12 @@
           return;
         }
         panel.innerHTML = `
-          <div style="border:1px solid var(--line);border-radius:16px;background:#fbfcfe;padding:12px">
-            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">Filtres du document</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+          <div style="border:1px solid var(--line);border-radius:16px;background:#fbfcfe;padding:12px;box-shadow:var(--shsm)">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+              <div style="font-size:12px;font-weight:700;color:var(--text)">Filtres du document</div>
+              <span style="font-size:10px;color:var(--text3);background:#fff;padding:2px 8px;border-radius:999px;border:1px solid var(--line)">${userResolvedFilters.length} actif(s)</span>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
               ${userResolvedFilters
                 .map((entry) => {
                   const value = userFilterValues?.[entry.id] ?? "";
@@ -1186,7 +1202,7 @@
                     : "";
                   if (entry.type === "select") {
                     return `
-                      <label style="font-size:11px;color:var(--text2);font-weight:600">
+                      <label style="font-size:11px;color:var(--text2);font-weight:600;min-width:180px;flex:1">
                         ${escHtml(entry.label)}${entry.profile.required ? " *" : ""}
                         <select onchange="onUserFilterChange('${entry.id}', this.value)" ${
                           entry.profile.locked ? "disabled" : ""
@@ -1207,7 +1223,7 @@
                       </label>`;
                   }
                   return `
-                    <label style="font-size:11px;color:var(--text2);font-weight:600">
+                    <label style="font-size:11px;color:var(--text2);font-weight:600;min-width:180px;flex:1">
                       ${escHtml(entry.label)}${entry.profile.required ? " *" : ""}
                       <input type="${
                         entry.type === "number"
@@ -1230,8 +1246,88 @@
         return userResolvedFilters.some((entry) => {
           if (!entry.profile.required) return false;
           const value = userFilterValues?.[entry.id];
-          return value === undefined || value === null || String(value).trim() === "";
+          return (
+            value === undefined || value === null || String(value).trim() === ""
+          );
         });
+      }
+
+      function buildUserFilterFieldsMarkup() {
+        return `
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;width:100%;margin-bottom:6px">
+            ${userResolvedFilters
+              .map((entry) => {
+                const value = userFilterValues?.[entry.id] ?? "";
+                const help = entry.helpText
+                  ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">${escHtml(entry.helpText)}</div>`
+                  : "";
+                if (entry.type === "select") {
+                  return `
+                    <label style="font-size:11px;color:var(--text2);font-weight:600">
+                      ${escHtml(entry.label)}${entry.profile.required ? " *" : ""}
+                      <select onchange="onUserFilterChange('${entry.id}', this.value)" ${
+                        entry.profile.locked ? "disabled" : ""
+                      } style="display:block;width:100%;margin-top:6px;font-size:12px;border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;background:var(--surface2);color:var(--text)">
+                        <option value="">-- Toutes / vide --</option>
+                        ${(entry.options || [])
+                          .map(
+                            (option) =>
+                              `<option value="${escAttr(option.value)}" ${
+                                String(value) === String(option.value)
+                                  ? "selected"
+                                  : ""
+                              }>${escHtml(option.label)}</option>`,
+                          )
+                          .join("")}
+                      </select>
+                      ${help}
+                    </label>`;
+                }
+                return `
+                  <label style="font-size:11px;color:var(--text2);font-weight:600">
+                    ${escHtml(entry.label)}${entry.profile.required ? " *" : ""}
+                    <input type="${
+                      entry.type === "number"
+                        ? "number"
+                        : entry.type === "date"
+                          ? "date"
+                          : "text"
+                    }" value="${escAttr(value)}" placeholder="${escAttr(entry.placeholder || "")}" onchange="onUserFilterChange('${entry.id}', this.value)" ${
+                      entry.profile.locked ? "readonly" : ""
+                    } style="display:block;width:100%;margin-top:6px;font-size:12px;border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;background:var(--surface2);color:var(--text)">
+                    ${help}
+                  </label>`;
+              })
+              .join("")}
+          </div>`;
+      }
+
+      function renderUserFilterPanel() {
+        const panel = document.getElementById("filterPanel");
+        const previewWrap = document.getElementById("userPreviewFiltersWrap");
+        if (!panel && !previewWrap) return;
+        if (!userResolvedFilters.length) {
+          if (panel) panel.innerHTML = "";
+          if (previewWrap) previewWrap.innerHTML = "";
+          return;
+        }
+        const fieldsMarkup = buildUserFilterFieldsMarkup();
+        const etab =
+          typeof DB.getEtablissement === "function"
+            ? DB.getEtablissement(ETAB_ID)
+            : null;
+        if (panel) panel.innerHTML = fieldsMarkup;
+        if (previewWrap) {
+          previewWrap.innerHTML = `
+            <div style="width:100%">
+              <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Filtres du document</div>
+              ${fieldsMarkup}
+              <div style="font-size:11px;color:var(--text2);margin-top:2px">
+                Etablissement :
+                <strong>${escHtml(etab?.nom || "Etablissement principal")}</strong>
+              </div>
+            </div>`;
+        }
       }
 
       async function refreshUserResolvedFilters(preserveValues = true) {
@@ -1278,6 +1374,35 @@
         selPersonId = null;
         await refreshUserResolvedFilters(true);
         await buildPersonList();
+        updatePbar();
+      };
+
+      window.onUserFilterChange = async function (filterId, value) {
+        userFilterValues = {
+          ...userFilterValues,
+          [filterId]: value || null,
+        };
+        selPersonId = null;
+        await refreshUserResolvedFilters(true);
+        await buildPersonList();
+        const fam = selFamId ? DB.getFamily(selFamId) : null;
+        if (hasMissingRequiredUserFilters()) {
+          showWait("Renseignez les filtres pour continuer");
+          updatePbar();
+          return;
+        }
+        if (
+          fam?.beneficiaryMode === "etablissement" &&
+          currentBeneficiaries.length === 1
+        ) {
+          await selectPerson(currentBeneficiaries[0].id);
+          return;
+        }
+        showWait(
+          currentBeneficiaries.length
+            ? "Selectionnez le beneficiaire concerne"
+            : "Aucun beneficiaire disponible pour ces filtres",
+        );
         updatePbar();
       };
 
@@ -1452,8 +1577,8 @@
           hasMissingRequiredUserFilters()
             ? "Renseignez les filtres pour continuer"
             : fam?.beneficiaryMode === "etablissement"
-            ? "Document lié à l'établissement"
-            : "Sélectionnez le bénéficiaire concerné",
+              ? "Document lié à l'établissement"
+              : "Sélectionnez le bénéficiaire concerné",
         );
       }
 
@@ -1491,7 +1616,8 @@
             .toUpperCase();
           const item = document.createElement("div");
           item.className =
-            "person-item" + (String(selPersonId) === String(p.id) ? " sel" : "");
+            "person-item" +
+            (String(selPersonId) === String(p.id) ? " sel" : "");
           item.innerHTML = `<div class="p-av">${initials}</div><div><div class="p-name">${label}</div><div class="p-meta">${subtitle}</div></div>`;
           item.onclick = () => selectPerson(p.id);
           c.appendChild(item);

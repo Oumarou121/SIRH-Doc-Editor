@@ -6503,7 +6503,9 @@
       function clearEditor() {
         document.getElementById("emptyState").style.display = "flex";
         document.getElementById("editorInner").style.display = "none";
-        const filterPanel = document.getElementById("templateFilterProfilePanel");
+        const filterPanel = document.getElementById(
+          "templateFilterProfilePanel",
+        );
         if (filterPanel) filterPanel.innerHTML = "";
         destroyEditors();
       }
@@ -6618,8 +6620,9 @@
 
       function getTemplateProfileEntry(tpl, filterId, order = 0) {
         return (
-          getTemplateFilterProfile(tpl).find((entry) => entry.filterId === filterId) ||
-          getDefaultTemplateFilterProfileEntry(filterId, order)
+          getTemplateFilterProfile(tpl).find(
+            (entry) => entry.filterId === filterId,
+          ) || getDefaultTemplateFilterProfileEntry(filterId, order)
         );
       }
 
@@ -6640,9 +6643,10 @@
         );
         if (updated) existingMap.set(filterId, updated);
         tpl.filterProfile = catalog
-          .map((filter, index) =>
-            existingMap.get(filter.id) ||
-            getDefaultTemplateFilterProfileEntry(filter.id, index),
+          .map(
+            (filter, index) =>
+              existingMap.get(filter.id) ||
+              getDefaultTemplateFilterProfileEntry(filter.id, index),
           )
           .filter(Boolean);
         tpl.updatedAt = new Date().toISOString();
@@ -6708,7 +6712,8 @@
                 .map(
                   (option) =>
                     `<option value="${escAttr(option.value)}" ${
-                      String(profile.defaultValue ?? "") === String(option.value)
+                      String(profile.defaultValue ?? "") ===
+                      String(option.value)
                         ? "selected"
                         : ""
                     }>${escHtml(option.label)}</option>`,
@@ -6755,15 +6760,17 @@
                     }
                   </div>
                   ${
-                    filter.type === "select" && profile.allowedValueMode === "subset"
+                    filter.type === "select" &&
+                    profile.allowedValueMode === "subset"
                       ? `<div style="margin-top:10px;padding:10px;border:1px dashed var(--border);border-radius:12px;background:#fbfcfe">
                           <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Choisissez les valeurs autorisées pour ce template.</div>
                           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-                            ${options.length
-                              ? options
-                                  .map(
-                                    (option) =>
-                                      `<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);padding:4px 8px;border:1px solid var(--border);border-radius:999px;background:#fff">
+                            ${
+                              options.length
+                                ? options
+                                    .map(
+                                      (option) =>
+                                        `<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);padding:4px 8px;border:1px solid var(--border);border-radius:999px;background:#fff">
                                         <input type="checkbox" ${
                                           (profile.allowedValues || []).some(
                                             (entry) =>
@@ -6774,9 +6781,10 @@
                                         } onchange="toggleTemplateFilterAllowedValue('${filter.id}','${escAttr(option.value)}','${escAttr(option.label)}',this.checked)">
                                         ${option.label === option.value ? escHtml(option.label) : `${escHtml(option.label)} (${escHtml(option.value)})`}
                                       </label>`,
-                                  )
-                                  .join("")
-                              : '<span style="font-size:11px;color:var(--text3)">Aucune valeur détectée pour le moment.</span>'}
+                                    )
+                                    .join("")
+                                : '<span style="font-size:11px;color:var(--text3)">Aucune valeur détectée pour le moment.</span>'
+                            }
                           </div>
                           <div style="display:flex;gap:8px;flex-wrap:wrap">
                             <input id="customAllowedValue_${index}" class="tname-input" style="height:34px;flex:1;min-width:180px" placeholder="Valeur personnalisée">
@@ -6785,8 +6793,12 @@
                           </div>
                           ${
                             (profile.allowedValues || []).length
-                              ? `<div style="margin-top:8px;font-size:11px;color:var(--text2)">Sélection actuelle : ${(profile.allowedValues || [])
-                                  .map((option) => formatAllowedFilterOption(option))
+                              ? `<div style="margin-top:8px;font-size:11px;color:var(--text2)">Sélection actuelle : ${(
+                                  profile.allowedValues || []
+                                )
+                                  .map((option) =>
+                                    formatAllowedFilterOption(option),
+                                  )
                                   .join(" · ")}</div>`
                               : ""
                           }
@@ -6920,12 +6932,14 @@
         await refreshAdminFilterRuntime(false);
       };
 
-      window.updateTemplateFilterAllowedMode = async function (filterId, value) {
+      window.updateTemplateFilterAllowedMode = async function (
+        filterId,
+        value,
+      ) {
         saveTemplateProfileEntry(filterId, (entry) => ({
           ...entry,
           allowedValueMode: value === "subset" ? "subset" : "all",
-          allowedValues:
-            value === "subset" ? entry.allowedValues || [] : [],
+          allowedValues: value === "subset" ? entry.allowedValues || [] : [],
         }));
         await renderTemplateFilterProfilePanel();
         await refreshAdminFilterRuntime(false);
@@ -6952,8 +6966,12 @@
       };
 
       window.addCustomTemplateAllowedValue = async function (filterId, index) {
-        const valueInput = document.getElementById(`customAllowedValue_${index}`);
-        const labelInput = document.getElementById(`customAllowedLabel_${index}`);
+        const valueInput = document.getElementById(
+          `customAllowedValue_${index}`,
+        );
+        const labelInput = document.getElementById(
+          `customAllowedLabel_${index}`,
+        );
         const value = valueInput?.value?.trim();
         const label = labelInput?.value?.trim() || value;
         if (!value) {

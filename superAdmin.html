@@ -1903,7 +1903,9 @@
       }
 
       function getFamilyFilterById(fam, filterId) {
-        return (fam?.filterCatalog || []).find((filter) => filter.id === filterId);
+        return (fam?.filterCatalog || []).find(
+          (filter) => filter.id === filterId,
+        );
       }
 
       async function renderFamilyFilterCatalog(famId) {
@@ -1914,9 +1916,14 @@
         try {
           schema = await ensureSchemaMeta();
         } catch (_) {}
-        const visibleTables = schema ? getVisibleFamilySchemaTables(schema) : [];
-        const baseTable = schema ? getFamilyBaseTableForFilters(famId, fam, schema) : "";
-        const baseColumns = schema && baseTable ? getColumnsForTable(schema, baseTable) : [];
+        const visibleTables = schema
+          ? getVisibleFamilySchemaTables(schema)
+          : [];
+        const baseTable = schema
+          ? getFamilyBaseTableForFilters(famId, fam, schema)
+          : "";
+        const baseColumns =
+          schema && baseTable ? getColumnsForTable(schema, baseTable) : [];
         const filters = fam.filterCatalog || [];
         if (!filters.length) {
           wrap.innerHTML = `
@@ -1932,7 +1939,9 @@
             const staticValue = (filter.staticOptions || [])
               .map((option) => `${option.value}|${option.label}`)
               .join("\n");
-            const sqlBuilder = normalizeFilterSqlBuilder(filter.sqlBuilder || {});
+            const sqlBuilder = normalizeFilterSqlBuilder(
+              filter.sqlBuilder || {},
+            );
             const columnBinding = normalizeFilterColumnBinding(
               filter.columnBinding || {},
             );
@@ -2093,7 +2102,10 @@
       window.addFamilyFilterDefinition = function (famId) {
         const fam = DB.getFamily(famId);
         if (!fam) return;
-        fam.filterCatalog = [...(fam.filterCatalog || []), createEmptyFamilyFilterDefinition((fam.filterCatalog || []).length)];
+        fam.filterCatalog = [
+          ...(fam.filterCatalog || []),
+          createEmptyFamilyFilterDefinition((fam.filterCatalog || []).length),
+        ];
         DB.saveFamily(fam);
         renderFamilyEditor(famId);
         toast("Filtre ajouté", "success");
@@ -2110,7 +2122,12 @@
         toast("Filtre supprimé", "success");
       };
 
-      window.updateFamilyFilterField = function (famId, filterId, field, value) {
+      window.updateFamilyFilterField = function (
+        famId,
+        filterId,
+        field,
+        value,
+      ) {
         const fam = DB.getFamily(famId);
         if (!fam) return;
         fam.filterCatalog = (fam.filterCatalog || []).map((filter, index) => {
@@ -2149,10 +2166,13 @@
         const baseTable = getFamilyBaseTableForFilters(famId, fam, schema);
         fam.filterCatalog = (fam.filterCatalog || []).map((filter, index) => {
           if (filter.id !== filterId) return filter;
-          const binding = normalizeFilterColumnBinding(filter.columnBinding || {});
+          const binding = normalizeFilterColumnBinding(
+            filter.columnBinding || {},
+          );
           binding.mode = mode === "base-column" ? "base-column" : "manual";
           binding.tableName = binding.mode === "base-column" ? baseTable : "";
-          binding.columnName = binding.mode === "base-column" ? binding.columnName : "";
+          binding.columnName =
+            binding.mode === "base-column" ? binding.columnName : "";
           return normalizeFilterDefinition(
             {
               ...filter,
@@ -2178,7 +2198,9 @@
         const baseTable = getFamilyBaseTableForFilters(famId, fam, schema);
         fam.filterCatalog = (fam.filterCatalog || []).map((filter, index) => {
           if (filter.id !== filterId) return filter;
-          const binding = normalizeFilterColumnBinding(filter.columnBinding || {});
+          const binding = normalizeFilterColumnBinding(
+            filter.columnBinding || {},
+          );
           binding.mode = "base-column";
           binding.tableName = baseTable || "";
           binding.columnName = columnName || "";
@@ -2282,7 +2304,12 @@
         regenerateFamilySql(famId, true);
       };
 
-      window.toggleFamilyFilterRole = function (famId, filterId, role, checked) {
+      window.toggleFamilyFilterRole = function (
+        famId,
+        filterId,
+        role,
+        checked,
+      ) {
         const fam = DB.getFamily(famId);
         if (!fam) return;
         fam.filterCatalog = (fam.filterCatalog || []).map((filter, index) =>
@@ -2672,10 +2699,9 @@
               : columns.some((column) => column.name === "etablissement_id")
                 ? `${sourceAlias}.${sqlId("etablissement_id")} = :etablissementId`
                 : "";
-        const whereClauses = [
-          etabFilter,
-          ...extraFilterClauses,
-        ].filter(Boolean);
+        const whereClauses = [etabFilter, ...extraFilterClauses].filter(
+          Boolean,
+        );
         return [
           "SELECT",
           `  TOP (500) ${sourceAlias}.${sqlId(pk)} AS id,`,
@@ -2911,7 +2937,10 @@
         const fromLines = [
           `FROM ${sqlId(sourceTable)} ${sourceAlias}`,
           ...joins,
-          `WHERE ${[etabMatcher, ...buildAutoFilterClausesForTable(fam, sourceTable, sourceAlias)]
+          `WHERE ${[
+            etabMatcher,
+            ...buildAutoFilterClausesForTable(fam, sourceTable, sourceAlias),
+          ]
             .filter(Boolean)
             .join("\n  AND ")}`,
         ];
@@ -2983,7 +3012,11 @@
           const joins = [];
           let alias = baseAlias;
           if (v.sourceTable !== baseTable) {
-            const relPath = getJoinPlan(schemaMetaCache, baseTable, v.sourceTable);
+            const relPath = getJoinPlan(
+              schemaMetaCache,
+              baseTable,
+              v.sourceTable,
+            );
             if (!relPath?.length) return null;
             let currentAlias = baseAlias;
             let currentTable = baseTable;
@@ -3005,7 +3038,10 @@
             });
             alias = currentAlias;
           }
-          const tableColumns = getColumnsForTable(schemaMetaCache, v.sourceTable);
+          const tableColumns = getColumnsForTable(
+            schemaMetaCache,
+            v.sourceTable,
+          );
           const fromLines = [
             `FROM ${sqlId(baseTable)} ${baseAlias}`,
             ...joins,
