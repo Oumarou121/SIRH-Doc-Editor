@@ -687,6 +687,18 @@
         opacity: 1;
         color: var(--red);
       }
+      .col-pill-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 10px;
+        color: inherit;
+        padding: 0 2px;
+        opacity: 0.8;
+      }
+      .col-pill-btn:hover {
+        opacity: 1;
+      }
       .col-add-row {
         display: none;
         gap: 5px;
@@ -3348,11 +3360,40 @@
           isObj && v.columns && v.columns.length
             ? `<span style="font-size:9px;color:${couleur};opacity:.7;margin-left:3px">[${v.columns.map((c) => c.key).join(",")}]</span>`
             : "";
-        return `<div class="var-pill" style="background:${couleur}15;border-color:${couleur}40;color:${couleur}">
+        const pillMarkup = `<div class="var-pill" style="background:${couleur}15;border-color:${couleur}40;color:${couleur}">
           <span class="var-pill-tech">{{${isObj ? "#" : isList ? "#" : ""}${v.tech}${isObj ? ":table" : ""}}}</span>
           <span class="var-pill-label">→ ${v.label}</span>
           ${typeTag}${cols}
           <button class="var-pill-del" onclick="deleteVar('${famId}',${ci},${vi})">×</button>
+        </div>`;
+        if (!isObj) return pillMarkup;
+        const orderedCols =
+          (Array.isArray(v.columns) && v.columns.length
+            ? v.columns
+            : Array.isArray(v.sourceColumns)
+              ? v.sourceColumns.map((col) => ({
+                  key: col.key || slugTech(col.column),
+                  label: col.label || humanizeSchemaName(col.column),
+                }))
+              : []) || [];
+        const controlsMarkup = orderedCols.length
+          ? `<div style="display:flex;flex-wrap:wrap;gap:6px">
+              ${orderedCols
+                .map(
+                  (col, colIndex) => `
+                    <span class="col-pill" style="background:${couleur}12;border-color:${couleur}55;color:${couleur}">
+                      ${escHtml(col.label || col.key)} <span style="opacity:.65">(${escHtml(col.key)})</span>
+                      <button class="col-pill-btn" type="button" title="Monter" onclick="moveVarColumn('${famId}',${ci},${vi},${colIndex},-1)" ${colIndex === 0 ? "disabled" : ""}>&uarr;</button>
+                      <button class="col-pill-btn" type="button" title="Descendre" onclick="moveVarColumn('${famId}',${ci},${vi},${colIndex},1)" ${colIndex === orderedCols.length - 1 ? "disabled" : ""}>&darr;</button>
+                    </span>`,
+                )
+                .join("")}
+            </div>`
+          : `<div style="font-size:10px;color:${couleur};opacity:.8">Aucune colonne définie</div>`;
+        return `<div style="display:flex;flex-direction:column;gap:6px;max-width:100%;padding:8px 10px;border:1px dashed ${couleur}35;border-radius:12px;background:${couleur}08">
+          ${pillMarkup}
+          <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${couleur};opacity:.9">Ordre des colonnes</div>
+          ${controlsMarkup}
         </div>`;
       }
 
@@ -3399,6 +3440,8 @@
             (c, i) => `
           <span class="col-pill">
             ${c.key} → ${c.label}
+            <button class="col-pill-btn" type="button" title="Monter" onclick="_moveTempCol(${ci},${i},-1)" ${i === 0 ? "disabled" : ""}>&uarr;</button>
+            <button class="col-pill-btn" type="button" title="Descendre" onclick="_moveTempCol(${ci},${i},1)" ${i === cols.length - 1 ? "disabled" : ""}>&darr;</button>
             <button class="col-pill-del" onclick="_removeTempCol(${ci},${i})">×</button>
           </span>`,
           )
@@ -3407,6 +3450,16 @@
 
       window._removeTempCol = function (ci, i) {
         if (_tempCols[ci]) _tempCols[ci].splice(i, 1);
+        _refreshTempColPills(ci);
+      };
+
+      window._moveTempCol = function (ci, i, direction) {
+        const cols = _tempCols[ci];
+        if (!Array.isArray(cols)) return;
+        const targetIndex = i + Number(direction || 0);
+        if (targetIndex < 0 || targetIndex >= cols.length) return;
+        const [moved] = cols.splice(i, 1);
+        cols.splice(targetIndex, 0, moved);
         _refreshTempColPills(ci);
       };
 
@@ -3526,6 +3579,54 @@
         renderClassesContainer(famId);
         regenerateFamilySql(famId, true);
       }
+
+      window.moveVarColumn = function (famId, ci, vi, colIndex, direction) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (!varDef || varDef.type !== "list-object") return;
+        const fromIndex = Number(colIndex);
+        const targetIndex = fromIndex + Number(direction || 0);
+        const displayCols = Array.isArray(varDef.columns) ? [...varDef.columns] : [];
+        if (
+          !displayCols.length ||
+          fromIndex < 0 ||
+          targetIndex < 0 ||
+          fromIndex >= displayCols.length ||
+          targetIndex >= displayCols.length
+        ) {
+          return;
+        }
+        const [movedDisplayCol] = displayCols.splice(fromIndex, 1);
+        displayCols.splice(targetIndex, 0, movedDisplayCol);
+        varDef.columns = displayCols;
+        if (Array.isArray(varDef.sourceColumns) && varDef.sourceColumns.length) {
+          const sourceCols = [...varDef.sourceColumns];
+          if (sourceCols.length === displayCols.length) {
+            const [movedSourceCol] = sourceCols.splice(fromIndex, 1);
+            sourceCols.splice(targetIndex, 0, movedSourceCol);
+            varDef.sourceColumns = sourceCols;
+          } else {
+            const sourceByKey = new Map(
+              sourceCols.map((col) => [
+                String(col.key || slugTech(col.column)),
+                col,
+              ]),
+            );
+            const reordered = [];
+            displayCols.forEach((col) => {
+              const key = String(col.key || "");
+              const match = sourceByKey.get(key);
+              if (!match) return;
+              reordered.push(match);
+              sourceByKey.delete(key);
+            });
+            varDef.sourceColumns = [...reordered, ...sourceByKey.values()];
+          }
+        }
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
+      };
 
       // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  ÉTABLISSEMENTS
