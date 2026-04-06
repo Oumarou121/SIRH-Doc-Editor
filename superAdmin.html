@@ -2877,17 +2877,40 @@
           schemaBuilderState[famId] = {
             baseTable: inferBaseTable(fam, schema),
             selectedColumns: {},
+            secondaryTables: [],
           };
         }
+        const state = schemaBuilderState[famId];
         if (
           visibleTables.length &&
-          !visibleTables.some(
-            (table) => table.name === schemaBuilderState[famId].baseTable,
-          )
+          !visibleTables.some((table) => table.name === state.baseTable)
         ) {
-          schemaBuilderState[famId].baseTable = visibleTables[0].name;
+          state.baseTable = visibleTables[0].name;
         }
-        return schemaBuilderState[famId];
+        const allowedTables = new Set(visibleTables.map((table) => table.name));
+        const existingSecondaryTables = (fam.classes || [])
+          .flatMap((cls) => cls.vars || [])
+          .map((item) => item?.sourceTable)
+          .filter(
+            (tableName) =>
+              tableName &&
+              tableName !== state.baseTable &&
+              allowedTables.has(tableName),
+          );
+        state.secondaryTables = [
+          ...new Set([
+            ...(Array.isArray(state.secondaryTables)
+              ? state.secondaryTables
+              : []),
+            ...existingSecondaryTables,
+          ]),
+        ].filter(
+          (tableName) =>
+            tableName &&
+            tableName !== state.baseTable &&
+            allowedTables.has(tableName),
+        );
+        return state;
       }
 
       function getDirectRelations(schema, baseTable) {
@@ -3254,8 +3277,31 @@
         if (!fam || !schemaMetaCache) return;
         const state = getBuilderState(famId, fam, schemaMetaCache);
         state.baseTable = tableName;
+        state.secondaryTables = (state.secondaryTables || []).filter(
+          (name) => name && name !== tableName,
+        );
         renderSchemaAssistant(famId);
         regenerateFamilySql(famId, true);
+      };
+
+      window.addSchemaSecondaryTable = function (famId, tableName) {
+        const fam = DB.getFamily(famId);
+        if (!fam || !schemaMetaCache || !tableName) return;
+        const state = getBuilderState(famId, fam, schemaMetaCache);
+        state.secondaryTables = [
+          ...new Set([...(state.secondaryTables || []), tableName]),
+        ].filter((name) => name && name !== state.baseTable);
+        renderSchemaAssistant(famId);
+      };
+
+      window.removeSchemaSecondaryTable = function (famId, tableName) {
+        const fam = DB.getFamily(famId);
+        if (!fam || !schemaMetaCache) return;
+        const state = getBuilderState(famId, fam, schemaMetaCache);
+        state.secondaryTables = (state.secondaryTables || []).filter(
+          (name) => name && name !== tableName,
+        );
+        renderSchemaAssistant(famId);
       };
 
       window.toggleSchemaColumnSelection = function (
@@ -3392,7 +3438,23 @@
           if (!fam) return;
           const state = getBuilderState(famId, fam, schema);
           const baseTableOptions = getFamilyVisibleTables(schema, fam);
-          const visibleTables = baseTableOptions.map((table) => table.name);
+          const allVisibleTableNames = baseTableOptions.map(
+            (table) => table.name,
+          );
+          const visibleTables = [
+            state.baseTable,
+            ...(state.secondaryTables || []),
+          ].filter(
+            (tableName, index, list) =>
+              tableName &&
+              allVisibleTableNames.includes(tableName) &&
+              list.indexOf(tableName) === index,
+          );
+          const secondaryTableOptions = baseTableOptions.filter(
+            (table) =>
+              table.name !== state.baseTable &&
+              !visibleTables.includes(table.name),
+          );
           const hiddenTables = getSuperadminHiddenFamilyTables();
           wrap.innerHTML = `
 <div class="form-grid c3" style="margin-bottom:14px">
@@ -3406,6 +3468,33 @@
         )
         .join("")}
     </select>
+  </div>
+  <div class="form-row" style="margin:0">
+    <label class="form-label">Tables secondaires</label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select class="form-input" id="schemaSecondaryTableSelect_${famId}" style="min-width:220px;flex:1">
+        <option value="">Ajouter une table secondaire</option>
+        ${secondaryTableOptions
+          .map(
+            (table) =>
+              `<option value="${escAttr(table.name)}">${escHtml(table.name)}${table.comment ? ` - ${escHtml(table.comment)}` : ""}</option>`,
+          )
+          .join("")}
+      </select>
+      <button class="btn sm" onclick="addSchemaSecondaryTable('${famId}', document.getElementById('schemaSecondaryTableSelect_${famId}').value)">Ajouter</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      ${
+        (state.secondaryTables || []).length
+          ? state.secondaryTables
+              .map(
+                (tableName) =>
+                  `<span class="chip chip-teal">${escHtml(tableName)} <button type="button" onclick="removeSchemaSecondaryTable('${famId}','${tableName}')" style="background:none;border:none;color:inherit;cursor:pointer;padding:0 0 0 6px">×</button></span>`,
+              )
+              .join("")
+          : `<span class="text-muted">Aucune table secondaire affichée</span>`
+      }
+    </div>
   </div>
   <div class="form-row" style="margin:0">
     <label class="form-label">Aide</label>
