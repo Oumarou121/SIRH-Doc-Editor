@@ -7,6 +7,8 @@ CREATE TABLE [family] (
   description NVARCHAR(MAX) NULL,
   beneficiary_mode NVARCHAR(32) NULL,
   beneficiary_table NVARCHAR(128) NULL,
+  beneficiary_display_column_1 NVARCHAR(128) NULL,
+  beneficiary_display_column_2 NVARCHAR(128) NULL,
   beneficiary_sql_text NVARCHAR(MAX) NULL,
   filter_catalog_json NVARCHAR(MAX) NULL,
   sql_text NVARCHAR(MAX) NULL,
@@ -18,6 +20,16 @@ END;
 IF COL_LENGTH('family', 'filter_catalog_json') IS NULL
 BEGIN
   ALTER TABLE [family] ADD filter_catalog_json NVARCHAR(MAX) NULL;
+END;
+
+IF COL_LENGTH('family', 'beneficiary_display_column_1') IS NULL
+BEGIN
+  ALTER TABLE [family] ADD beneficiary_display_column_1 NVARCHAR(128) NULL;
+END;
+
+IF COL_LENGTH('family', 'beneficiary_display_column_2') IS NULL
+BEGIN
+  ALTER TABLE [family] ADD beneficiary_display_column_2 NVARCHAR(128) NULL;
 END;
 
 IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'etablissement')

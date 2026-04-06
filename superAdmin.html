@@ -1832,6 +1832,19 @@
         try {
           const schema = await ensureSchemaMeta();
           const visibleTables = getFamilyVisibleTables(schema, fam);
+          const tableName = getFamilyBeneficiaryTable(fam);
+          const tableColumns = getColumnsForTable(schema, tableName);
+          const suggestedColumns = getSuggestedBeneficiaryDisplayColumns(
+            fam,
+            schema,
+            tableName,
+          );
+          if (!fam.beneficiaryDisplayColumn1 && suggestedColumns[0]) {
+            fam.beneficiaryDisplayColumn1 = suggestedColumns[0];
+          }
+          if (!fam.beneficiaryDisplayColumn2 && suggestedColumns[1]) {
+            fam.beneficiaryDisplayColumn2 = suggestedColumns[1];
+          }
           if (!fam.beneficiarySql) {
             fam.beneficiarySql = buildBeneficiarySqlFromFamily(famId);
             DB.saveFamily(fam);
@@ -1844,10 +1857,38 @@
           ${visibleTables
             .map(
               (table) =>
-                `<option value="${escAttr(table.name)}" ${table.name === getFamilyBeneficiaryTable(fam) ? "selected" : ""}>${escHtml(table.name)}${table.comment ? ` - ${escHtml(table.comment)}` : ""}</option>`,
+                `<option value="${escAttr(table.name)}" ${table.name === tableName ? "selected" : ""}>${escHtml(table.name)}${table.comment ? ` - ${escHtml(table.comment)}` : ""}</option>`,
             )
             .join("")}
-        </select>`;
+        </select>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+          <div>
+            <label class="form-label" style="font-size:11px">Colonne affichage 1</label>
+            <select class="form-input" onchange="updateFamilyBeneficiaryDisplayColumn('${famId}', 1, this.value)">
+              <option value="">Choisir une colonne</option>
+              ${tableColumns
+                .map(
+                  (column) =>
+                    `<option value="${escAttr(column.name)}" ${column.name === (fam.beneficiaryDisplayColumn1 || "") ? "selected" : ""}>${escHtml(column.name)}${column.comment ? ` - ${escHtml(column.comment)}` : ""}</option>`,
+                )
+                .join("")}
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px">Colonne affichage 2</label>
+            <select class="form-input" onchange="updateFamilyBeneficiaryDisplayColumn('${famId}', 2, this.value)">
+              <option value="">Aucune</option>
+              ${tableColumns
+                .map(
+                  (column) =>
+                    `<option value="${escAttr(column.name)}" ${column.name === (fam.beneficiaryDisplayColumn2 || "") ? "selected" : ""}>${escHtml(column.name)}${column.comment ? ` - ${escHtml(column.comment)}` : ""}</option>`,
+                )
+                .join("")}
+            </select>
+          </div>
+        </div>
+        <div class="text-muted" style="margin-top:8px">Ces colonnes seront affichées dans les listes de bénéficiaires côté admin et user. Exemple : <strong>Nom</strong> + <strong>Prenom</strong>.</div>`;
+          DB.saveFamily(fam);
         } catch (error) {
           wrap.innerHTML = `
         <label class="form-label">Table bénéficiaire</label>
@@ -1882,6 +1923,8 @@
         if (!fam) return;
         fam.beneficiaryMode = "table";
         fam.beneficiaryTable = tableName || DEFAULT_FAMILY_BENEFICIARY_TABLE;
+        fam.beneficiaryDisplayColumn1 = "";
+        fam.beneficiaryDisplayColumn2 = "";
         fam.beneficiarySql = buildBeneficiarySqlFromFamily(famId);
         DB.saveFamily(fam);
         const state = schemaMetaCache
@@ -1893,6 +1936,36 @@
         renderLeftPanel();
         renderFamilyEditor(famId);
         regenerateFamilySql(famId, true);
+      };
+
+      window.updateFamilyBeneficiaryDisplayColumn = function (
+        famId,
+        slot,
+        columnName,
+      ) {
+        const fam = DB.getFamily(famId);
+        if (!fam) return;
+        if (Number(slot) === 1) {
+          fam.beneficiaryDisplayColumn1 = columnName || "";
+          if (
+            fam.beneficiaryDisplayColumn2 &&
+            fam.beneficiaryDisplayColumn2 === fam.beneficiaryDisplayColumn1
+          ) {
+            fam.beneficiaryDisplayColumn2 = "";
+          }
+        } else {
+          fam.beneficiaryDisplayColumn2 = columnName || "";
+          if (
+            fam.beneficiaryDisplayColumn1 &&
+            fam.beneficiaryDisplayColumn2 === fam.beneficiaryDisplayColumn1
+          ) {
+            fam.beneficiaryDisplayColumn2 = "";
+          }
+        }
+        fam.beneficiarySql = buildBeneficiarySqlFromFamily(famId);
+        DB.saveFamily(fam);
+        const sqlInput = document.getElementById("fBeneficiarySql");
+        if (sqlInput) sqlInput.value = fam.beneficiarySql || "";
       };
 
       function createEmptyFamilyFilterDefinition(index = 0) {
@@ -2536,6 +2609,61 @@
         return fam?.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
       }
 
+      function getConfiguredBeneficiaryDisplayColumns(fam, schema, tableName) {
+        if (!fam || !schema || !tableName) return [];
+        const availableColumns = new Set(
+          getColumnsForTable(schema, tableName).map((column) => column.name),
+        );
+        return [
+          String(fam.beneficiaryDisplayColumn1 || "").trim(),
+          String(fam.beneficiaryDisplayColumn2 || "").trim(),
+        ].filter((columnName, index, list) => {
+          if (!columnName || !availableColumns.has(columnName)) return false;
+          return list.indexOf(columnName) === index;
+        });
+      }
+
+      function getSuggestedBeneficiaryDisplayColumns(fam, schema, tableName) {
+        const configured = getConfiguredBeneficiaryDisplayColumns(
+          fam,
+          schema,
+          tableName,
+        );
+        if (configured.length) return configured;
+        const columns = getColumnsForTable(schema, tableName);
+        const fullNameColumn = columns.find((column) =>
+          [
+            "nom_prenom",
+            "nom_complet",
+            "display_name",
+            "full_name",
+          ].includes(column.name),
+        )?.name;
+        if (fullNameColumn) return [fullNameColumn];
+        const nomColumn = columns.find((column) => column.name === "nom")?.name;
+        const prenomColumn = columns.find(
+          (column) => column.name === "prenom",
+        )?.name;
+        if (nomColumn && prenomColumn) return [nomColumn, prenomColumn];
+        const firstLabelColumn = columns.find((column) =>
+          ["libelle", "intitule", "nom", "prenom", "code"].includes(
+            column.name,
+          ),
+        )?.name;
+        return firstLabelColumn ? [firstLabelColumn] : [];
+      }
+
+      function buildBeneficiaryDisplaySqlExpr(columns = [], alias = "src") {
+        const validColumns = (Array.isArray(columns) ? columns : []).filter(Boolean);
+        if (!validColumns.length) return "";
+        const parts = validColumns.map(
+          (columnName) =>
+            `COALESCE(CONVERT(NVARCHAR(255), ${alias}.${sqlId(columnName)}), '')`,
+        );
+        if (parts.length === 1) return parts[0];
+        return `LTRIM(RTRIM(${parts.join(` + ' ' + `)}))`;
+      }
+
       function getFamilyBaseTableForFilters(famId, fam, schema) {
         try {
           return getBuilderState(famId, fam, schema).baseTable || "";
@@ -2694,7 +2822,13 @@
         const columns = getColumnsForTable(schemaMetaCache, tableName);
         if (!columns.length) return "";
         const pk = getPrimaryColumn(schemaMetaCache, tableName);
+        const displayColumns = getSuggestedBeneficiaryDisplayColumns(
+          fam,
+          schemaMetaCache,
+          tableName,
+        );
         const labelColumn =
+          displayColumns[0] ||
           columns.find((column) =>
             [
               "nom_prenom",
@@ -2705,25 +2839,31 @@
               "libelle",
               "intitule",
             ].includes(column.name),
-          )?.name || pk;
-        const subtitleColumn = columns.find((column) =>
-          [
-            "poste",
-            "fonction",
-            "grade",
-            "departement",
-            "service",
-            "email",
-            "code",
-            "matricule",
-          ].includes(column.name),
-        )?.name;
+          )?.name ||
+          pk;
+        const sourceAlias = "src";
+        const labelSqlExpr =
+          buildBeneficiaryDisplaySqlExpr(displayColumns, sourceAlias) ||
+          `${sourceAlias}.${sqlId(labelColumn)}`;
+        const subtitleColumn = displayColumns.length
+          ? ""
+          : columns.find((column) =>
+              [
+                "poste",
+                "fonction",
+                "grade",
+                "departement",
+                "service",
+                "email",
+                "code",
+                "matricule",
+              ].includes(column.name),
+            )?.name;
         const pathToEtab = getRelationPath(
           schemaMetaCache,
           tableName,
           "etablissement",
         );
-        const sourceAlias = "src";
         const joinParts = [];
         let currentAlias = sourceAlias;
         let etabAlias = sourceAlias;
@@ -2756,7 +2896,7 @@
         return [
           "SELECT",
           `  TOP (500) ${sourceAlias}.${sqlId(pk)} AS id,`,
-          `  ${sourceAlias}.${sqlId(labelColumn)} AS libelle${
+          `  ${labelSqlExpr} AS libelle${
             subtitleColumn ? "," : ""
           }`,
           subtitleColumn

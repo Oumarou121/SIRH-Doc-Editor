@@ -327,6 +327,18 @@ function normalizeFamilyRecord(record = {}) {
             DEFAULT_FAMILY_BENEFICIARY_TABLE,
         )
       : null;
+  next.beneficiaryDisplayColumn1 = String(
+    next.beneficiaryDisplayColumn1 ||
+      next.beneficiaryDisplayColumn ||
+      next.beneficiaryLabelColumn ||
+      "",
+  ).trim();
+  next.beneficiaryDisplayColumn2 = String(
+    next.beneficiaryDisplayColumn2 ||
+      next.beneficiarySecondaryDisplayColumn ||
+      next.beneficiarySubtitleColumn ||
+      "",
+  ).trim();
   next.beneficiarySql = String(
     next.beneficiarySql || next.beneficiarySqlText || "",
   ).trim();
@@ -336,6 +348,10 @@ function normalizeFamilyRecord(record = {}) {
   delete next.beneficiaireTable;
   delete next.beneficiarySqlText;
   delete next.filterCatalogJson;
+  delete next.beneficiaryDisplayColumn;
+  delete next.beneficiaryLabelColumn;
+  delete next.beneficiarySecondaryDisplayColumn;
+  delete next.beneficiarySubtitleColumn;
   return next;
 }
 
@@ -461,6 +477,40 @@ function guessBeneficiarySubtitle(row = {}, label = "") {
   return normalized === label ? "" : normalized;
 }
 
+function getConfiguredBeneficiaryDisplayColumns(family, schema, tableName) {
+  if (!family || !schema || !tableName) return [];
+  const columns = getSchemaColumnsForTable(schema, tableName);
+  const available = new Set(columns.map((column) => column.name));
+  return [
+    String(family.beneficiaryDisplayColumn1 || "").trim(),
+    String(family.beneficiaryDisplayColumn2 || "").trim(),
+  ].filter((columnName, index, list) => {
+    if (!columnName || !available.has(columnName)) return false;
+    return list.indexOf(columnName) === index;
+  });
+}
+
+function buildBeneficiaryLabelFromColumns(row = {}, columns = []) {
+  const parts = (Array.isArray(columns) ? columns : [])
+    .map((columnName) => row?.[columnName])
+    .filter(
+      (value) => value !== undefined && value !== null && String(value).trim(),
+    )
+    .map((value) => String(value).trim());
+  return parts.join(" ").trim();
+}
+
+function buildBeneficiaryLabelSqlExpr(columns = [], alias = "src") {
+  const validColumns = (Array.isArray(columns) ? columns : []).filter(Boolean);
+  if (!validColumns.length) return "";
+  const parts = validColumns.map(
+    (columnName) =>
+      `COALESCE(CONVERT(NVARCHAR(255), ${alias}.${quoteSqlIdentifier(columnName)}), '')`,
+  );
+  if (parts.length === 1) return parts[0];
+  return `LTRIM(RTRIM(${parts.join(` + ' ' + `)}))`;
+}
+
 const DB = {
   _cache: normalizeState(),
   _readyPromise: null,
@@ -566,6 +616,12 @@ const DB = {
       family.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
     if (family.beneficiarySql) {
       try {
+        const schema = await this.getSchema();
+        const configuredDisplayColumns = getConfiguredBeneficiaryDisplayColumns(
+          family,
+          schema,
+          tableName,
+        );
         const rows = await this.runSelect(family.beneficiarySql, {
           etablissementId,
           etabId: etablissementId,
@@ -580,7 +636,9 @@ const DB = {
               String(row.id).trim(),
           )
           .map((row) => {
-            const label = guessBeneficiaryLabel(row);
+            const label =
+              buildBeneficiaryLabelFromColumns(row, configuredDisplayColumns) ||
+              guessBeneficiaryLabel(row);
             return {
               ...row,
               id: String(row.id),
@@ -618,7 +676,13 @@ const DB = {
       const columns = getSchemaColumnsForTable(schema, tableName);
       if (!columns.length) return [];
       const pk = getSchemaPrimaryColumn(schema, tableName);
+      const configuredDisplayColumns = getConfiguredBeneficiaryDisplayColumns(
+        family,
+        schema,
+        tableName,
+      );
       const defaultOrderColumn =
+        configuredDisplayColumns[0] ||
         columns.find((column) =>
           [
             "nom_prenom",
@@ -629,15 +693,25 @@ const DB = {
             "libelle",
             "intitule",
           ].includes(column.name),
-        )?.name || pk;
+        )?.name ||
+        pk;
       const etabColumn = getSchemaColumn(schema, tableName, "etablissement_id");
+      const labelSqlExpr = buildBeneficiaryLabelSqlExpr(
+        configuredDisplayColumns,
+        "src",
+      );
       const fallbackSql = family.beneficiarySql
         ? family.beneficiarySql
-        : `SELECT TOP (500) * FROM ${quoteSqlIdentifier(tableName)}${
-            etabColumn && etablissementId
-              ? ` WHERE ${quoteSqlIdentifier(etabColumn.name)} = :etablissementId`
-              : ""
-          } ORDER BY ${quoteSqlIdentifier(defaultOrderColumn)} ASC`;
+        : `SELECT TOP (500)
+             src.${quoteSqlIdentifier(pk)} AS id${
+               labelSqlExpr ? `,\n             ${labelSqlExpr} AS libelle` : ""
+             }
+           FROM ${quoteSqlIdentifier(tableName)} src${
+             etabColumn && etablissementId
+               ? `\n           WHERE src.${quoteSqlIdentifier(etabColumn.name)} = :etablissementId`
+               : ""
+           }
+           ORDER BY src.${quoteSqlIdentifier(defaultOrderColumn)} ASC`;
       const rows = await this.runSelect(fallbackSql, {
         etablissementId,
         etabId: etablissementId,
@@ -654,7 +728,9 @@ const DB = {
                 : ""),
         )
         .map((row) => {
-          const label = guessBeneficiaryLabel(row);
+          const label =
+            buildBeneficiaryLabelFromColumns(row, configuredDisplayColumns) ||
+            guessBeneficiaryLabel(row);
           return {
             ...row,
             id: String(row.id ?? row[pk]),
