@@ -2623,7 +2623,12 @@
         const lookupLabelColumn = String(
           sourceCol?.lookupLabelColumn || "",
         ).trim();
-        if (!schemaMetaCache || !lookupTable || !lookupValueColumn || !lookupLabelColumn) {
+        if (
+          !schemaMetaCache ||
+          !lookupTable ||
+          !lookupValueColumn ||
+          !lookupLabelColumn
+        ) {
           return `${rawExpr} AS ${sqlId(key)}`;
         }
         const lookupColumns = getColumnsForTable(schemaMetaCache, lookupTable);
@@ -2841,22 +2846,24 @@
       }
 
       function inferBaseTable(fam, schema) {
-        const fromMatch =
-          /\bfrom\s+(?:\[([^\]]+)\]|`([^`]+)`|([a-zA-Z0-9_]+))/i.exec(
-            fam.sql || "",
-          );
-        if (fromMatch) return fromMatch[1] || fromMatch[2] || fromMatch[3];
-        if (fam?.beneficiaryMode !== "etablissement" && fam?.beneficiaryTable) {
-          return fam.beneficiaryTable;
-        }
         const generatedVar = (fam.classes || [])
           .flatMap((c) => c.vars || [])
           .find((v) => v.sourceTable);
         const visibleTables = getVisibleFamilySchemaTables(schema, [
           fam?.beneficiaryTable,
         ]);
+        if (fam?.beneficiaryMode !== "etablissement" && fam?.beneficiaryTable) {
+          return fam.beneficiaryTable;
+        }
+        if (generatedVar?.baseTable) {
+          return generatedVar.baseTable;
+        }
+        const fromMatch =
+          /\bfrom\s+(?:\[([^\]]+)\]|`([^`]+)`|([a-zA-Z0-9_]+))/i.exec(
+            fam.sql || "",
+          );
+        if (fromMatch) return fromMatch[1] || fromMatch[2] || fromMatch[3];
         return (
-          generatedVar?.baseTable ||
           generatedVar?.sourceTable ||
           visibleTables[0]?.name ||
           schema.tables[0]?.name ||
@@ -2940,6 +2947,109 @@
         return getRelationPath(schema, baseTable, tableName);
       }
 
+      function hasManualVarLink(schema, baseTable, varDef) {
+        if (!schema || !baseTable || !varDef?.sourceTable) return false;
+        if (varDef.sourceTable === baseTable) return false;
+        const baseColumn = String(varDef.matchBaseColumn || "").trim();
+        const sourceColumn = String(varDef.matchSourceColumn || "").trim();
+        if (!baseColumn || !sourceColumn) return false;
+        const baseColumns = getColumnsForTable(schema, baseTable);
+        const sourceColumns = getColumnsForTable(schema, varDef.sourceTable);
+        return (
+          baseColumns.some((column) => column.name === baseColumn) &&
+          sourceColumns.some((column) => column.name === sourceColumn)
+        );
+      }
+
+      function getSuggestedVarLinkConfig(schema, baseTable, sourceTable) {
+        if (
+          !schema ||
+          !baseTable ||
+          !sourceTable ||
+          baseTable === sourceTable
+        ) {
+          return {};
+        }
+        if (getJoinPlan(schema, baseTable, sourceTable)?.length) {
+          return {
+            linkMode: "auto",
+            matchBaseColumn: "",
+            matchSourceColumn: "",
+          };
+        }
+        const baseColumns = getColumnsForTable(schema, baseTable);
+        const sourcePk = getPrimaryColumn(schema, sourceTable);
+        const sourceName = String(sourceTable || "").toLowerCase();
+        const guessedBaseColumn =
+          baseColumns.find(
+            (column) => String(column.name || "").toLowerCase() === sourceName,
+          )?.name ||
+          baseColumns.find(
+            (column) =>
+              String(column.name || "").toLowerCase() === `code${sourceName}`,
+          )?.name ||
+          baseColumns.find(
+            (column) =>
+              String(column.name || "").toLowerCase() === `${sourceName}code`,
+          )?.name ||
+          "";
+        return {
+          linkMode: "manual",
+          matchBaseColumn: guessedBaseColumn,
+          matchSourceColumn: sourcePk || "",
+        };
+      }
+
+      function resolveVarSourceAccess(schema, baseTable, baseAlias, varDef) {
+        if (!schema || !baseTable || !varDef?.sourceTable) return null;
+        if (varDef.sourceTable === baseTable) {
+          return { alias: baseAlias, joins: [] };
+        }
+        const relPath = getJoinPlan(schema, baseTable, varDef.sourceTable);
+        const canUseManual = hasManualVarLink(schema, baseTable, varDef);
+        if (varDef.linkMode === "manual" && canUseManual) {
+          const alias = "j1";
+          return {
+            alias,
+            joins: [
+              `LEFT JOIN ${sqlId(varDef.sourceTable)} ${alias} ON CONVERT(NVARCHAR(MAX), ${alias}.${sqlId(varDef.matchSourceColumn)}) = CONVERT(NVARCHAR(MAX), ${baseAlias}.${sqlId(varDef.matchBaseColumn)})`,
+            ],
+          };
+        }
+        if (relPath?.length) {
+          const joins = [];
+          let alias = baseAlias;
+          let currentTable = baseTable;
+          relPath.forEach((step, index) => {
+            const nextAlias = `j${index + 1}`;
+            joins.push(
+              `LEFT JOIN ${sqlId(step.toTable)} ${nextAlias} ON ${buildRelationCondition(
+                {
+                  fromTable: currentTable,
+                  toTable: step.toTable,
+                  relation: step.relation,
+                },
+                alias,
+                nextAlias,
+              )}`,
+            );
+            alias = nextAlias;
+            currentTable = step.toTable;
+          });
+          return { alias, joins };
+        }
+        if (canUseManual) {
+          const alias = "j1";
+          return {
+            alias,
+            joins: [
+              `LEFT JOIN ${sqlId(varDef.sourceTable)} ${alias} ON CONVERT(NVARCHAR(MAX), ${alias}.${sqlId(varDef.matchSourceColumn)}) = CONVERT(NVARCHAR(MAX), ${baseAlias}.${sqlId(varDef.matchBaseColumn)})`,
+            ],
+          };
+        }
+        return null;
+      }
+
       function buildEtablissementScopedVarExpr(schema, varDef) {
         const sourceTable = varDef?.sourceTable;
         if (!sourceTable) return null;
@@ -3019,7 +3129,8 @@
           if (!tableColumns.length) return false;
           if (
             v.sourceTable !== baseTable &&
-            !getJoinPlan(schema, baseTable, v.sourceTable)
+            !getJoinPlan(schema, baseTable, v.sourceTable)?.length &&
+            !hasManualVarLink(schema, baseTable, v)
           ) {
             return false;
           }
@@ -3055,35 +3166,15 @@
         const baseTable = builder.baseTable;
         const baseAlias = "b";
         const selects = generatedVars.map((v) => {
-          const joins = [];
-          let alias = baseAlias;
-          if (v.sourceTable !== baseTable) {
-            const relPath = getJoinPlan(
-              schemaMetaCache,
-              baseTable,
-              v.sourceTable,
-            );
-            if (!relPath?.length) return null;
-            let currentAlias = baseAlias;
-            let currentTable = baseTable;
-            relPath.forEach((step, index) => {
-              const nextAlias = `j${index + 1}`;
-              joins.push(
-                `LEFT JOIN ${sqlId(step.toTable)} ${nextAlias} ON ${buildRelationCondition(
-                  {
-                    fromTable: currentTable,
-                    toTable: step.toTable,
-                    relation: step.relation,
-                  },
-                  currentAlias,
-                  nextAlias,
-                )}`,
-              );
-              currentAlias = nextAlias;
-              currentTable = step.toTable;
-            });
-            alias = currentAlias;
-          }
+          const sourceAccess = resolveVarSourceAccess(
+            schemaMetaCache,
+            baseTable,
+            baseAlias,
+            v,
+          );
+          if (!sourceAccess) return null;
+          const joins = sourceAccess.joins || [];
+          const alias = sourceAccess.alias || baseAlias;
           const tableColumns = getColumnsForTable(
             schemaMetaCache,
             v.sourceTable,
@@ -3186,10 +3277,15 @@
           (item) => item.name === columnName,
         );
         if (!fam || !column) return;
+        const baseTable = getBuilderState(
+          famId,
+          fam,
+          schemaMetaCache,
+        ).baseTable;
         const tech = uniqueTech(
           fam,
           slugTech(
-            tableName === getBuilderState(famId, fam, schemaMetaCache).baseTable
+            tableName === baseTable
               ? column.name
               : `${tableName}_${column.name}`,
           ),
@@ -3200,7 +3296,8 @@
           type: "scalar",
           sourceTable: tableName,
           sourceColumn: column.name,
-          baseTable: getBuilderState(famId, fam, schemaMetaCache).baseTable,
+          baseTable,
+          ...getSuggestedVarLinkConfig(schemaMetaCache, baseTable, tableName),
         });
       };
 
@@ -3210,6 +3307,11 @@
           (item) => item.name === columnName,
         );
         if (!fam || !column) return;
+        const baseTable = getBuilderState(
+          famId,
+          fam,
+          schemaMetaCache,
+        ).baseTable;
         const tech = uniqueTech(
           fam,
           slugTech(`${tableName}_${column.name}_liste`),
@@ -3220,7 +3322,8 @@
           type: "list",
           sourceTable: tableName,
           sourceColumn: column.name,
-          baseTable: getBuilderState(famId, fam, schemaMetaCache).baseTable,
+          baseTable,
+          ...getSuggestedVarLinkConfig(schemaMetaCache, baseTable, tableName),
         });
       };
 
@@ -3288,15 +3391,8 @@
           const fam = DB.getFamily(famId);
           if (!fam) return;
           const state = getBuilderState(famId, fam, schema);
-          const visibleTables = getReachableTables(
-            schema,
-            state.baseTable,
-          ).filter((tableName) =>
-            getFamilyVisibleTables(schema, fam).some(
-              (table) => table.name === tableName,
-            ),
-          );
           const baseTableOptions = getFamilyVisibleTables(schema, fam);
+          const visibleTables = baseTableOptions.map((table) => table.name);
           const hiddenTables = getSuperadminHiddenFamilyTables();
           wrap.innerHTML = `
 <div class="form-grid c3" style="margin-bottom:14px">
@@ -3313,7 +3409,7 @@
   </div>
   <div class="form-row" style="margin:0">
     <label class="form-label">Aide</label>
-    <div class="text-muted" style="padding-top:9px">Les descriptions de colonnes alimentent automatiquement les libellés métier. Tables masquées au superadmin : ${hiddenTables.map((name) => escHtml(name)).join(", ")}.</div>
+    <div class="text-muted" style="padding-top:9px">La table principale reste celle choisie ici. Les autres tables peuvent servir de sources secondaires, meme sans jointure automatique, via une correspondance manuelle. Tables masquees au superadmin : ${hiddenTables.map((name) => escHtml(name)).join(", ")}.</div>
   </div>
   <div class="form-row" style="margin:0">
     <label class="form-label">Actions</label>
@@ -3327,21 +3423,40 @@
   ${visibleTables
     .map((tableName) => {
       const table = getTableMeta(schema, tableName);
-      const relation = getJoinPlan(schema, state.baseTable, tableName);
+      const relationPath = getJoinPlan(schema, state.baseTable, tableName);
       const columns = getColumnsForTable(schema, tableName);
+      const relationLabel =
+        tableName === state.baseTable
+          ? "Base"
+          : relationPath?.length
+            ? "Join"
+            : "Reference";
+      const relationTone =
+        tableName === state.baseTable
+          ? "chip-purple"
+          : relationPath?.length
+            ? "chip-teal"
+            : "chip";
+      const relationSummary =
+        tableName === state.baseTable
+          ? "Table principale active"
+          : relationPath?.length
+            ? relationPath
+                .map(
+                  (step) =>
+                    `${step.relation.table}.${step.relation.column} -> ${step.relation.referencedTable}.${step.relation.referencedColumn}`,
+                )
+                .join(" | ")
+            : "Aucune jointure automatique detectee. Vous pouvez tout de meme ajouter des variables puis definir une correspondance manuelle.";
       return `<div style="border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff">
         <div class="flex gap-8" style="align-items:flex-start;margin-bottom:10px">
           <div>
             <div style="font-weight:700;color:var(--text)">${escHtml(tableName)}</div>
             <div class="text-muted">${escHtml(table?.comment || humanizeSchemaName(tableName))}</div>
           </div>
-          <span class="chip ${tableName === state.baseTable ? "chip-purple" : "chip-teal"}">${tableName === state.baseTable ? "Base" : "Join"}</span>
+          <span class="chip ${relationTone}">${relationLabel}</span>
         </div>
-        ${
-          relation
-            ? `<div class="text-muted" style="font-size:11px;margin-bottom:10px">${escHtml(relation.table)}.${escHtml(relation.column)} → ${escHtml(relation.referencedTable)}.${escHtml(relation.referencedColumn)}</div>`
-            : ""
-        }
+        <div class="text-muted" style="font-size:11px;margin-bottom:10px">${escHtml(relationSummary)}</div>
         <div style="display:flex;flex-direction:column;gap:8px">
           ${columns
             .map((col) => {
@@ -3496,6 +3611,96 @@
         </div>`;
       }
 
+      function renderSimpleVarBindingEditor(v, vi, ci, famId, couleur) {
+        if (!schemaMetaCache || !v?.sourceTable) return "";
+        const fam = DB.getFamily(famId);
+        if (!fam) return "";
+        const baseTable =
+          getBuilderState(famId, fam, schemaMetaCache).baseTable ||
+          v.baseTable ||
+          "";
+        if (!baseTable || v.sourceTable === baseTable) return "";
+        const relPath = getJoinPlan(schemaMetaCache, baseTable, v.sourceTable);
+        const baseColumns = getColumnsForTable(schemaMetaCache, baseTable);
+        const sourceColumns = getColumnsForTable(
+          schemaMetaCache,
+          v.sourceTable,
+        );
+        const canAuto = !!relPath?.length;
+        const canManual = hasManualVarLink(schemaMetaCache, baseTable, v);
+        const mode =
+          v.linkMode === "manual" ||
+          (!canAuto && (v.matchBaseColumn || v.matchSourceColumn))
+            ? "manual"
+            : "auto";
+        const relationInfo = canAuto
+          ? relPath
+              .map(
+                (step) =>
+                  `${step.relation.table}.${step.relation.column} -> ${step.relation.referencedTable}.${step.relation.referencedColumn}`,
+              )
+              .join(" | ")
+          : "Aucune jointure detectee dans le schema";
+        return `<div style="margin-top:6px;padding:10px;border:1px dashed ${couleur}35;border-radius:12px;background:${couleur}08">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${couleur};opacity:.9;margin-bottom:8px">Liaison de la variable</div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:8px">${escHtml(relationInfo)}</div>
+          <label style="font-size:10px;font-weight:600;color:var(--text2)">
+            Mode
+            <select onchange="updateVarLinkField('${famId}',${ci},${vi},'linkMode',this.value)" style="display:block;width:100%;margin-top:4px">
+              <option value="auto" ${mode !== "manual" ? "selected" : ""}>Jointure automatique</option>
+              <option value="manual" ${mode === "manual" ? "selected" : ""}>Correspondance manuelle</option>
+            </select>
+          </label>
+          ${
+            mode === "manual"
+              ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+                  <label style="font-size:10px;font-weight:600;color:var(--text2)">
+                    Colonne table principale
+                    <select onchange="updateVarLinkField('${famId}',${ci},${vi},'matchBaseColumn',this.value)" style="display:block;width:100%;margin-top:4px">
+                      <option value="">Choisir une colonne</option>
+                      ${baseColumns
+                        .map(
+                          (column) =>
+                            `<option value="${escAttr(column.name)}" ${
+                              column.name === (v.matchBaseColumn || "")
+                                ? "selected"
+                                : ""
+                            }>${escHtml(column.comment || humanizeSchemaName(column.name))}</option>`,
+                        )
+                        .join("")}
+                    </select>
+                  </label>
+                  <label style="font-size:10px;font-weight:600;color:var(--text2)">
+                    Colonne table secondaire
+                    <select onchange="updateVarLinkField('${famId}',${ci},${vi},'matchSourceColumn',this.value)" style="display:block;width:100%;margin-top:4px">
+                      <option value="">Choisir une colonne</option>
+                      ${sourceColumns
+                        .map(
+                          (column) =>
+                            `<option value="${escAttr(column.name)}" ${
+                              column.name === (v.matchSourceColumn || "")
+                                ? "selected"
+                                : ""
+                            }>${escHtml(column.comment || humanizeSchemaName(column.name))}</option>`,
+                        )
+                        .join("")}
+                    </select>
+                  </label>
+                </div>
+                <div style="font-size:10px;color:var(--text3);margin-top:8px">${
+                  canManual
+                    ? "Correspondance valide"
+                    : "Choisissez la colonne code de la table principale et la colonne code de la table secondaire"
+                }</div>`
+              : `<div style="font-size:10px;color:var(--text3);margin-top:8px">${
+                  canAuto
+                    ? "La jointure automatique sera utilisee pour cette variable."
+                    : "Aucune jointure detectee. Passez en correspondance manuelle."
+                }</div>`
+          }
+        </div>`;
+      }
+
       // ── Pill HTML pour une variable ───────────────────────────────
       function _renderVarPill(v, vi, ci, famId, couleur) {
         const isObj = v.type === "list-object";
@@ -3515,7 +3720,18 @@
           ${typeTag}${cols}
           <button class="var-pill-del" onclick="deleteVar('${famId}',${ci},${vi})">×</button>
         </div>`;
-        if (!isObj) return pillMarkup;
+        if (!isObj) {
+          const bindingEditor = renderSimpleVarBindingEditor(
+            v,
+            vi,
+            ci,
+            famId,
+            couleur,
+          );
+          return bindingEditor
+            ? `<div style="display:flex;flex-direction:column;gap:6px;max-width:100%">${pillMarkup}${bindingEditor}</div>`
+            : pillMarkup;
+        }
         return `<div style="display:flex;flex-direction:column;gap:6px;max-width:100%;padding:8px 10px;border:1px dashed ${couleur}35;border-radius:12px;background:${couleur}08">
           ${pillMarkup}
           <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${couleur};opacity:.9">Colonnes et affichage</div>
@@ -3712,7 +3928,9 @@
         if (!varDef || varDef.type !== "list-object") return;
         const fromIndex = Number(colIndex);
         const targetIndex = fromIndex + Number(direction || 0);
-        const displayCols = Array.isArray(varDef.columns) ? [...varDef.columns] : [];
+        const displayCols = Array.isArray(varDef.columns)
+          ? [...varDef.columns]
+          : [];
         if (
           !displayCols.length ||
           fromIndex < 0 ||
@@ -3725,7 +3943,10 @@
         const [movedDisplayCol] = displayCols.splice(fromIndex, 1);
         displayCols.splice(targetIndex, 0, movedDisplayCol);
         varDef.columns = displayCols;
-        if (Array.isArray(varDef.sourceColumns) && varDef.sourceColumns.length) {
+        if (
+          Array.isArray(varDef.sourceColumns) &&
+          varDef.sourceColumns.length
+        ) {
           const sourceCols = [...varDef.sourceColumns];
           if (sourceCols.length === displayCols.length) {
             const [movedSourceCol] = sourceCols.splice(fromIndex, 1);
@@ -3784,6 +4005,19 @@
           sourceCol.lookupLabelColumn = "";
         }
         varDef.sourceColumns[colIndex] = sourceCol;
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.updateVarLinkField = function (famId, ci, vi, field, value) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (!varDef) return;
+        varDef[field] = value || "";
+        if (field === "linkMode" && value !== "manual") {
+          varDef.linkMode = "auto";
+        }
         DB.saveFamily(fam);
         renderClassesContainer(famId);
         regenerateFamilySql(famId, true);
