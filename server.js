@@ -9,10 +9,10 @@ const ROOT_DIR = __dirname;
 const DEFAULT_FAMILY_BENEFICIARY_TABLE = "personnel";
 
 const config = {
-  user: "sa",
-  password: "N7vR2pXk9Lm4Qz8T",
-  server: "92.222.230.31",
-  database: "UnivAdENIMDB",
+  user: "**",
+  password: "***********",
+  server: "**.***.***.**",
+  database: "************",
   options: {
     encrypt: false,
     trustServerCertificate: true,
@@ -876,14 +876,6 @@ async function loadFamilies() {
     "family",
     "beneficiary_sql_text",
   );
-  const hasBeneficiaryDisplayColumn1 = await tableHasColumn(
-    "family",
-    "beneficiary_display_column_1",
-  );
-  const hasBeneficiaryDisplayColumn2 = await tableHasColumn(
-    "family",
-    "beneficiary_display_column_2",
-  );
   const hasFilterCatalog = await tableHasColumn(
     "family",
     "filter_catalog_json",
@@ -894,8 +886,6 @@ async function loadFamilies() {
     `SELECT id, nom, icon, description,
             ${hasBeneficiaryMode ? "beneficiary_mode," : "'table' AS beneficiary_mode,"}
             ${hasBeneficiaryTable ? "beneficiary_table," : "NULL AS beneficiary_table,"}
-            ${hasBeneficiaryDisplayColumn1 ? "beneficiary_display_column_1," : "NULL AS beneficiary_display_column_1,"}
-            ${hasBeneficiaryDisplayColumn2 ? "beneficiary_display_column_2," : "NULL AS beneficiary_display_column_2,"}
             ${hasBeneficiarySql ? "beneficiary_sql_text," : "NULL AS beneficiary_sql_text,"}
             ${hasFilterCatalog ? "filter_catalog_json," : "'[]' AS filter_catalog_json,"}
             sql_text, created_at, classes_json
@@ -912,8 +902,6 @@ async function loadFamilies() {
       row.beneficiary_mode === "etablissement"
         ? null
         : row.beneficiary_table || DEFAULT_FAMILY_BENEFICIARY_TABLE,
-    beneficiaryDisplayColumn1: row.beneficiary_display_column_1 || "",
-    beneficiaryDisplayColumn2: row.beneficiary_display_column_2 || "",
     beneficiarySql: row.beneficiary_sql_text || "",
     filterCatalog: safeJson(row.filter_catalog_json, []),
     sql: row.sql_text,
@@ -1308,14 +1296,6 @@ async function replaceState(state) {
     "family",
     "filter_catalog_json",
   );
-  const hasBeneficiaryDisplayColumn1 = await tableHasColumn(
-    "family",
-    "beneficiary_display_column_1",
-  );
-  const hasBeneficiaryDisplayColumn2 = await tableHasColumn(
-    "family",
-    "beneficiary_display_column_2",
-  );
   const hasFilterProfile = await tableHasColumn(
     "template",
     "filter_profile_json",
@@ -1468,20 +1448,6 @@ async function replaceState(state) {
           ? null
           : item.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE,
       );
-      if (hasBeneficiaryDisplayColumn1) {
-        r.input(
-          "beneficiary_display_column_1",
-          sql.NVarChar,
-          item.beneficiaryDisplayColumn1 || null,
-        );
-      }
-      if (hasBeneficiaryDisplayColumn2) {
-        r.input(
-          "beneficiary_display_column_2",
-          sql.NVarChar,
-          item.beneficiaryDisplayColumn2 || null,
-        );
-      }
       r.input("beneficiary_sql_text", sql.NVarChar, item.beneficiarySql || "");
       if (hasFilterCatalog) {
         r.input(
@@ -1496,11 +1462,9 @@ async function replaceState(state) {
       await r.query(
         `INSERT INTO family
            (id, nom, icon, description, beneficiary_mode, beneficiary_table,
-            ${hasBeneficiaryDisplayColumn1 ? "beneficiary_display_column_1," : ""}${hasBeneficiaryDisplayColumn2 ? "beneficiary_display_column_2," : ""}
             beneficiary_sql_text, ${hasFilterCatalog ? "filter_catalog_json," : ""} sql_text, created_at, classes_json)
          VALUES
            (@id, @nom, @icon, @description, @beneficiary_mode, @beneficiary_table,
-            ${hasBeneficiaryDisplayColumn1 ? "@beneficiary_display_column_1," : ""}${hasBeneficiaryDisplayColumn2 ? "@beneficiary_display_column_2," : ""}
             @beneficiary_sql_text, ${hasFilterCatalog ? "@filter_catalog_json," : ""} @sql_text, @created_at, @classes_json)`,
       );
     }
