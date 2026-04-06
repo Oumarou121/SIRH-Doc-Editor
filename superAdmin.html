@@ -2632,12 +2632,9 @@
         if (configured.length) return configured;
         const columns = getColumnsForTable(schema, tableName);
         const fullNameColumn = columns.find((column) =>
-          [
-            "nom_prenom",
-            "nom_complet",
-            "display_name",
-            "full_name",
-          ].includes(column.name),
+          ["nom_prenom", "nom_complet", "display_name", "full_name"].includes(
+            column.name,
+          ),
         )?.name;
         if (fullNameColumn) return [fullNameColumn];
         const nomColumn = columns.find((column) => column.name === "nom")?.name;
@@ -2654,7 +2651,9 @@
       }
 
       function buildBeneficiaryDisplaySqlExpr(columns = [], alias = "src") {
-        const validColumns = (Array.isArray(columns) ? columns : []).filter(Boolean);
+        const validColumns = (Array.isArray(columns) ? columns : []).filter(
+          Boolean,
+        );
         if (!validColumns.length) return "";
         const parts = validColumns.map(
           (columnName) =>
@@ -2896,9 +2895,7 @@
         return [
           "SELECT",
           `  TOP (500) ${sourceAlias}.${sqlId(pk)} AS id,`,
-          `  ${labelSqlExpr} AS libelle${
-            subtitleColumn ? "," : ""
-          }`,
+          `  ${labelSqlExpr} AS libelle${subtitleColumn ? "," : ""}`,
           subtitleColumn
             ? `  ${sourceAlias}.${sqlId(subtitleColumn)} AS sous_libelle`
             : "",
@@ -3800,32 +3797,32 @@
                   </div>
                   ${
                     hasSqlSource
-                      ? `<label style="font-size:10px;font-weight:600;color:var(--text2)">
+                      ? `<label class="form-label" style="font-size:10px;color:var(--text2)">
                           Affichage
-                          <select onchange="updateVarColumnLookupField('${famId}',${ci},${vi},${colIndex},'displayMode',this.value)" style="display:block;width:100%;margin-top:4px">
+                          <select class="form-input" onchange="updateVarColumnLookupField('${famId}',${ci},${vi},${colIndex},'displayMode',this.value)" style="display:block;width:100%;margin-top:4px">
                             <option value="raw" ${displayMode !== "lookup" ? "selected" : ""}>Valeur source</option>
                             <option value="lookup" ${displayMode === "lookup" ? "selected" : ""}>Libellé depuis une table</option>
                           </select>
                         </label>
                         ${
                           displayMode === "lookup"
-                            ? `<label style="font-size:10px;font-weight:600;color:var(--text2)">
+                            ? `<label class="form-label" style="font-size:10px;color:var(--text2)">
                                 Table libellé
-                                <select onchange="updateVarColumnLookupField('${famId}',${ci},${vi},${colIndex},'lookupTable',this.value)" style="display:block;width:100%;margin-top:4px">
+                                <select class="form-input" onchange="updateVarColumnLookupField('${famId}',${ci},${vi},${colIndex},'lookupTable',this.value)" style="display:block;width:100%;margin-top:4px">
                                   <option value="">Choisir une table</option>
                                   ${buildLookupTableOptions(lookupTable)}
                                 </select>
                               </label>
-                              <label style="font-size:10px;font-weight:600;color:var(--text2)">
+                              <label class="form-label" style="font-size:10px;color:var(--text2)">
                                 Colonne code
-                                <select onchange="updateVarColumnLookupField('${famId}',${ci},${vi},${colIndex},'lookupValueColumn',this.value)" style="display:block;width:100%;margin-top:4px">
+                                <select class="form-input" onchange="updateVarColumnLookupField('${famId}',${ci},${vi},${colIndex},'lookupValueColumn',this.value)" style="display:block;width:100%;margin-top:4px">
                                   <option value="">Choisir une colonne</option>
                                   ${buildLookupColumnOptions(lookupTable, lookupValueColumn)}
                                 </select>
                               </label>
-                              <label style="font-size:10px;font-weight:600;color:var(--text2)">
+                              <label class="form-label" style="font-size:10px;color:var(--text2)">
                                 Colonne libellé
-                                <select onchange="updateVarColumnLookupField('${famId}',${ci},${vi},${colIndex},'lookupLabelColumn',this.value)" style="display:block;width:100%;margin-top:4px">
+                                <select class="form-input" onchange="updateVarColumnLookupField('${famId}',${ci},${vi},${colIndex},'lookupLabelColumn',this.value)" style="display:block;width:100%;margin-top:4px">
                                   <option value="">Choisir une colonne</option>
                                   ${buildLookupColumnOptions(lookupTable, lookupLabelColumn)}
                                 </select>
@@ -3873,9 +3870,9 @@
         return `<div style="margin-top:6px;padding:10px;border:1px dashed ${couleur}35;border-radius:12px;background:${couleur}08">
           <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${couleur};opacity:.9;margin-bottom:8px">Liaison de la variable</div>
           <div style="font-size:10px;color:var(--text3);margin-bottom:8px">${escHtml(relationInfo)}</div>
-          <label style="font-size:10px;font-weight:600;color:var(--text2)">
+          <label class="form-label" style="font-size:10px;color:var(--text2)">
             Mode
-            <select onchange="updateVarLinkField('${famId}',${ci},${vi},'linkMode',this.value)" style="display:block;width:100%;margin-top:4px">
+            <select class="form-input" onchange="updateVarLinkField('${famId}',${ci},${vi},'linkMode',this.value)" style="display:block;width:100%;margin-top:4px">
               <option value="auto" ${mode !== "manual" ? "selected" : ""}>Jointure automatique</option>
               <option value="manual" ${mode === "manual" ? "selected" : ""}>Correspondance manuelle</option>
             </select>
@@ -3883,9 +3880,9 @@
           ${
             mode === "manual"
               ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-                  <label style="font-size:10px;font-weight:600;color:var(--text2)">
+                  <label class="form-label" style="font-size:10px;color:var(--text2)">
                     Colonne table principale
-                    <select onchange="updateVarLinkField('${famId}',${ci},${vi},'matchBaseColumn',this.value)" style="display:block;width:100%;margin-top:4px">
+                    <select class="form-input" onchange="updateVarLinkField('${famId}',${ci},${vi},'matchBaseColumn',this.value)" style="display:block;width:100%;margin-top:4px">
                       <option value="">Choisir une colonne</option>
                       ${baseColumns
                         .map(
@@ -3899,9 +3896,9 @@
                         .join("")}
                     </select>
                   </label>
-                  <label style="font-size:10px;font-weight:600;color:var(--text2)">
+                  <label class="form-label" style="font-size:10px;color:var(--text2)">
                     Colonne table secondaire
-                    <select onchange="updateVarLinkField('${famId}',${ci},${vi},'matchSourceColumn',this.value)" style="display:block;width:100%;margin-top:4px">
+                    <select class="form-input" onchange="updateVarLinkField('${famId}',${ci},${vi},'matchSourceColumn',this.value)" style="display:block;width:100%;margin-top:4px">
                       <option value="">Choisir une colonne</option>
                       ${sourceColumns
                         .map(
