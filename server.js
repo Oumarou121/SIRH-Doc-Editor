@@ -9,10 +9,10 @@ const ROOT_DIR = __dirname;
 const DEFAULT_FAMILY_BENEFICIARY_TABLE = "personnel";
 
 const config = {
-  user: "**",
-  password: "***********",
-  server: "**.***.***.**",
-  database: "************",
+  user: "sa",
+  password: "N7vR2pXk9Lm4Qz8T",
+  server: "92.222.230.31",
+  database: "UnivAdENIMDB",
   options: {
     encrypt: false,
     trustServerCertificate: true,
