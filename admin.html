@@ -569,16 +569,6 @@
         width: 12px;
         height: 12px;
       }
-      .vars-floating-toggle {
-        position: absolute;
-        right: 14px;
-        top: 14px;
-        z-index: 35;
-        display: none;
-      }
-      .vars-floating-toggle.on {
-        display: inline-flex;
-      }
       .vars-panel-scroll {
         flex: 1;
         overflow: auto;
@@ -2155,6 +2145,18 @@
             </svg>
             Panneau
           </div>
+          <div class="nlink" id="varsTopToggleBtn" onclick="toggleVarsPanel()">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <line x1="15" y1="4" x2="15" y2="20" />
+            </svg>
+            Variables
+          </div>
           <div class="nlink" onclick="openPageSettings()">
             <svg
               viewBox="0 0 24 24"
@@ -2264,24 +2266,6 @@
               overflow: hidden;
             "
           >
-            <button
-              type="button"
-              class="vars-toggle-btn vars-floating-toggle"
-              id="varsToggleFloatingBtn"
-              onclick="toggleVarsPanel()"
-              title="Afficher le panneau de variables"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-                <line x1="15" y1="4" x2="15" y2="20"></line>
-              </svg>
-              Variables
-            </button>
             <div class="tname-bar">
               <input
                 class="tname-input"
@@ -3071,7 +3055,7 @@
           </div>
         </div>
 
-        <aside class="vars-sidepanel" id="varsSidepanel">
+        <aside class="vars-sidepanel hidden" id="varsSidepanel">
           <div class="vars-sidepanel-head">
             <div class="vars-sidepanel-headrow">
               <div class="vars-sidepanel-title">
@@ -3080,24 +3064,6 @@
                   >Insertion rapide</span
                 >
               </div>
-              <button
-                type="button"
-                class="vars-toggle-btn"
-                id="varsToggleBtn"
-                onclick="toggleVarsPanel()"
-                title="Masquer le panneau de variables"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-                  <line x1="15" y1="4" x2="15" y2="20"></line>
-                </svg>
-                Masquer
-              </button>
             </div>
             <div class="vars-sidepanel-sub">
               Organisées par type pour trouver plus vite la bonne variable.
@@ -4768,7 +4734,7 @@
         footerEnabled = false;
       let currentAdminSection = "body";
       let currentVarPanelType = "simple";
-      let varsPanelVisible = true;
+      let varsPanelVisible = false;
       let _activeResizeImg = null,
         _activeResizeImgEl = null;
       let pageGuideRaf = 0;
@@ -4937,9 +4903,8 @@
       function updateVarsPanelVisibility() {
         const panel = document.getElementById("varsSidepanel");
         const dockBtn = document.getElementById("varsToggleBtn");
-        const floatingBtn = document.getElementById("varsToggleFloatingBtn");
+        const topBtn = document.getElementById("varsTopToggleBtn");
         if (panel) panel.classList.toggle("hidden", !varsPanelVisible);
-        if (floatingBtn) floatingBtn.classList.toggle("on", !varsPanelVisible);
         if (dockBtn) {
           dockBtn.innerHTML = varsPanelVisible
             ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -4956,8 +4921,19 @@
             ? "Masquer le panneau de variables"
             : "Afficher le panneau de variables";
         }
-        if (floatingBtn) {
-          floatingBtn.title = varsPanelVisible
+        if (topBtn) {
+          topBtn.innerHTML = varsPanelVisible
+            ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                <line x1="15" y1="4" x2="15" y2="20"></line>
+              </svg>
+              Variables ON`
+            : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                <line x1="15" y1="4" x2="15" y2="20"></line>
+              </svg>
+              Variables`;
+          topBtn.title = varsPanelVisible
             ? "Masquer le panneau de variables"
             : "Afficher le panneau de variables";
         }
@@ -6570,8 +6546,8 @@
 
       function readGraphicCharterForm() {
         const existing = normalizeGraphicCharterConfig(
-          getGraphicCharter(getActiveEtabId(), editingGraphicCharterId)?.config ||
-            {},
+          getGraphicCharter(getActiveEtabId(), editingGraphicCharterId)
+            ?.config || {},
         );
         return {
           name: document.getElementById("gc-name").value.trim(),
