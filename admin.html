@@ -2328,11 +2328,26 @@
                 Appliquer au document
               </button>
               <button
+                class="btn ghost sm"
+                id="charterLoadSectionBtn"
+                onclick="loadActiveSectionFromGraphicCharter()"
+              >
+                Charger section active
+              </button>
+              <button
+                class="btn ghost sm"
+                id="charterSaveSectionBtn"
+                onclick="saveActiveSectionToGraphicCharter()"
+              >
+                Enregistrer dans la charte
+              </button>
+              <button
                 class="btn danger sm"
                 onclick="deleteCurrentGraphicCharter()"
               >
                 Supprimer
               </button>
+              <span class="charter-bar-note" id="graphicCharterSectionMeta"></span>
               <span class="charter-bar-note" id="graphicCharterMeta"></span>
             </div>
 
@@ -6501,6 +6516,39 @@
           : charter.description || charter.name;
       }
 
+      function getGraphicCharterEditableSection() {
+        return currentAdminSection === "header" || currentAdminSection === "footer"
+          ? currentAdminSection
+          : null;
+      }
+
+      function updateGraphicCharterSectionActions() {
+        const loadBtn = document.getElementById("charterLoadSectionBtn");
+        const saveBtn = document.getElementById("charterSaveSectionBtn");
+        const meta = document.getElementById("graphicCharterSectionMeta");
+        const section = getGraphicCharterEditableSection();
+        const charterId = getSelectedGraphicCharterId();
+        const hasTpl = !!curTplId;
+        const disabled = !section || !charterId || !hasTpl;
+        const labels = {
+          header: "En-tete",
+          footer: "Pied de page",
+        };
+        if (loadBtn) loadBtn.disabled = disabled;
+        if (saveBtn) saveBtn.disabled = disabled;
+        if (!meta) return;
+        if (!hasTpl) {
+          meta.textContent = "Ouvrez un template pour synchroniser la charte.";
+          return;
+        }
+        if (!section) {
+          meta.textContent =
+            "Passez sur En-tete ou Pied de page pour gerer la charte depuis l'editeur.";
+          return;
+        }
+        meta.textContent = `${labels[section]} actif - synchronisation directe avec la charte.`;
+      }
+
       function populateGraphicCharterSelect(selectedId = null) {
         const select = document.getElementById("graphicCharterSelect");
         if (!select) return [];
@@ -6715,11 +6763,90 @@
         const tpl = curTplId ? DB.getTemplate(curTplId) : null;
         const charter = getGraphicCharter(getActiveEtabId(), charterId);
         setGraphicCharterMeta(charter);
+        updateGraphicCharterSectionActions();
         if (!tpl || !charterId || !charter) return;
         syncTemplateLayoutFromCharter(tpl, charter);
         DB.saveTemplate(tpl);
         renderTplList(curFamId);
         setSaveState("Modifie", true);
+      };
+
+      window.loadActiveSectionFromGraphicCharter = function () {
+        const section = getGraphicCharterEditableSection();
+        const charterId =
+          getSelectedGraphicCharterId() ||
+          getDefaultGraphicCharterId(getActiveEtabId());
+        const charter = getGraphicCharter(getActiveEtabId(), charterId);
+        if (!curTplId || !section) {
+          toast("Ouvrez l'en-tete ou le pied pour charger depuis la charte", "error");
+          return;
+        }
+        if (!charter) {
+          toast("Aucune charte disponible", "error");
+          return;
+        }
+        const config = normalizeGraphicCharterConfig(charter.config || {});
+        if (section === "header") {
+          headerEnabled = true;
+          updateSectionVisibility();
+          if (editorHeader) setEditorHTML(editorHeader, config.header.html || "");
+        } else {
+          footerEnabled = true;
+          updateSectionVisibility();
+          if (editorFooter) setEditorHTML(editorFooter, config.footer.html || "");
+        }
+        switchSection(section);
+        onEditorChange();
+        toast(
+          section === "header"
+            ? "En-tete charge depuis la charte"
+            : "Pied de page charge depuis la charte",
+          "success",
+        );
+      };
+
+      window.saveActiveSectionToGraphicCharter = function () {
+        const section = getGraphicCharterEditableSection();
+        const charterId =
+          getSelectedGraphicCharterId() ||
+          getDefaultGraphicCharterId(getActiveEtabId());
+        const current = getGraphicCharter(getActiveEtabId(), charterId);
+        if (!curTplId || !section) {
+          toast(
+            "Passez sur l'en-tete ou le pied de page pour enregistrer dans la charte",
+            "error",
+          );
+          return;
+        }
+        if (!current) {
+          toast("Aucune charte disponible", "error");
+          return;
+        }
+        const cfg = normalizeGraphicCharterConfig(current.config || {});
+        if (section === "header") {
+          cfg.header.html = editorHeader ? getEditorHTML(editorHeader) : "";
+          cfg.header.enabledByDefault = !!headerEnabled;
+        } else {
+          cfg.footer.html = editorFooter ? getEditorHTML(editorFooter) : "";
+          cfg.footer.enabledByDefault = !!footerEnabled;
+        }
+        const saved = saveGraphicCharter(getActiveEtabId(), {
+          ...current,
+          config: cfg,
+        });
+        if (!saved) {
+          toast("Impossible d'enregistrer la charte", "error");
+          return;
+        }
+        populateGraphicCharterSelect(saved.id);
+        updateGraphicCharterSectionActions();
+        setSaveState("Modifie", true);
+        toast(
+          section === "header"
+            ? "En-tete enregistre dans la charte"
+            : "Pied de page enregistre dans la charte",
+          "success",
+        );
       };
 
       window.applySelectedGraphicCharterToTemplate = function () {
@@ -6838,6 +6965,7 @@
         if (canvas) canvas.classList.add("on");
         if (filters) filters.classList.remove("on");
         updateVarsPanelVisibility();
+        updateGraphicCharterSectionActions();
         destroyEditors();
       }
       function destroyEditors() {
@@ -6912,6 +7040,7 @@
         footerEnabled = !!tpl.hasFooter;
         updateSectionVisibility();
         switchSection("body");
+        updateGraphicCharterSectionActions();
         updateWordCount();
         bindEditorPaginationVisuals();
 
@@ -7412,6 +7541,7 @@
           } catch (_) {}
           activeEditor = ed;
         }
+        updateGraphicCharterSectionActions();
       };
 
       window.toggleSection = function (sec) {
