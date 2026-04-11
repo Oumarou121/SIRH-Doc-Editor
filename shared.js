@@ -1132,6 +1132,7 @@ const DEFAULT_GRAPHIC_CHARTER = Object.freeze({
   layout: {
     orientation: "portrait",
     pageMargins: { mt: 20, mb: 20, ml: 25, mr: 25 },
+    headerFooterDistances: { headerTop: 5, footerBottom: 5 },
     pageBackground: {
       enabled: false,
       image: "",
@@ -1224,10 +1225,14 @@ function normalizeTemplateRecord(record = {}) {
   next.graphicCharterId = next.graphicCharterId
     ? String(next.graphicCharterId)
     : null;
+  next.headerFooterDistances = normalizeHeaderFooterDistances(
+    next.headerFooterDistances || next.pageHeaderFooterDistances,
+  );
   next.filterProfile = normalizeTemplateFilterProfile(
     next.filterProfile || next.filterProfileJson || [],
   );
   delete next.filterProfileJson;
+  delete next.pageHeaderFooterDistances;
   return next;
 }
 
@@ -1259,6 +1264,18 @@ function normalizeMargins(src, fallback) {
     mb: toNum(src?.mb, base.mb),
     ml: toNum(src?.ml, base.ml),
     mr: toNum(src?.mr, base.mr),
+  };
+}
+
+function normalizeHeaderFooterDistances(src, fallback) {
+  const base = fallback || DEFAULT_GRAPHIC_CHARTER.layout.headerFooterDistances;
+  const toNum = (value, def) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : def;
+  };
+  return {
+    headerTop: toNum(src?.headerTop, base.headerTop),
+    footerBottom: toNum(src?.footerBottom, base.footerBottom),
   };
 }
 
@@ -1323,6 +1340,9 @@ function normalizeGraphicCharterConfig(config = {}) {
         ? "landscape"
         : "portrait",
     pageMargins: normalizeMargins(merged.layout?.pageMargins),
+    headerFooterDistances: normalizeHeaderFooterDistances(
+      merged.layout?.headerFooterDistances,
+    ),
     pageBackground: normalizePageBackground(merged.layout?.pageBackground),
   };
   merged.header = {
@@ -1528,6 +1548,8 @@ function buildDocumentContext(tpl, person) {
 function getDocumentThemeVars(tpl) {
   const charter = getTemplateGraphicCharter(tpl);
   const pageBackground = getTemplatePageBackground(tpl);
+  const margins = getTemplatePageMargins(tpl);
+  const distances = getTemplateHeaderFooterDistances(tpl);
   return {
     "--doc-font-body": charter.typography.bodyFont,
     "--doc-font-heading": charter.typography.headingFont,
@@ -1547,6 +1569,12 @@ function getDocumentThemeVars(tpl) {
     "--doc-page-bg-size": pageBackground.size,
     "--doc-page-bg-position": pageBackground.position,
     "--doc-page-bg-repeat": pageBackground.repeat,
+    "--page-mt": `${margins.mt}mm`,
+    "--page-mb": `${margins.mb}mm`,
+    "--page-ml": `${margins.ml}mm`,
+    "--page-mr": `${margins.mr}mm`,
+    "--page-header-top": `${distances.headerTop}mm`,
+    "--page-footer-bottom": `${distances.footerBottom}mm`,
   };
 }
 
@@ -1603,6 +1631,9 @@ function createTemplateFromGraphicCharter(
     hasFooter: !!charter.footer.enabledByDefault,
     orientation: charter.layout.orientation,
     pageMargins: normalizeMargins(charter.layout.pageMargins),
+    headerFooterDistances: normalizeHeaderFooterDistances(
+      charter.layout.headerFooterDistances,
+    ),
     header: charter.header.html || "",
     body: "<p>Rédigez le contenu du document ici.</p>",
     footer: charter.footer.html || "",
@@ -1685,9 +1716,9 @@ function _buildObjectTable(
   return `<table style="${tableStyle}">${thead}<tbody>${rows.join("")}</tbody></table>`;
 }
 
-function getPageSectionPaddings(margins) {
-  const headerTop = 5;
-  const footerBottom = 5;
+function getPageSectionPaddings(margins, distances) {
+  const headerTop = Number(distances?.headerTop) || 5;
+  const footerBottom = Number(distances?.footerBottom) || 5;
   const contentTopGap = 2;
   const contentBottomGap = 2;
   return {
@@ -2033,6 +2064,14 @@ function getTemplatePageMargins(tpl) {
   return normalizeMargins(tpl?.pageMargins, charter.layout.pageMargins);
 }
 
+function getTemplateHeaderFooterDistances(tpl) {
+  const charter = getTemplateGraphicCharter(tpl);
+  return normalizeHeaderFooterDistances(
+    tpl?.headerFooterDistances || tpl?.pageHeaderFooterDistances,
+    charter.layout.headerFooterDistances,
+  );
+}
+
 function getTemplateOrientation(tpl) {
   const charter = getTemplateGraphicCharter(tpl);
   const o = (
@@ -2248,11 +2287,11 @@ body  { margin: 0; background: #fff; }
 .a4-page:last-child { page-break-after: auto; break-after: auto; }
 .a4-header {
   flex-shrink: 0;
-  padding: 5mm var(--page-mr, 25mm) 3mm var(--page-ml, 25mm);
+  padding: var(--page-header-top, 5mm) var(--page-mr, 25mm) 3mm var(--page-ml, 25mm);
 }
 .a4-footer {
   flex-shrink: 0; margin-top: auto;
-  padding: 3mm var(--page-mr, 25mm) 5mm var(--page-ml, 25mm);
+  padding: 3mm var(--page-mr, 25mm) var(--page-footer-bottom, 5mm) var(--page-ml, 25mm);
 }
 .a4-body {
   flex: 1;
@@ -2348,6 +2387,8 @@ class PagePaginator {
     this.marginBottomMm = opts.marginBottom || 20;
     this.marginLeftMm = opts.marginLeft || 25;
     this.marginRightMm = opts.marginRight || 25;
+    this.headerTopMm = opts.headerTop || 5;
+    this.footerBottomMm = opts.footerBottom || 5;
 
     // Conversion mm → px (96 DPI standard)
     this.mmToPx = (mm) => (mm * 96) / 25.4;
@@ -2496,7 +2537,7 @@ class PagePaginator {
     if (headerHtml) {
       const hdrEl = document.createElement("div");
       hdrEl.innerHTML = headerHtml;
-      hdrEl.style.padding = `5mm ${this.marginRightMm}mm 3mm ${this.marginLeftMm}mm`;
+      hdrEl.style.padding = `${this.headerTopMm}mm ${this.marginRightMm}mm 3mm ${this.marginLeftMm}mm`;
       this._applyMeasureContentStyles(hdrEl);
       tempContainer.appendChild(hdrEl);
       this.headerHeight = hdrEl.offsetHeight;
@@ -2507,7 +2548,7 @@ class PagePaginator {
     if (footerHtml) {
       const ftrEl = document.createElement("div");
       ftrEl.innerHTML = footerHtml;
-      ftrEl.style.padding = `3mm ${this.marginRightMm}mm 5mm ${this.marginLeftMm}mm`;
+      ftrEl.style.padding = `3mm ${this.marginRightMm}mm ${this.footerBottomMm}mm ${this.marginLeftMm}mm`;
       this._applyMeasureContentStyles(ftrEl);
       tempContainer.appendChild(ftrEl);
       this.footerHeight = ftrEl.offsetHeight;
@@ -2682,6 +2723,7 @@ class PagePaginator {
 function paginateWithVariablesBlue(tpl, person) {
   if (!tpl || !person) return { pages: [], hasHeader: false, hasFooter: false };
   const margins = getTemplatePageMargins(tpl);
+  const distances = getTemplateHeaderFooterDistances(tpl);
   const charter = getTemplateGraphicCharter(tpl);
   const context = buildDocumentContext(tpl, person);
 
@@ -2697,6 +2739,8 @@ function paginateWithVariablesBlue(tpl, person) {
     marginBottom: margins.mb,
     marginLeft: margins.ml,
     marginRight: margins.mr,
+    headerTop: distances.headerTop,
+    footerBottom: distances.footerBottom,
     orientation,
     theme: charter,
   });
@@ -2720,12 +2764,13 @@ function previewDocument(tpl, person) {
     return;
   }
   const margins = getTemplatePageMargins(tpl);
+  const distances = getTemplateHeaderFooterDistances(tpl);
   const orientation = getTemplateOrientation(tpl);
   const charter = getTemplateGraphicCharter(tpl);
   const context = buildDocumentContext(tpl, person);
   const pageWidth = orientation === "landscape" ? "297mm" : "210mm";
   const pageHeight = orientation === "landscape" ? "210mm" : "297mm";
-  const paddings = getPageSectionPaddings(margins);
+  const paddings = getPageSectionPaddings(margins, distances);
 
   const hdrRaw = tpl.hasHeader ? resolveVars(tpl.header || "", context) : "";
   const bRaw = resolveVars(tpl.body || "", context);
@@ -2737,6 +2782,8 @@ function previewDocument(tpl, person) {
     marginBottom: margins.mb,
     marginLeft: margins.ml,
     marginRight: margins.mr,
+    headerTop: distances.headerTop,
+    footerBottom: distances.footerBottom,
     orientation,
     theme: charter,
   });
@@ -3060,12 +3107,13 @@ function printDocPaginated(tpl, person, pages = null) {
     return;
   }
   const margins = getTemplatePageMargins(tpl);
+  const distances = getTemplateHeaderFooterDistances(tpl);
   const orientation = getTemplateOrientation(tpl);
   const charter = getTemplateGraphicCharter(tpl);
   const context = buildDocumentContext(tpl, person);
   const pageWidth = orientation === "landscape" ? "297mm" : "210mm";
   const pageHeight = orientation === "landscape" ? "210mm" : "297mm";
-  const paddings = getPageSectionPaddings(margins);
+  const paddings = getPageSectionPaddings(margins, distances);
 
   // Utiliser les pages déjà paginées ou les générer
   let pagesToPrint = pages;
@@ -3083,6 +3131,8 @@ function printDocPaginated(tpl, person, pages = null) {
       marginBottom: margins.mb,
       marginLeft: margins.ml,
       marginRight: margins.mr,
+      headerTop: distances.headerTop,
+      footerBottom: distances.footerBottom,
       orientation,
       theme: charter,
     });
@@ -3474,8 +3524,8 @@ window.EditorPageManager = EditorPageManager;
 
 // ═══════════════════════════════════════════════════════════════
 //  EditorPageVisualizer
-//  Affiche des lignes pointillées dans #sec-body pour matérialiser
-//  les sauts de page A4 en temps réel pendant l'édition.
+//  Affiche de vrais blocs de pages dans #sec-body pour matérialiser
+//  les pages A4 en temps réel pendant l'édition.
 //  Compatible avec admin.html : new EditorPageVisualizer({...})
 // ═══════════════════════════════════════════════════════════════
 
@@ -3528,7 +3578,7 @@ class EditorPageVisualizer {
     if (!el) return;
     this._secBody = el;
 
-    // Créer (ou récupérer) le conteneur de guides
+    // Créer (ou récupérer) le conteneur visuel des pages
     let guides = el.querySelector(".epv-guides");
     if (!guides) {
       guides = document.createElement("div");
@@ -3543,7 +3593,7 @@ class EditorPageVisualizer {
     }
     this._guides = guides;
 
-    // Injecter le CSS des lignes de page (une seule fois)
+    // Injecter le CSS des pages (une seule fois)
     this._injectCSS();
 
     // Observer les changements de taille du contenu
@@ -3610,19 +3660,23 @@ class EditorPageVisualizer {
 
     const totalPages = Math.max(1, Math.ceil(totalH / pageUsable));
 
-    // Reconstruire les lignes de saut de page
+    // Reconstruire les blocs de page
     guides.innerHTML = "";
     guides.style.height = totalH + padTop + padBottom + "px";
 
-    for (let p = 2; p <= totalPages; p++) {
+    const currentPage = Math.max(
+      1,
+      Math.min(totalPages, Math.floor(secBody.scrollTop / pageUsable) + 1),
+    );
+
+    for (let p = 1; p <= totalPages; p++) {
       const top = (p - 1) * pageUsable;
-
-      const line = document.createElement("div");
-      line.className = "epv-line";
-      line.style.top = top + padTop + "px";
-      line.dataset.label = `— Page ${p} —`;
-
-      guides.appendChild(line);
+      const page = document.createElement("div");
+      page.className = `epv-page${p === currentPage ? " active" : ""}`;
+      page.style.top = top + padTop + "px";
+      page.style.height = pageUsable + "px";
+      page.dataset.page = `Page ${p}`;
+      guides.appendChild(page);
     }
 
     // Mettre à jour le badge "Page X / Y" si présent
@@ -3648,28 +3702,60 @@ class EditorPageVisualizer {
     s.id = "epv-css";
     s.textContent = `
       .epv-guides {
-        position: absolute; inset: 0;
-        pointer-events: none; z-index: 0;
-      }
-      .epv-line {
         position: absolute;
-        left: 6px; right: 6px; height: 0;
-        border-top: 2px dashed rgba(148,153,176,.42);
-        transition: border-color .15s;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
       }
-      .epv-line::after {
-        content: attr(data-label);
+      .epv-page {
         position: absolute;
-        right: 0; top: -12px;
-        padding: 2px 10px;
+        left: 0;
+        right: 0;
+        background: rgba(255,255,255,.96);
+        border-radius: 8px;
+        box-shadow:
+          0 0 0 1px rgba(15, 23, 42, 0.08),
+          0 10px 24px rgba(15, 23, 42, 0.08);
+        transition:
+          box-shadow .16s ease,
+          border-color .16s ease,
+          background .16s ease;
+      }
+      .epv-page::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 8px;
+        border: 1px solid rgba(148,153,176,.18);
+      }
+      .epv-page::after {
+        content: attr(data-page);
+        position: absolute;
+        right: 12px;
+        bottom: 10px;
+        padding: 2px 8px;
         border-radius: 999px;
-        font-size: 10px; font-weight: 700; letter-spacing: .03em;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .03em;
         color: #667085;
-        background: rgba(240,242,245,.96);
-        border: 1px solid rgba(148,153,176,.25);
+        background: rgba(255,255,255,.94);
+        border: 1px solid rgba(148,153,176,.22);
         font-family: 'IBM Plex Sans', sans-serif;
         white-space: nowrap;
-        pointer-events: none;
+      }
+      .epv-page.active {
+        box-shadow:
+          0 0 0 1px rgba(37,99,235,.18),
+          0 14px 30px rgba(37,99,235,.08);
+      }
+      .epv-page.active::before {
+        border-color: rgba(37,99,235,.28);
+      }
+      .epv-page.active::after {
+        color: #1d4ed8;
+        border-color: rgba(37,99,235,.2);
+        background: rgba(239,246,255,.96);
       }
     `;
     document.head.appendChild(s);

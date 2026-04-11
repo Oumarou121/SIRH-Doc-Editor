@@ -58,8 +58,8 @@
         --page-mb: 20mm;
         --page-ml: 25mm;
         --page-mr: 25mm;
-        --header-h: 20mm;
-        --footer-h: 14mm;
+        --page-header-top: 5mm;
+        --page-footer-bottom: 5mm;
         --doc-font-body: "Times New Roman", Times, serif;
         --doc-font-heading: "Times New Roman", Times, serif;
         --doc-color-primary: #1d4ed8;
@@ -1065,17 +1065,15 @@
         overflow: hidden;
       }
       .a4-header {
-        padding: 5mm var(--page-mr) 3mm var(--page-ml);
+        padding: var(--page-header-top) var(--page-mr) 3mm var(--page-ml);
         border-bottom: 1px dashed var(--doc-color-border);
         flex-shrink: 0;
-        min-height: var(--header-h);
         position: relative;
       }
       .a4-footer {
-        padding: 3mm var(--page-mr) 5mm var(--page-ml);
+        padding: 3mm var(--page-mr) var(--page-footer-bottom) var(--page-ml);
         border-top: 1px dashed var(--doc-color-border);
         flex-shrink: 0;
-        min-height: var(--footer-h);
         position: relative;
         margin-top: auto;
       }
@@ -1140,38 +1138,9 @@
         pointer-events: none;
         z-index: 0;
       }
-      .editor-page-line {
-        position: absolute;
-        left: 10px;
-        right: 10px;
-        height: 0;
-        border-top: 2px dashed rgba(148, 153, 176, 0.45);
-        transition:
-          border-color 0.12s ease,
-          opacity 0.12s ease;
-        opacity: 0.9;
-      }
-      .editor-page-line::before {
-        content: attr(data-label);
-        position: absolute;
-        right: 0;
-        top: -12px;
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.03em;
-        color: #667085;
-        background: rgba(240, 242, 245, 0.96);
-        border: 1px solid rgba(148, 153, 176, 0.28);
-      }
-      .editor-page-line.active {
-        border-top-color: rgba(37, 99, 235, 0.75);
-      }
-      .editor-page-line.active::before {
-        color: var(--accent2);
-        background: rgba(239, 246, 255, 0.98);
-        border-color: rgba(37, 99, 235, 0.24);
+      #sec-body > .tiptap-wrapper {
+        position: relative;
+        z-index: 1;
       }
 
       /* ── DOC CONTENT (Tiptap) ── */
@@ -1588,7 +1557,7 @@
         overflow: hidden;
       }
       .preview-page .prev-header {
-        padding: 5mm var(--page-mr) 3mm var(--page-ml);
+        padding: var(--page-header-top) var(--page-mr) 3mm var(--page-ml);
         border-bottom: 1px solid var(--doc-color-border);
         flex-shrink: 0;
         font-family: var(--doc-font-body);
@@ -1598,7 +1567,7 @@
       }
       .preview-page .prev-body {
         flex: 1;
-        padding: 5mm var(--page-mr) 5mm var(--page-ml);
+        padding: 2mm var(--page-mr) 2mm var(--page-ml);
         overflow: hidden;
         font-family: var(--doc-font-body);
         font-size: 12pt;
@@ -1612,7 +1581,7 @@
         padding-bottom: var(--page-mb);
       }
       .preview-page .prev-footer {
-        padding: 3mm var(--page-mr) 5mm var(--page-ml);
+        padding: 3mm var(--page-mr) var(--page-footer-bottom) var(--page-ml);
         border-top: 1px solid var(--doc-color-border);
         flex-shrink: 0;
         margin-top: auto;
@@ -2157,7 +2126,7 @@
             </svg>
             Variables
           </div>
-          <div class="nlink" onclick="openPageSettings()">
+          <!-- <div class="nlink" onclick="openPageSettings()">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -2170,7 +2139,7 @@
               <line x1="8" y1="15" x2="12" y2="15" />
             </svg>
             Mise en page
-          </div>
+          </div> -->
           <a class="nlink" href="superAdmin.html">
             <svg
               viewBox="0 0 24 24"
@@ -2347,7 +2316,10 @@
               >
                 Supprimer
               </button>
-              <span class="charter-bar-note" id="graphicCharterSectionMeta"></span>
+              <span
+                class="charter-bar-note"
+                id="graphicCharterSectionMeta"
+              ></span>
               <span class="charter-bar-note" id="graphicCharterMeta"></span>
             </div>
 
@@ -3336,13 +3308,14 @@
     <div class="modal-overlay" id="modalPageSettings">
       <div class="modal">
         <div class="mhdr">
-          <span class="mtitle">Mise en page — Marges A4</span>
+          <span class="mtitle">Mise en page — Page A4</span>
           <button class="mclose" onclick="closeModal('modalPageSettings')">
             ✕
           </button>
         </div>
         <div style="font-size: 11px; color: var(--text3); margin-bottom: 14px">
-          Marges en millimètres. Format A4 (210×297mm) – Portrait / Paysage
+          Les marges haut/bas s'appliquent au corps du document. L'en-tête et le
+          pied utilisent leur propre distance au bord, comme dans Word.
         </div>
         <div class="frow">
           <label class="flabel">Orientation</label>
@@ -3353,7 +3326,7 @@
         </div>
         <div class="fgrid2">
           <div class="frow">
-            <label class="flabel">Haut (mm)</label
+            <label class="flabel">Marge corps haut (mm)</label
             ><input
               class="finput"
               type="number"
@@ -3364,7 +3337,7 @@
             />
           </div>
           <div class="frow">
-            <label class="flabel">Bas (mm)</label
+            <label class="flabel">Marge corps bas (mm)</label
             ><input
               class="finput"
               type="number"
@@ -3375,7 +3348,7 @@
             />
           </div>
           <div class="frow" style="margin: 0">
-            <label class="flabel">Gauche (mm)</label
+            <label class="flabel">Marge corps gauche (mm)</label
             ><input
               class="finput"
               type="number"
@@ -3386,7 +3359,7 @@
             />
           </div>
           <div class="frow" style="margin: 0">
-            <label class="flabel">Droite (mm)</label
+            <label class="flabel">Marge corps droite (mm)</label
             ><input
               class="finput"
               type="number"
@@ -3394,6 +3367,30 @@
               value="25"
               min="5"
               max="60"
+            />
+          </div>
+        </div>
+        <div class="fgrid2" style="margin-top: 10px">
+          <div class="frow">
+            <label class="flabel">Distance en-tête depuis le bord (mm)</label
+            ><input
+              class="finput"
+              type="number"
+              id="pg-header-top"
+              value="5"
+              min="0"
+              max="30"
+            />
+          </div>
+          <div class="frow">
+            <label class="flabel">Distance pied depuis le bord (mm)</label
+            ><input
+              class="finput"
+              type="number"
+              id="pg-footer-bottom"
+              value="5"
+              min="0"
+              max="30"
             />
           </div>
         </div>
@@ -3444,7 +3441,7 @@
             </select>
           </div>
           <div class="frow" style="margin: 0">
-            <label class="flabel">Marges haut / bas (mm)</label>
+            <label class="flabel">Marges du corps haut / bas (mm)</label>
             <div class="fgrid2" style="gap: 8px">
               <input
                 class="finput"
@@ -3463,7 +3460,7 @@
             </div>
           </div>
           <div class="frow" style="margin: 0">
-            <label class="flabel">Marges gauche / droite (mm)</label>
+            <label class="flabel">Marges du corps gauche / droite (mm)</label>
             <div class="fgrid2" style="gap: 8px">
               <input
                 class="finput"
@@ -3478,6 +3475,27 @@
                 type="number"
                 min="5"
                 max="60"
+              />
+            </div>
+          </div>
+          <div class="frow" style="margin: 0">
+            <label class="flabel"
+              >Distance en-tête / pied depuis le bord (mm)</label
+            >
+            <div class="fgrid2" style="gap: 8px">
+              <input
+                class="finput"
+                id="gc-header-distance-top"
+                type="number"
+                min="0"
+                max="30"
+              />
+              <input
+                class="finput"
+                id="gc-footer-distance-bottom"
+                type="number"
+                min="0"
+                max="30"
               />
             </div>
           </div>
@@ -5414,8 +5432,23 @@
         };
       }
 
+      function normalizeHeaderFooterDistances(distances) {
+        const src = distances || {};
+        const toNum = (value, fallback) => {
+          const n = Number(value);
+          return Number.isFinite(n) ? n : fallback;
+        };
+        return {
+          headerTop: toNum(src.headerTop, 5),
+          footerBottom: toNum(src.footerBottom, 5),
+        };
+      }
+
       function applyPageMarginsToUI(pageMargins) {
         const margins = normalizePageMargins(pageMargins);
+        const distances = normalizeHeaderFooterDistances(
+          curTplId ? DB.getTemplate(curTplId)?.headerFooterDistances : null,
+        );
         document.documentElement.style.setProperty(
           "--page-mt",
           `${margins.mt}mm`,
@@ -5432,11 +5465,36 @@
           "--page-mr",
           `${margins.mr}mm`,
         );
+        document.documentElement.style.setProperty(
+          "--page-header-top",
+          `${distances.headerTop}mm`,
+        );
+        document.documentElement.style.setProperty(
+          "--page-footer-bottom",
+          `${distances.footerBottom}mm`,
+        );
         document.getElementById("pg-mt").value = margins.mt;
         document.getElementById("pg-mb").value = margins.mb;
         document.getElementById("pg-ml").value = margins.ml;
         document.getElementById("pg-mr").value = margins.mr;
         return margins;
+      }
+
+      function applyHeaderFooterDistancesToUI(distances) {
+        const normalized = normalizeHeaderFooterDistances(distances);
+        document.documentElement.style.setProperty(
+          "--page-header-top",
+          `${normalized.headerTop}mm`,
+        );
+        document.documentElement.style.setProperty(
+          "--page-footer-bottom",
+          `${normalized.footerBottom}mm`,
+        );
+        const headerInput = document.getElementById("pg-header-top");
+        const footerInput = document.getElementById("pg-footer-bottom");
+        if (headerInput) headerInput.value = normalized.headerTop;
+        if (footerInput) footerInput.value = normalized.footerBottom;
+        return normalized;
       }
 
       function getCurrentPageMargins() {
@@ -5445,6 +5503,13 @@
           mb: document.getElementById("pg-mb")?.value,
           ml: document.getElementById("pg-ml")?.value,
           mr: document.getElementById("pg-mr")?.value,
+        });
+      }
+
+      function getCurrentHeaderFooterDistances() {
+        return normalizeHeaderFooterDistances({
+          headerTop: document.getElementById("pg-header-top")?.value,
+          footerBottom: document.getElementById("pg-footer-bottom")?.value,
         });
       }
 
@@ -6517,7 +6582,8 @@
       }
 
       function getGraphicCharterEditableSection() {
-        return currentAdminSection === "header" || currentAdminSection === "footer"
+        return currentAdminSection === "header" ||
+          currentAdminSection === "footer"
           ? currentAdminSection
           : null;
       }
@@ -6584,6 +6650,7 @@
         }
         applyDocumentThemeToRoot(tpl);
         applyPageMarginsToUI(tpl.pageMargins);
+        applyHeaderFooterDistancesToUI(getTemplateHeaderFooterDistances(tpl));
         applyPageOrientationToUI(tpl.orientation);
         setTimeout(() => {
           rebuildEditorPageVisualizer();
@@ -6612,6 +6679,13 @@
                 mb: document.getElementById("gc-margin-bottom").value,
                 ml: document.getElementById("gc-margin-left").value,
                 mr: document.getElementById("gc-margin-right").value,
+              },
+              headerFooterDistances: {
+                headerTop: document.getElementById("gc-header-distance-top")
+                  ?.value,
+                footerBottom: document.getElementById(
+                  "gc-footer-distance-bottom",
+                )?.value,
               },
               pageBackground: getGraphicCharterBackgroundFromForm(),
             },
@@ -6654,6 +6728,10 @@
           config.layout.pageMargins.ml;
         document.getElementById("gc-margin-right").value =
           config.layout.pageMargins.mr;
+        document.getElementById("gc-header-distance-top").value =
+          config.layout.headerFooterDistances.headerTop;
+        document.getElementById("gc-footer-distance-bottom").value =
+          config.layout.headerFooterDistances.footerBottom;
         applyGraphicCharterBackgroundToUI(config.layout.pageBackground);
         document.getElementById("gc-header-html").value = config.header.html;
         document.getElementById("gc-footer-html").value = config.footer.html;
@@ -6778,7 +6856,10 @@
           getDefaultGraphicCharterId(getActiveEtabId());
         const charter = getGraphicCharter(getActiveEtabId(), charterId);
         if (!curTplId || !section) {
-          toast("Ouvrez l'en-tete ou le pied pour charger depuis la charte", "error");
+          toast(
+            "Ouvrez l'en-tete ou le pied pour charger depuis la charte",
+            "error",
+          );
           return;
         }
         if (!charter) {
@@ -6789,11 +6870,13 @@
         if (section === "header") {
           headerEnabled = true;
           updateSectionVisibility();
-          if (editorHeader) setEditorHTML(editorHeader, config.header.html || "");
+          if (editorHeader)
+            setEditorHTML(editorHeader, config.header.html || "");
         } else {
           footerEnabled = true;
           updateSectionVisibility();
-          if (editorFooter) setEditorHTML(editorFooter, config.footer.html || "");
+          if (editorFooter)
+            setEditorHTML(editorFooter, config.footer.html || "");
         }
         switchSection(section);
         onEditorChange();
@@ -7031,6 +7114,7 @@
         if (editorFooter && tpl.footer) setEditorHTML(editorFooter, tpl.footer);
         const resolvedMargins = getTemplatePageMargins(tpl);
         applyPageMarginsToUI(resolvedMargins);
+        applyHeaderFooterDistancesToUI(getTemplateHeaderFooterDistances(tpl));
         const orientation = getTemplateOrientation(tpl);
         const selOrientation = document.getElementById("pg-orientation");
         if (selOrientation) selOrientation.value = orientation;
@@ -7500,6 +7584,7 @@
           getSelectedGraphicCharterId() ||
           getDefaultGraphicCharterId(getActiveEtabId());
         tpl.pageMargins = getCurrentPageMargins();
+        tpl.headerFooterDistances = getCurrentHeaderFooterDistances();
         tpl.orientation = getCurrentPageOrientation();
         tpl.updatedAt = new Date().toISOString();
         DB.saveTemplate(tpl);
@@ -7663,11 +7748,20 @@
         const sel = document.getElementById("pg-orientation");
         if (sel) sel.value = orientation;
         applyPageMarginsToUI(getCurrentPageMargins());
+        applyHeaderFooterDistancesToUI(getCurrentHeaderFooterDistances());
         applyPageOrientationToUI(orientation);
         openModal("modalPageSettings");
       };
       window.applyPageMargins = function () {
         const margins = applyPageMarginsToUI(getCurrentPageMargins());
+        const distances = applyHeaderFooterDistancesToUI(
+          getCurrentHeaderFooterDistances(),
+        );
+        const tpl = curTplId ? DB.getTemplate(curTplId) : null;
+        if (tpl) {
+          tpl.headerFooterDistances = distances;
+          DB.saveTemplate(tpl);
+        }
         const orientation = getCurrentPageOrientation();
         applyPageOrientationToUI(orientation);
         closeModal("modalPageSettings");
@@ -7676,7 +7770,7 @@
           scheduleEditorPaginationRefresh();
         }, 50);
         toast(
-          `Marges : haut ${margins.mt}mm · bas ${margins.mb}mm · gauche ${margins.ml}mm · droite ${margins.mr}mm · orientation ${orientation}`,
+          `Marges : haut ${margins.mt}mm · bas ${margins.mb}mm · gauche ${margins.ml}mm · droite ${margins.mr}mm · en-tête ${distances.headerTop}mm · pied ${distances.footerBottom}mm · orientation ${orientation}`,
         );
       };
       window.resetPageMargins = function () {
@@ -7684,6 +7778,7 @@
           ? getTemplateGraphicCharter(DB.getTemplate(curTplId))
           : normalizeGraphicCharterConfig({});
         applyPageMarginsToUI(normalizeMargins(charter.layout.pageMargins));
+        applyHeaderFooterDistancesToUI(charter.layout.headerFooterDistances);
         window.applyPageMargins();
       };
 
@@ -7720,6 +7815,7 @@
           hasFooter: footerEnabled,
           orientation: getCurrentPageOrientation(),
           pageMargins: getCurrentPageMargins(),
+          headerFooterDistances: getCurrentHeaderFooterDistances(),
         };
       }
       window.refreshPrev = function () {

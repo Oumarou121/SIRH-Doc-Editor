@@ -47,9 +47,11 @@
         --page-w: 210mm;
         --page-h: 297mm;
         --page-mt: 20mm;
-        --page-mb: 20mm;
-        --page-ml: 25mm;
-        --page-mr: 25mm;
+      --page-mb: 20mm;
+      --page-ml: 25mm;
+      --page-mr: 25mm;
+      --page-header-top: 5mm;
+      --page-footer-bottom: 5mm;
         --doc-font-body: "Times New Roman", Times, serif;
         --doc-font-heading: "Times New Roman", Times, serif;
         --doc-color-primary: #1d4ed8;
@@ -602,17 +604,15 @@
         overflow: hidden;
       }
       .a4-header {
-        padding: 5mm var(--page-mr) 3mm var(--page-ml);
+        padding: var(--page-header-top) var(--page-mr) 3mm var(--page-ml);
         border-bottom: 1px dashed var(--doc-color-border);
         flex-shrink: 0;
-        min-height: 20mm;
         position: relative;
       }
       .a4-footer {
-        padding: 3mm var(--page-mr) 5mm var(--page-ml);
+        padding: 3mm var(--page-mr) var(--page-footer-bottom) var(--page-ml);
         border-top: 1px dashed var(--doc-color-border);
         flex-shrink: 0;
-        min-height: 14mm;
         position: relative;
         margin-top: auto;
       }
@@ -628,7 +628,7 @@
       }
       .a4-body {
         flex: 1;
-        padding: 5mm var(--page-mr) 5mm var(--page-ml);
+        padding: 2mm var(--page-mr) 2mm var(--page-ml);
         overflow: hidden;
         position: relative;
       }
@@ -1682,6 +1682,7 @@
         const scaler = document.getElementById("zoomScaler");
         applyDocumentThemeToRoot(tpl);
         const margins = getTemplatePageMargins(tpl);
+        const distances = getTemplateHeaderFooterDistances(tpl);
         wait.style.display = "none";
         canvas.style.display = "flex";
         scaler.innerHTML = "";
@@ -1700,6 +1701,14 @@
         document.documentElement.style.setProperty(
           "--page-mr",
           margins.mr + "mm",
+        );
+        document.documentElement.style.setProperty(
+          "--page-header-top",
+          distances.headerTop + "mm",
+        );
+        document.documentElement.style.setProperty(
+          "--page-footer-bottom",
+          distances.footerBottom + "mm",
         );
 
         // Récupérer les pages paginées (avec variables en bleu)
