@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════
 //  SIRH-Doc  shared.js  v7
 //  Nouveauté : type "list-object" + syntaxe {{#tech:table}}
 //  → génère un <table> automatique dont les colonnes sont les
@@ -1633,17 +1633,19 @@ function _buildObjectTable(
   customThStyle,
   customTdStyle,
 ) {
-  if (!items || !items.length) {
-    return preview
-      ? `<span style="color:#aaa;font-style:italic">(liste vide)</span>`
-      : "";
-  }
-
   // Colonnes : schéma DB > auto-détection depuis le premier objet
   const cols =
     columns && columns.length
       ? columns
-      : Object.keys(items[0]).map((k) => ({ key: k, label: k }));
+      : items && items[0]
+        ? Object.keys(items[0]).map((k) => ({ key: k, label: k }))
+        : [];
+
+  if (!cols.length) {
+    return preview
+      ? `<span style="color:#aaa;font-style:italic">(liste vide)</span>`
+      : "";
+  }
 
   // ── Styles par défaut : texte NOIR GRAS pour les en-têtes ────
   const defaultThStyle = `font-weight:700;color:var(--doc-color-text, #111);background:var(--doc-table-header-bg, #f2f2f2);border:1px solid var(--doc-color-border, #c8cdd8);padding:6px 10px;text-align:left`;
@@ -1662,7 +1664,7 @@ function _buildObjectTable(
     })
     .join("")}</tr></thead>`;
 
-  const rows = items.map((obj, ri) => {
+  const rows = (Array.isArray(items) ? items : []).map((obj, ri) => {
     // Légère alternance de fond pour la lisibilité
     const rowBg =
       ri % 2 === 1
@@ -1681,6 +1683,17 @@ function _buildObjectTable(
 
   const tableStyle = `border-collapse:collapse;width:100%;margin:6px 0`;
   return `<table style="${tableStyle}">${thead}<tbody>${rows.join("")}</tbody></table>`;
+}
+
+function getPageSectionPaddings(margins) {
+  const contentTopGap = 2;
+  const contentBottomGap = 2;
+  return {
+    header: `${margins.mt}mm ${margins.mr}mm 3mm ${margins.ml}mm`,
+    body: `${contentTopGap}mm ${margins.mr}mm ${contentBottomGap}mm ${margins.ml}mm`,
+    bodyNoHeaderFooter: `${margins.mt}mm ${margins.mr}mm ${margins.mb}mm ${margins.ml}mm`,
+    footer: `3mm ${margins.mr}mm ${margins.mb}mm ${margins.ml}mm`,
+  };
 }
 
 // ── 0. list-object :table ─────────────────────────────────────
@@ -1758,17 +1771,7 @@ function _resolveObjectTables(html, person, preview) {
         : []);
 
     if (!items.length) {
-      // Ligne vide
-      let row = `<tr${trAttrs}>`;
-      cells.forEach((c, i) => {
-        const content =
-          i === markerIdx
-            ? `<em style="color:#aaa">—</em>`
-            : _resolveScalars(c.content, person, preview);
-        row += `<${c.tag}${c.attrs}>${content}</${c.tag}>`;
-      });
-      row += "</tr>";
-      html = html.replace(fullTr, row);
+      html = html.replace(fullTr, "");
       continue;
     }
 
@@ -2243,28 +2246,33 @@ body  { margin: 0; background: #fff; }
 .a4-page:last-child { page-break-after: auto; break-after: auto; }
 .a4-header {
   flex-shrink: 0;
-  padding: 5mm var(--page-mr, 25mm) 3mm var(--page-ml, 25mm);
+  padding: var(--page-mt, 20mm) var(--page-mr, 25mm) 3mm var(--page-ml, 25mm);
 }
 .a4-footer {
   flex-shrink: 0; margin-top: auto;
-  padding: 3mm var(--page-mr, 25mm) 5mm var(--page-ml, 25mm);
+  padding: 3mm var(--page-mr, 25mm) var(--page-mb, 20mm) var(--page-ml, 25mm);
 }
 .a4-body {
   flex: 1;
-  padding: 5mm var(--page-mr, 25mm) 5mm var(--page-ml, 25mm);
+  padding: 2mm var(--page-mr, 25mm) 2mm var(--page-ml, 25mm);
   font-family: 'Times New Roman', Times, serif;
   font-size: 12pt; line-height: 1.6; color: #111;
 }
 .a4-body.no-header { padding-top: var(--page-mt, 20mm); }
 .a4-body.no-footer  { padding-bottom: var(--page-mb, 20mm); }
-table { border-collapse: collapse; width: 100%; }
+.a4-body.no-header.no-footer { padding: var(--page-mt, 20mm) var(--page-mr, 25mm) var(--page-mb, 20mm) var(--page-ml, 25mm); }
+table { border-collapse: collapse; width: 100%; max-width: 100%; table-layout: fixed; }
 td, th {
   border: 1px solid #c8cdd8; padding: 6px 10px;
+  word-break: break-word; overflow-wrap: anywhere;
   print-color-adjust: exact; -webkit-print-color-adjust: exact;
 }
-td p, th p { color: inherit; }
+td p, th p { color: inherit; margin: 0; }
 th:not([style]) { background: #f2f2f2; color: #111; font-weight: 700; text-align: left; }
 th { font-weight: 700; }
+thead { display: table-header-group; }
+tfoot { display: table-footer-group; }
+tr, img { break-inside: avoid; page-break-inside: avoid; }
 ul, ol { padding-left: 2em !important; list-style: revert !important; }
 li { display: list-item !important; }
 .var-resolved { color: #111 !important; font-weight: inherit !important; background: none !important; padding: 0 !important; }
@@ -2430,11 +2438,18 @@ class PagePaginator {
     root.querySelectorAll("table").forEach((el) => {
       el.style.borderCollapse = "collapse";
       el.style.width = "100%";
+      el.style.maxWidth = "100%";
+      el.style.tableLayout = "fixed";
       el.style.margin = "6px 0";
     });
     root.querySelectorAll("td, th").forEach((el) => {
       el.style.border = `1px solid ${this.theme.colors.border}`;
       el.style.padding = "6px 10px";
+      el.style.wordBreak = "break-word";
+      el.style.overflowWrap = "anywhere";
+    });
+    root.querySelectorAll("td p, th p").forEach((el) => {
+      el.style.margin = "0";
     });
     root.querySelectorAll("th:not([style])").forEach((el) => {
       el.style.background = this.theme.colors.tableHeaderBg;
@@ -2447,6 +2462,11 @@ class PagePaginator {
       el.style.border = "none";
       el.style.borderTop = `1.5px solid ${this.theme.colors.border}`;
       el.style.margin = "10px 0";
+    });
+    root.querySelectorAll("img").forEach((el) => {
+      el.style.maxWidth = "100%";
+      el.style.height = "auto";
+      el.style.display = "block";
     });
   }
 
@@ -2474,7 +2494,7 @@ class PagePaginator {
     if (headerHtml) {
       const hdrEl = document.createElement("div");
       hdrEl.innerHTML = headerHtml;
-      hdrEl.style.padding = "5mm 25mm 3mm 25mm";
+      hdrEl.style.padding = `${this.marginTopMm}mm ${this.marginRightMm}mm 3mm ${this.marginLeftMm}mm`;
       this._applyMeasureContentStyles(hdrEl);
       tempContainer.appendChild(hdrEl);
       this.headerHeight = hdrEl.offsetHeight;
@@ -2485,7 +2505,7 @@ class PagePaginator {
     if (footerHtml) {
       const ftrEl = document.createElement("div");
       ftrEl.innerHTML = footerHtml;
-      ftrEl.style.padding = "3mm 25mm 5mm 25mm";
+      ftrEl.style.padding = `3mm ${this.marginRightMm}mm ${this.marginBottomMm}mm ${this.marginLeftMm}mm`;
       this._applyMeasureContentStyles(ftrEl);
       tempContainer.appendChild(ftrEl);
       this.footerHeight = ftrEl.offsetHeight;
@@ -2543,25 +2563,30 @@ class PagePaginator {
       const el = elements[i];
       if (!el) continue;
 
+      if (el.tagName === "TABLE") {
+        const tableParts = this._splitTableElement(
+          el,
+          availableHeight,
+          tempMeasure,
+        );
+        for (const part of tableParts) {
+          const partHeight = this._measureElementHeight(part, tempMeasure);
+          if (
+            currentPageHeight + partHeight > availableHeight &&
+            currentPageHTML.trim() !== ""
+          ) {
+            this.pages.push(currentPageHTML);
+            currentPageHTML = "";
+            currentPageHeight = 0;
+          }
+          currentPageHTML += part.outerHTML;
+          currentPageHeight += partHeight;
+        }
+        continue;
+      }
+
       // Cloner l'élément pour mesurer
-      const clone = el.cloneNode(true);
-      tempMeasure.innerHTML = "";
-      const wrapper = document.createElement("div");
-      wrapper.style.display = "flow-root";
-      wrapper.appendChild(clone);
-      this._applyMeasureContentStyles(wrapper);
-      tempMeasure.appendChild(wrapper);
-
-      const elHeight = Math.max(
-        wrapper.offsetHeight,
-        wrapper.scrollHeight,
-        clone.offsetHeight,
-        clone.scrollHeight,
-      );
-
-      // Si l'élément est une table ou très grand, garder son intégrité
-      const isLargeElement =
-        el.tagName === "TABLE" || elHeight > availableHeight * 0.75;
+      const elHeight = this._measureElementHeight(el, tempMeasure);
 
       // Si ça déborde ET la page n'est pas vide, créer une nouvelle page
       if (
@@ -2584,6 +2609,66 @@ class PagePaginator {
     }
 
     document.body.removeChild(tempMeasure);
+  }
+
+  _measureElementHeight(el, tempMeasure) {
+    const clone = el.cloneNode(true);
+    tempMeasure.innerHTML = "";
+    const wrapper = document.createElement("div");
+    wrapper.style.display = "flow-root";
+    wrapper.appendChild(clone);
+    this._applyMeasureContentStyles(wrapper);
+    tempMeasure.appendChild(wrapper);
+    return Math.max(
+      wrapper.offsetHeight,
+      wrapper.scrollHeight,
+      clone.offsetHeight,
+      clone.scrollHeight,
+    );
+  }
+
+  _splitTableElement(tableEl, availableHeight, tempMeasure) {
+    const thead = tableEl.querySelector("thead");
+    const tbody = tableEl.querySelector("tbody");
+    const rows = Array.from(
+      tbody?.querySelectorAll(":scope > tr") ||
+        tableEl.querySelectorAll(":scope > tr"),
+    );
+    if (!rows.length) return [tableEl.cloneNode(true)];
+
+    const parts = [];
+    let currentTable = this._createSplitTableShell(tableEl, thead);
+    let currentBody = currentTable.querySelector("tbody");
+
+    rows.forEach((row) => {
+      const testTable = currentTable.cloneNode(true);
+      testTable.querySelector("tbody").appendChild(row.cloneNode(true));
+      const testHeight = this._measureElementHeight(testTable, tempMeasure);
+
+      if (currentBody.children.length > 0 && testHeight > availableHeight) {
+        parts.push(currentTable);
+        currentTable = this._createSplitTableShell(tableEl, thead);
+        currentBody = currentTable.querySelector("tbody");
+      }
+
+      currentBody.appendChild(row.cloneNode(true));
+    });
+
+    if (currentBody.children.length > 0) {
+      parts.push(currentTable);
+    }
+
+    return parts.length ? parts : [tableEl.cloneNode(true)];
+  }
+
+  _createSplitTableShell(sourceTable, thead) {
+    const table = sourceTable.cloneNode(false);
+    if (sourceTable.hasAttribute("style")) {
+      table.setAttribute("style", sourceTable.getAttribute("style"));
+    }
+    if (thead) table.appendChild(thead.cloneNode(true));
+    table.appendChild(document.createElement("tbody"));
+    return table;
   }
 }
 
@@ -2638,6 +2723,7 @@ function previewDocument(tpl, person) {
   const context = buildDocumentContext(tpl, person);
   const pageWidth = orientation === "landscape" ? "297mm" : "210mm";
   const pageHeight = orientation === "landscape" ? "210mm" : "297mm";
+  const paddings = getPageSectionPaddings(margins);
 
   const hdrRaw = tpl.hasHeader ? resolveVars(tpl.header || "", context) : "";
   const bRaw = resolveVars(tpl.body || "", context);
@@ -2772,7 +2858,7 @@ function previewDocument(tpl, person) {
 
     .preview-page-header {
       flex-shrink: 0;
-      padding: 5mm ${margins.mr}mm 3mm ${margins.ml}mm;
+      padding: ${paddings.header};
       font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
@@ -2782,7 +2868,7 @@ function previewDocument(tpl, person) {
 
     .preview-page-body {
       flex: 1;
-      padding: 5mm ${margins.mr}mm 5mm ${margins.ml}mm;
+      padding: 2mm ${margins.mr}mm 2mm ${margins.ml}mm;
       font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
@@ -2798,9 +2884,13 @@ function previewDocument(tpl, person) {
       padding-bottom: ${margins.mb}mm;
     }
 
+    .preview-page-body.no-header.no-footer {
+      padding: ${paddings.bodyNoHeaderFooter};
+    }
+
     .preview-page-footer {
       flex-shrink: 0;
-      padding: 3mm ${margins.mr}mm 5mm ${margins.ml}mm;
+      padding: ${paddings.footer};
       font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
@@ -2820,18 +2910,23 @@ function previewDocument(tpl, person) {
     .preview-page table {
       border-collapse: collapse;
       width: 100%;
+      max-width: 100%;
+      table-layout: fixed;
       margin: 6px 0;
     }
 
     .preview-page td, .preview-page th {
       border: 1px solid var(--doc-color-border, #c8cdd8);
       padding: 6px 10px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
     }
 
     .preview-page td p, .preview-page th p {
       color: inherit;
+      margin: 0;
     }
 
     .preview-page th:not([style]) {
@@ -2843,6 +2938,20 @@ function previewDocument(tpl, person) {
 
     .preview-page th {
       font-weight: 700;
+    }
+
+    .preview-page thead {
+      display: table-header-group;
+    }
+
+    .preview-page tfoot {
+      display: table-footer-group;
+    }
+
+    .preview-page tr,
+    .preview-page img {
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
 
     .var-resolved {
@@ -2954,6 +3063,7 @@ function printDocPaginated(tpl, person, pages = null) {
   const context = buildDocumentContext(tpl, person);
   const pageWidth = orientation === "landscape" ? "297mm" : "210mm";
   const pageHeight = orientation === "landscape" ? "210mm" : "297mm";
+  const paddings = getPageSectionPaddings(margins);
 
   // Utiliser les pages déjà paginées ou les générer
   let pagesToPrint = pages;
@@ -2984,9 +3094,10 @@ function printDocPaginated(tpl, person, pages = null) {
       height: auto !important;
       min-height: auto !important;
       overflow: visible !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #fff !important;
     }
-    * { margin: 0; padding: 0; }
-    body { margin: 0; padding: 0; background: #fff; }
     #sirh-print-area { display: block; }
 
     .sirh-print-page {
@@ -3012,7 +3123,7 @@ function printDocPaginated(tpl, person, pages = null) {
 
     .sirh-print-header {
       flex-shrink: 0;
-      padding: 5mm ${margins.mr}mm 3mm ${margins.ml}mm;
+      padding: ${paddings.header};
       font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
@@ -3021,7 +3132,7 @@ function printDocPaginated(tpl, person, pages = null) {
 
     .sirh-print-body {
       flex: 1;
-      padding: 5mm ${margins.mr}mm 5mm ${margins.ml}mm;
+      padding: 2mm ${margins.mr}mm 2mm ${margins.ml}mm;
       font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
@@ -3037,9 +3148,13 @@ function printDocPaginated(tpl, person, pages = null) {
       padding-bottom: ${margins.mb}mm;
     }
 
+    .sirh-print-body.no-header.no-footer {
+      padding: ${paddings.bodyNoHeaderFooter};
+    }
+
     .sirh-print-footer {
       flex-shrink: 0;
-      padding: 3mm ${margins.mr}mm 5mm ${margins.ml}mm;
+      padding: ${paddings.footer};
       font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
@@ -3064,16 +3179,18 @@ function printDocPaginated(tpl, person, pages = null) {
 
     li { display: list-item; }
 
-    table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+    table { border-collapse: collapse; width: 100%; max-width: 100%; table-layout: fixed; margin: 6px 0; }
 
     td, th {
       border: 1px solid var(--doc-color-border, #c8cdd8);
       padding: 6px 10px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
     }
 
-    td p, th p { color: inherit; }
+    td p, th p { color: inherit; margin: 0; }
 
     th:not([style]) {
       background: var(--doc-table-header-bg, #f2f2f2);
@@ -3083,6 +3200,21 @@ function printDocPaginated(tpl, person, pages = null) {
     }
 
     th { font-weight: 700; }
+
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    tr, img {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
 
     .var-resolved {
       color: #111 !important;
