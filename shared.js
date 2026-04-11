@@ -1686,13 +1686,15 @@ function _buildObjectTable(
 }
 
 function getPageSectionPaddings(margins) {
+  const headerTop = 5;
+  const footerBottom = 5;
   const contentTopGap = 2;
   const contentBottomGap = 2;
   return {
-    header: `${margins.mt}mm ${margins.mr}mm 3mm ${margins.ml}mm`,
+    header: `${headerTop}mm ${margins.mr}mm 3mm ${margins.ml}mm`,
     body: `${contentTopGap}mm ${margins.mr}mm ${contentBottomGap}mm ${margins.ml}mm`,
     bodyNoHeaderFooter: `${margins.mt}mm ${margins.mr}mm ${margins.mb}mm ${margins.ml}mm`,
-    footer: `3mm ${margins.mr}mm ${margins.mb}mm ${margins.ml}mm`,
+    footer: `3mm ${margins.mr}mm ${footerBottom}mm ${margins.ml}mm`,
   };
 }
 
@@ -2246,11 +2248,11 @@ body  { margin: 0; background: #fff; }
 .a4-page:last-child { page-break-after: auto; break-after: auto; }
 .a4-header {
   flex-shrink: 0;
-  padding: var(--page-mt, 20mm) var(--page-mr, 25mm) 3mm var(--page-ml, 25mm);
+  padding: 5mm var(--page-mr, 25mm) 3mm var(--page-ml, 25mm);
 }
 .a4-footer {
   flex-shrink: 0; margin-top: auto;
-  padding: 3mm var(--page-mr, 25mm) var(--page-mb, 20mm) var(--page-ml, 25mm);
+  padding: 3mm var(--page-mr, 25mm) 5mm var(--page-ml, 25mm);
 }
 .a4-body {
   flex: 1;
@@ -2494,7 +2496,7 @@ class PagePaginator {
     if (headerHtml) {
       const hdrEl = document.createElement("div");
       hdrEl.innerHTML = headerHtml;
-      hdrEl.style.padding = `${this.marginTopMm}mm ${this.marginRightMm}mm 3mm ${this.marginLeftMm}mm`;
+      hdrEl.style.padding = `5mm ${this.marginRightMm}mm 3mm ${this.marginLeftMm}mm`;
       this._applyMeasureContentStyles(hdrEl);
       tempContainer.appendChild(hdrEl);
       this.headerHeight = hdrEl.offsetHeight;
@@ -2505,7 +2507,7 @@ class PagePaginator {
     if (footerHtml) {
       const ftrEl = document.createElement("div");
       ftrEl.innerHTML = footerHtml;
-      ftrEl.style.padding = `3mm ${this.marginRightMm}mm ${this.marginBottomMm}mm ${this.marginLeftMm}mm`;
+      ftrEl.style.padding = `3mm ${this.marginRightMm}mm 5mm ${this.marginLeftMm}mm`;
       this._applyMeasureContentStyles(ftrEl);
       tempContainer.appendChild(ftrEl);
       this.footerHeight = ftrEl.offsetHeight;
