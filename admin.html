@@ -1258,6 +1258,27 @@
       .tiptap-wrapper .ProseMirror th p {
         color: inherit !important;
       }
+      .tiptap-wrapper .ProseMirror td p:has(.sirh-img-wrap),
+      .tiptap-wrapper .ProseMirror td p:has(img),
+      .tiptap-wrapper .ProseMirror th p:has(.sirh-img-wrap),
+      .tiptap-wrapper .ProseMirror th p:has(img) {
+        margin: 0 !important;
+        line-height: 0 !important;
+      }
+      .tiptap-wrapper
+        .ProseMirror
+        td
+        p:has(.sirh-img-wrap)
+        .ProseMirror-trailingBreak,
+      .tiptap-wrapper .ProseMirror td p:has(img) .ProseMirror-trailingBreak,
+      .tiptap-wrapper
+        .ProseMirror
+        th
+        p:has(.sirh-img-wrap)
+        .ProseMirror-trailingBreak,
+      .tiptap-wrapper .ProseMirror th p:has(img) .ProseMirror-trailingBreak {
+        display: none !important;
+      }
       .tiptap-wrapper .ProseMirror .selectedCell::after {
         z-index: 2;
         position: absolute;

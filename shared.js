@@ -2594,11 +2594,13 @@ class PagePaginator {
     this._distributeContent(content.children, availableHeightPx);
 
     // Construire les pages finales
-    this.pages = this.pages.map((pageContent) => ({
-      header: headerHtml,
-      content: pageContent,
-      footer: footerHtml,
-    }));
+    this.pages = this.pages
+      .filter((pageContent) => this._hasMeaningfulPageContent(pageContent))
+      .map((pageContent) => ({
+        header: headerHtml,
+        content: pageContent,
+        footer: footerHtml,
+      }));
 
     return this.pages;
   }
@@ -2692,6 +2694,19 @@ class PagePaginator {
       .replace(/\u00a0/g, "")
       .trim();
     return !html && !text;
+  }
+
+  _hasMeaningfulPageContent(pageHtml) {
+    if (!pageHtml) return false;
+    const probe = document.createElement("div");
+    probe.innerHTML = pageHtml;
+    const hasRichContent = !!probe.querySelector(
+      "img, table, hr, ul, ol, iframe, svg",
+    );
+    const text = String(probe.textContent || "")
+      .replace(/\u00a0/g, "")
+      .trim();
+    return hasRichContent || !!text;
   }
 
   _measureElementHeight(el, tempMeasure) {
