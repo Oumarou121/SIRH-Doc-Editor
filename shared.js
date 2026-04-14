@@ -24,13 +24,13 @@ function cloneData(data) {
 
 const DEFAULT_FAMILY_BENEFICIARY_TABLE = "personnel";
 const SUPERADMIN_FAMILY_HIDDEN_TABLES = Object.freeze([
-  // "family",
-  // "template",
-  // "etablissement",
-  // "admin_user",
-  // "graphic_charter",
-  // "admin_account",
-  // "charte",
+  "family",
+  "template",
+  "etablissement",
+  "admin_user",
+  "graphic_charter",
+  "admin_account",
+  "charte",
 ]);
 
 function normalizeFilterParamName(value, fallback = "filtre") {
@@ -541,7 +541,7 @@ const DB = {
   },
 
   get() {
-    return normalizeState(this._cache);
+    return cloneData(this._cache);
   },
 
   async getSchema(force = false) {
@@ -838,24 +838,32 @@ const DB = {
   },
 
   // ── Accesseurs ──────────────────────────────────────────────
-  getFamilies: () => DB.get().families,
-  getFamily: (id) => DB.get().families.find((f) => f.id === id),
+  getFamilies: () => cloneData(DB._cache?.families || []),
+  getFamily: (id) =>
+    cloneData((DB._cache?.families || []).find((f) => f.id === id) || null),
   getTemplates: (fId, eId) => {
-    let t = DB.get().templates;
+    let t = DB._cache?.templates || [];
     if (fId) t = t.filter((x) => x.familyId === fId);
     if (eId) t = t.filter((x) => x.etablissementId === eId);
-    return t;
+    return cloneData(t);
   },
-  getTemplate: (id) => DB.get().templates.find((t) => t.id === id),
+  getTemplate: (id) =>
+    cloneData((DB._cache?.templates || []).find((t) => t.id === id) || null),
   getPersonnel: (eId) => {
-    let l = DB.get().personnel;
-    return eId ? l.filter((p) => p.etablissementId === eId) : l;
+    let l = DB._cache?.personnel || [];
+    l = eId ? l.filter((p) => p.etablissementId === eId) : l;
+    return cloneData(l);
   },
-  getPerson: (id) => DB.get().personnel.find((p) => p.id === id),
-  getEtablissements: () => DB.get().etablissements,
-  getEtablissement: (id) => DB.get().etablissements.find((e) => e.id === id),
-  getAdmins: () => DB.get().admins,
-  getAdmin: (id) => DB.get().admins.find((a) => a.id === id),
+  getPerson: (id) =>
+    cloneData((DB._cache?.personnel || []).find((p) => p.id === id) || null),
+  getEtablissements: () => cloneData(DB._cache?.etablissements || []),
+  getEtablissement: (id) =>
+    cloneData(
+      (DB._cache?.etablissements || []).find((e) => e.id === id) || null,
+    ),
+  getAdmins: () => cloneData(DB._cache?.admins || []),
+  getAdmin: (id) =>
+    cloneData((DB._cache?.admins || []).find((a) => a.id === id) || null),
 
   // ── Mutateurs ───────────────────────────────────────────────
   saveFamily(fam) {
@@ -1627,16 +1635,16 @@ function createTemplateFromGraphicCharter(
     ),
     nom: name || "Nouveau template",
     updatedAt: new Date().toISOString(),
-    hasHeader: !!charter.header.enabledByDefault,
-    hasFooter: !!charter.footer.enabledByDefault,
+    hasHeader: false,
+    hasFooter: false,
     orientation: charter.layout.orientation,
     pageMargins: normalizeMargins(charter.layout.pageMargins),
     headerFooterDistances: normalizeHeaderFooterDistances(
       charter.layout.headerFooterDistances,
     ),
-    header: charter.header.html || "",
+    header: "",
     body: "<p>Rédigez le contenu du document ici.</p>",
-    footer: charter.footer.html || "",
+    footer: "",
   };
 }
 
@@ -1911,29 +1919,38 @@ function _resolveCellExpand(html, person, preview) {
       html = html.replace(fullTr, "");
       break;
     }
-    const markerIdx = cells.findIndex((c) =>
-      /\{\{#[\w]+:cell-expand\}\}/.test(c.content),
-    );
-    if (markerIdx === -1) {
+    const markerCells = cells
+      .map((cell, idx) => {
+        const match = /\{\{#([\w]+):cell-expand\}\}/.exec(cell.content);
+        return match ? { idx, tech: match[1], cell } : null;
+      })
+      .filter(Boolean);
+    if (!markerCells.length) {
       html = html.replace(fullTr, "");
       break;
     }
-    const raw = person[tech];
-    // Gère string[] et object[] (prend la première valeur de l'objet)
-    const items = Array.isArray(raw)
-      ? raw.map((item) => {
-          if (typeof item === "object" && item !== null)
-            return Object.values(item).join(" | ");
-          return String(item);
-        })
-      : [];
-    if (!items.length) {
+    const resolvedMarkerItems = markerCells.map(({ idx, tech }) => {
+      const raw = person[tech];
+      const items = Array.isArray(raw)
+        ? raw.map((item) => {
+            if (typeof item === "object" && item !== null)
+              return Object.values(item).join(" | ");
+            return String(item);
+          })
+        : [];
+      return { idx, tech, items };
+    });
+    const rowCount = resolvedMarkerItems.reduce(
+      (max, entry) => Math.max(max, entry.items.length),
+      0,
+    );
+    if (!rowCount) {
       let row = `<tr${trAttrs}>`;
       cells.forEach((c, i) => {
-        const content =
-          i === markerIdx
-            ? `<em style="color:#aaa">—</em>`
-            : _resolveScalars(c.content, person, preview);
+        const marker = resolvedMarkerItems.find((entry) => entry.idx === i);
+        const content = marker
+          ? `<em style="color:#aaa">—</em>`
+          : _resolveScalars(c.content, person, preview);
         row += `<${c.tag}${c.attrs}>${content}</${c.tag}>`;
       });
       row += "</tr>";
@@ -1941,10 +1958,12 @@ function _resolveCellExpand(html, person, preview) {
       continue;
     }
     let rows = "";
-    items.forEach((item) => {
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
       rows += `<tr${trAttrs}>`;
       cells.forEach((c, i) => {
-        if (i === markerIdx) {
+        const marker = resolvedMarkerItems.find((entry) => entry.idx === i);
+        if (marker) {
+          const item = marker.items[rowIndex] ?? "";
           const val = preview
             ? `<span class="var-resolved">${_esc(item)}</span>`
             : _esc(item);
@@ -1954,7 +1973,7 @@ function _resolveCellExpand(html, person, preview) {
         }
       });
       rows += "</tr>";
-    });
+    }
     html = html.replace(fullTr, rows);
   }
   return html;

@@ -7066,15 +7066,38 @@
           } catch (_) {}
         }
       }
-      function openTemplate(tplId) {
+      function openTemplate(tplId, options = {}) {
         const tpl = DB.getTemplate(tplId);
         if (!tpl) return;
         curTplId = tplId;
         renderTplList(curFamId);
-        buildEditorUI(tpl);
+        buildEditorUI(tpl, options);
       }
 
-      function buildEditorUI(tpl) {
+      function scheduleTemplateAuxPanelsRender(tplId) {
+        const panel = document.getElementById("templateFilterProfilePanel");
+        if (panel) {
+          panel.innerHTML =
+            '<div class="vars-panel-empty">Chargement du template...</div>';
+        }
+
+        setTimeout(async () => {
+          if (!curTplId || curTplId !== tplId) return;
+          try {
+            await renderTemplateFilterProfilePanel();
+            if (curTplId !== tplId) return;
+            await refreshAdminFilterRuntime(false);
+          } catch (error) {
+            console.error(
+              "Erreur pendant le chargement des panneaux du template",
+              error,
+            );
+          }
+        }, 80);
+      }
+
+      function buildEditorUI(tpl, options = {}) {
+        const lightweight = !!options.lightweight;
         document.getElementById("emptyState").style.display = "none";
         document.getElementById("editorInner").style.display = "flex";
         updateVarsPanelVisibility();
@@ -7126,7 +7149,16 @@
         switchSection("body");
         updateGraphicCharterSectionActions();
         updateWordCount();
-        bindEditorPaginationVisuals();
+        if (!lightweight) bindEditorPaginationVisuals();
+
+        if (lightweight) {
+          const panel = document.getElementById("templateFilterProfilePanel");
+          if (panel) {
+            panel.innerHTML =
+              '<div class="vars-panel-empty">Template créé. Les panneaux avancés se chargeront à la prochaine ouverture.</div>';
+          }
+          return;
+        }
 
         // Initialiser après 100ms
         setTimeout(() => {
@@ -7136,8 +7168,7 @@
             if (ed) activateImageResizers(ed);
           });
         }, 300);
-        renderTemplateFilterProfilePanel();
-        refreshAdminFilterRuntime(false);
+        scheduleTemplateAuxPanelsRender(tpl.id);
       }
 
       function escAttr(value) {
@@ -7567,7 +7598,7 @@
         */
         curTplId = tpl.id;
         renderTplList(curFamId);
-        openTemplate(tpl.id);
+        openTemplate(tpl.id, { lightweight: true });
         toast("Nouveau template créé", "success");
       };
 

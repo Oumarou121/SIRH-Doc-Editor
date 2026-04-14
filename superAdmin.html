@@ -2710,12 +2710,51 @@
         return `(\n${indentSql(
           [
             "SELECT COALESCE(",
-            `  '[' + STRING_AGG('\"' + STRING_ESCAPE(CONVERT(NVARCHAR(MAX), ${valueExpr}), 'json') + '\"', ',') + ']',`,
+            "  (",
+            "    SELECT '[' + STRING_AGG('\"' + STRING_ESCAPE(src.value_json, 'json') + '\"', ',') + ']'",
+            "    FROM (",
+            "      SELECT CONVERT(NVARCHAR(MAX), value_item) AS value_json",
+            "      FROM (",
+            `        SELECT ${valueExpr} AS value_item`,
+            ...fromLines.map((line) => `        ${line}`),
+            "      ) value_rows",
+            "    ) src",
+            "  ),",
             "  '[]'",
             ")",
-            ...fromLines,
           ].join("\n"),
         )}\n)`;
+      }
+
+      function buildLookupDisplayExpr(
+        rawExpr,
+        lookupTable,
+        lookupValueColumn,
+        lookupLabelColumn,
+      ) {
+        if (
+          !schemaMetaCache ||
+          !lookupTable ||
+          !lookupValueColumn ||
+          !lookupLabelColumn
+        ) {
+          return `CONVERT(NVARCHAR(MAX), ${rawExpr})`;
+        }
+        const lookupColumns = getColumnsForTable(schemaMetaCache, lookupTable);
+        const isLookupValid =
+          lookupColumns.some((column) => column.name === lookupValueColumn) &&
+          lookupColumns.some((column) => column.name === lookupLabelColumn);
+        if (!isLookupValid) {
+          return `CONVERT(NVARCHAR(MAX), ${rawExpr})`;
+        }
+        return [
+          "COALESCE(",
+          `  (SELECT TOP 1 CONVERT(NVARCHAR(MAX), lk.${sqlId(lookupLabelColumn)})`,
+          `   FROM ${sqlId(lookupTable)} lk`,
+          `   WHERE CONVERT(NVARCHAR(MAX), lk.${sqlId(lookupValueColumn)}) = CONVERT(NVARCHAR(MAX), ${rawExpr})),`,
+          `  CONVERT(NVARCHAR(MAX), ${rawExpr})`,
+          ")",
+        ].join("\n");
       }
 
       function buildObjectArraySubquery(selectEntries, fromLines) {
@@ -2743,36 +2782,12 @@
         if (String(sourceCol?.displayMode || "raw") !== "lookup") {
           return `${rawExpr} AS ${sqlId(key)}`;
         }
-        const lookupTable = String(sourceCol?.lookupTable || "").trim();
-        const lookupValueColumn = String(
-          sourceCol?.lookupValueColumn || "",
-        ).trim();
-        const lookupLabelColumn = String(
-          sourceCol?.lookupLabelColumn || "",
-        ).trim();
-        if (
-          !schemaMetaCache ||
-          !lookupTable ||
-          !lookupValueColumn ||
-          !lookupLabelColumn
-        ) {
-          return `${rawExpr} AS ${sqlId(key)}`;
-        }
-        const lookupColumns = getColumnsForTable(schemaMetaCache, lookupTable);
-        const isLookupValid =
-          lookupColumns.some((column) => column.name === lookupValueColumn) &&
-          lookupColumns.some((column) => column.name === lookupLabelColumn);
-        if (!isLookupValid) {
-          return `${rawExpr} AS ${sqlId(key)}`;
-        }
-        return [
-          "COALESCE(",
-          `  (SELECT TOP 1 CONVERT(NVARCHAR(MAX), lk.${sqlId(lookupLabelColumn)})`,
-          `   FROM ${sqlId(lookupTable)} lk`,
-          `   WHERE CONVERT(NVARCHAR(MAX), lk.${sqlId(lookupValueColumn)}) = CONVERT(NVARCHAR(MAX), ${rawExpr})),`,
-          `  CONVERT(NVARCHAR(MAX), ${rawExpr})`,
-          `) AS ${sqlId(key)}`,
-        ].join("\n");
+        return `${buildLookupDisplayExpr(
+          rawExpr,
+          String(sourceCol?.lookupTable || "").trim(),
+          String(sourceCol?.lookupValueColumn || "").trim(),
+          String(sourceCol?.lookupLabelColumn || "").trim(),
+        )} AS ${sqlId(key)}`;
       }
 
       function buildVarSelectExpr(varDef, valueAlias, fromLines, tableColumns) {
@@ -2803,7 +2818,16 @@
 
         const valueExpr = `${valueAlias}.${sqlId(varDef.sourceColumn)}`;
         if (varDef.type === "list") {
-          return buildScalarArraySubquery(valueExpr, fromLines);
+          const listExpr =
+            String(varDef?.displayMode || "raw") === "lookup"
+              ? buildLookupDisplayExpr(
+                  valueExpr,
+                  String(varDef?.lookupTable || "").trim(),
+                  String(varDef?.lookupValueColumn || "").trim(),
+                  String(varDef?.lookupLabelColumn || "").trim(),
+                )
+              : valueExpr;
+          return buildScalarArraySubquery(listExpr, fromLines);
         }
         return buildAggregateSubquery("MAX", valueExpr, fromLines);
       }
@@ -3837,6 +3861,50 @@
         </div>`;
       }
 
+      function renderListVarLookupEditor(v, vi, ci, famId, couleur) {
+        if (v?.type !== "list" || !v?.sourceColumn) return "";
+        const displayMode = v.displayMode === "lookup" ? "lookup" : "raw";
+        const lookupTable = v.lookupTable || "";
+        const lookupValueColumn = v.lookupValueColumn || "";
+        const lookupLabelColumn = v.lookupLabelColumn || "";
+        return `<div style="margin-top:6px;padding:10px;border:1px dashed ${couleur}35;border-radius:12px;background:${couleur}08">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${couleur};opacity:.9;margin-bottom:8px">Affichage de la liste</div>
+          <div style="font-size:10px;color:${couleur};margin-bottom:8px">${escHtml(`Source SQL : ${v.sourceColumn}`)}</div>
+          <label class="form-label" style="font-size:10px;color:var(--text2)">
+            Affichage
+            <select class="form-input" onchange="updateListVarLookupField('${famId}',${ci},${vi},'displayMode',this.value)" style="display:block;width:100%;margin-top:4px">
+              <option value="raw" ${displayMode !== "lookup" ? "selected" : ""}>Valeur source</option>
+              <option value="lookup" ${displayMode === "lookup" ? "selected" : ""}>Libellé depuis une table</option>
+            </select>
+          </label>
+          ${
+            displayMode === "lookup"
+              ? `<label class="form-label" style="font-size:10px;color:var(--text2)">
+                  Table libellé
+                  <select class="form-input" onchange="updateListVarLookupField('${famId}',${ci},${vi},'lookupTable',this.value)" style="display:block;width:100%;margin-top:4px">
+                    <option value="">Choisir une table</option>
+                    ${buildLookupTableOptions(lookupTable)}
+                  </select>
+                </label>
+                <label class="form-label" style="font-size:10px;color:var(--text2)">
+                  Colonne code
+                  <select class="form-input" onchange="updateListVarLookupField('${famId}',${ci},${vi},'lookupValueColumn',this.value)" style="display:block;width:100%;margin-top:4px">
+                    <option value="">Choisir une colonne</option>
+                    ${buildLookupColumnOptions(lookupTable, lookupValueColumn)}
+                  </select>
+                </label>
+                <label class="form-label" style="font-size:10px;color:var(--text2)">
+                  Colonne libellé
+                  <select class="form-input" onchange="updateListVarLookupField('${famId}',${ci},${vi},'lookupLabelColumn',this.value)" style="display:block;width:100%;margin-top:4px">
+                    <option value="">Choisir une colonne</option>
+                    ${buildLookupColumnOptions(lookupTable, lookupLabelColumn)}
+                  </select>
+                </label>`
+              : ""
+          }
+        </div>`;
+      }
+
       function renderSimpleVarBindingEditor(v, vi, ci, famId, couleur) {
         if (!schemaMetaCache || !v?.sourceTable) return "";
         const fam = DB.getFamily(famId);
@@ -3954,8 +4022,15 @@
             famId,
             couleur,
           );
-          return bindingEditor
-            ? `<div style="display:flex;flex-direction:column;gap:6px;max-width:100%">${pillMarkup}${bindingEditor}</div>`
+          const listLookupEditor = renderListVarLookupEditor(
+            v,
+            vi,
+            ci,
+            famId,
+            couleur,
+          );
+          return bindingEditor || listLookupEditor
+            ? `<div style="display:flex;flex-direction:column;gap:6px;max-width:100%">${pillMarkup}${bindingEditor}${listLookupEditor}</div>`
             : pillMarkup;
         }
         return `<div style="display:flex;flex-direction:column;gap:6px;max-width:100%;padding:8px 10px;border:1px dashed ${couleur}35;border-radius:12px;background:${couleur}08">
@@ -4238,6 +4313,29 @@
           sourceCol.lookupLabelColumn = "";
         }
         varDef.sourceColumns[colIndex] = sourceCol;
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.updateListVarLookupField = function (
+        famId,
+        ci,
+        vi,
+        field,
+        value,
+      ) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (!varDef || varDef.type !== "list") return;
+        varDef[field] = value || "";
+        if (field === "displayMode" && value !== "lookup") {
+          varDef.displayMode = "raw";
+        }
+        if (field === "lookupTable") {
+          varDef.lookupValueColumn = "";
+          varDef.lookupLabelColumn = "";
+        }
         DB.saveFamily(fam);
         renderClassesContainer(famId);
         regenerateFamilySql(famId, true);
