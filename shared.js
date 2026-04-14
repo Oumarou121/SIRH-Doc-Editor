@@ -1151,10 +1151,12 @@ const DEFAULT_GRAPHIC_CHARTER = Object.freeze({
   },
   header: {
     enabledByDefault: true,
+    displayMode: "all",
     html: '<p style="text-align:center"><strong>{{nom_etab}}</strong></p><p style="text-align:center;font-size:10pt;color:var(--doc-color-secondary)">{{adresse_etab}} — Tél : {{tel_etab}}</p>',
   },
   footer: {
     enabledByDefault: true,
+    displayMode: "all",
     html: '<p style="text-align:center;font-size:9pt;color:var(--doc-color-secondary)">Document officiel — {{nom_etab}} — Année {{annee_univ}}</p>',
   },
   watermark: {
@@ -1239,9 +1241,52 @@ function normalizeTemplateRecord(record = {}) {
   next.filterProfile = normalizeTemplateFilterProfile(
     next.filterProfile || next.filterProfileJson || [],
   );
+  next.headerDisplay = normalizeTemplateSectionDisplay(
+    next.headerDisplay || next.headerVisibility || next.headerMode,
+  );
+  next.footerDisplay = normalizeTemplateSectionDisplay(
+    next.footerDisplay || next.footerVisibility || next.footerMode,
+  );
   delete next.filterProfileJson;
   delete next.pageHeaderFooterDistances;
   return next;
+}
+
+function normalizeTemplateSectionDisplay(value) {
+  const mode = String(value || "all").toLowerCase();
+  if (mode === "first") return "first";
+  if (mode === "even") return "even";
+  if (mode === "odd") return "odd";
+  return "all";
+}
+
+function shouldRenderTemplateSection(display, pageNumber) {
+  const mode = normalizeTemplateSectionDisplay(display);
+  if (mode === "first") return pageNumber === 1;
+  if (mode === "even") return pageNumber % 2 === 0;
+  if (mode === "odd") return pageNumber % 2 === 1;
+  return true;
+}
+
+function applyTemplateHeaderFooterDisplay(pages = [], tpl = {}) {
+  return (Array.isArray(pages) ? pages : []).map((page, index) => {
+    const pageNumber = index + 1;
+    const showHeader =
+      !!tpl.hasHeader &&
+      !!page?.header &&
+      shouldRenderTemplateSection(tpl.headerDisplay, pageNumber);
+    const showFooter =
+      !!tpl.hasFooter &&
+      !!page?.footer &&
+      shouldRenderTemplateSection(tpl.footerDisplay, pageNumber);
+    return {
+      ...page,
+      header: showHeader ? page.header : "",
+      footer: showFooter ? page.footer : "",
+      hasHeader: showHeader,
+      hasFooter: showFooter,
+    };
+  });
 }
 
 function isPlainObject(value) {
@@ -1357,12 +1402,14 @@ function normalizeGraphicCharterConfig(config = {}) {
     enabledByDefault:
       merged.header?.enabledByDefault !== false &&
       DEFAULT_GRAPHIC_CHARTER.header.enabledByDefault,
+    displayMode: normalizeTemplateSectionDisplay(merged.header?.displayMode),
     html: String(merged.header?.html || DEFAULT_GRAPHIC_CHARTER.header.html),
   };
   merged.footer = {
     enabledByDefault:
       merged.footer?.enabledByDefault !== false &&
       DEFAULT_GRAPHIC_CHARTER.footer.enabledByDefault,
+    displayMode: normalizeTemplateSectionDisplay(merged.footer?.displayMode),
     html: String(merged.footer?.html || DEFAULT_GRAPHIC_CHARTER.footer.html),
   };
   merged.watermark = {
@@ -1637,6 +1684,8 @@ function createTemplateFromGraphicCharter(
     updatedAt: new Date().toISOString(),
     hasHeader: false,
     hasFooter: false,
+    headerDisplay: normalizeTemplateSectionDisplay(charter.header.displayMode),
+    footerDisplay: normalizeTemplateSectionDisplay(charter.footer.displayMode),
     orientation: charter.layout.orientation,
     pageMargins: normalizeMargins(charter.layout.pageMargins),
     headerFooterDistances: normalizeHeaderFooterDistances(
@@ -2800,7 +2849,10 @@ function paginateWithVariablesBlue(tpl, person) {
     theme: charter,
   });
 
-  const pages = paginator.paginate(bHtml, hdrHtml, ftrHtml);
+  const pages = applyTemplateHeaderFooterDisplay(
+    paginator.paginate(bHtml, hdrHtml, ftrHtml),
+    tpl,
+  );
 
   return {
     pages: pages,
@@ -2843,7 +2895,10 @@ function previewDocument(tpl, person) {
     theme: charter,
   });
 
-  const pages = paginator.paginate(bRaw, hdrRaw, ftrRaw);
+  const pages = applyTemplateHeaderFooterDisplay(
+    paginator.paginate(bRaw, hdrRaw, ftrRaw),
+    tpl,
+  );
 
   if (!pages.length) {
     toast("Aucun contenu à afficher", "error");
@@ -3096,8 +3151,8 @@ function previewDocument(tpl, person) {
 
   const render = () => {
     const page = pages[currentPage];
-    const noHdr = !tpl.hasHeader ? " no-header" : "";
-    const noFtr = !tpl.hasFooter ? " no-footer" : "";
+    const noHdr = !page.header ? " no-header" : "";
+    const noFtr = !page.footer ? " no-footer" : "";
 
     modal.innerHTML = `
       <div class="preview-header">
@@ -3191,7 +3246,10 @@ function printDocPaginated(tpl, person, pages = null) {
       orientation,
       theme: charter,
     });
-    pagesToPrint = paginator.paginate(bRaw, hdrRaw, ftrRaw);
+    pagesToPrint = applyTemplateHeaderFooterDisplay(
+      paginator.paginate(bRaw, hdrRaw, ftrRaw),
+      tpl,
+    );
   }
 
   const printCSS = `
@@ -3342,8 +3400,8 @@ function printDocPaginated(tpl, person, pages = null) {
 
   const pagesHtml = pagesToPrint
     .map((page) => {
-      const noHdr = !tpl.hasHeader ? " no-header" : "";
-      const noFtr = !tpl.hasFooter ? " no-footer" : "";
+      const noHdr = !page.header ? " no-header" : "";
+      const noFtr = !page.footer ? " no-footer" : "";
 
       return `
         <div class="sirh-print-page">

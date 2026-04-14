@@ -1731,17 +1731,17 @@
           let pageHTML = "";
 
           // En-tête
-          if (result.hasHeader && page.header) {
+          if (page.header) {
             pageHTML += `<div class="a4-header"><div class="a4-hf-label">EN-TÊTE</div><div class="doc-content">${page.header}</div></div>`;
           }
 
           // Corps
-          const noHeaderClass = !result.hasHeader ? " no-header" : "";
-          const noFooterClass = !result.hasFooter ? " no-footer" : "";
+          const noHeaderClass = !page.header ? " no-header" : "";
+          const noFooterClass = !page.footer ? " no-footer" : "";
           pageHTML += `<div class="a4-body doc-content${noHeaderClass}${noFooterClass}">${page.content}</div>`;
 
           // Pied de page
-          if (result.hasFooter && page.footer) {
+          if (page.footer) {
             pageHTML += `<div class="a4-footer"><div class="a4-hf-label">PIED DE PAGE</div><div class="doc-content">${page.footer}</div></div>`;
           }
 
