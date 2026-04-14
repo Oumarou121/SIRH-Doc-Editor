@@ -2624,6 +2624,12 @@ class PagePaginator {
     for (let i = 0; i < elements.length; i++) {
       const el = elements[i];
       if (!el) continue;
+      if (
+        this._isSkippableLeadingElement(el) &&
+        currentPageHTML.trim() === ""
+      ) {
+        continue;
+      }
 
       if (el.tagName === "TABLE") {
         const tableParts = this._splitTableElement(
@@ -2671,6 +2677,21 @@ class PagePaginator {
     }
 
     document.body.removeChild(tempMeasure);
+  }
+
+  _isSkippableLeadingElement(el) {
+    if (!el || !(el instanceof Element)) return false;
+    if (!["P", "DIV"].includes(el.tagName)) return false;
+    if (el.querySelector("img, table, hr, ul, ol, iframe, svg")) return false;
+    const html = String(el.innerHTML || "")
+      .replace(/<br\s*\/?>/gi, "")
+      .replace(/&nbsp;/gi, "")
+      .replace(/\s+/g, "")
+      .trim();
+    const text = String(el.textContent || "")
+      .replace(/\u00a0/g, "")
+      .trim();
+    return !html && !text;
   }
 
   _measureElementHeight(el, tempMeasure) {
