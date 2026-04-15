@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>SIRH-Doc — Éditeur Admin</title>
+    <title>SIRH-Doc - Éditeur Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600&family=Tajawal:wght@400;500&display=swap"
@@ -97,7 +97,7 @@
         border-radius: 3px;
       }
 
-      /* ── LOADING ── */
+      /* -- LOADING -- */
       #loading {
         position: fixed;
         inset: 0;
@@ -157,7 +157,7 @@
         letter-spacing: 0.05em;
       }
 
-      /* ── APP SHELL ── */
+      /* -- APP SHELL -- */
       #app {
         height: 100vh;
         display: flex;
@@ -166,7 +166,7 @@
         transition: opacity 0.25s;
       }
 
-      /* ── TOP NAV ── */
+      /* -- TOP NAV -- */
       .tnav {
         height: 44px;
         background: var(--surface);
@@ -257,14 +257,14 @@
         height: 11px;
       }
 
-      /* ── MAIN LAYOUT ── */
+      /* -- MAIN LAYOUT -- */
       .main-area {
         display: flex;
         flex: 1;
         overflow: hidden;
       }
 
-      /* ── SIDEBAR ── */
+      /* -- SIDEBAR -- */
       .sidebar {
         width: 260px;
         flex-shrink: 0;
@@ -401,7 +401,7 @@
         height: 11px;
       }
 
-      /* ── VARS PANEL ── */
+      /* -- VARS PANEL -- */
       .vars-area {
         border-top: 1px solid var(--border);
         flex-shrink: 0;
@@ -707,7 +707,7 @@
         }
       }
 
-      /* ── EDITOR ZONE ── */
+      /* -- EDITOR ZONE -- */
       .ed-zone {
         flex: 1;
         display: flex;
@@ -856,7 +856,7 @@
         border-color: var(--accent-bdr);
       }
 
-      /* ── TOOLBAR ── */
+      /* -- TOOLBAR -- */
       .ed-toolbar {
         background: var(--surface);
         border-bottom: 2px solid var(--border);
@@ -1012,7 +1012,7 @@
         padding: 2px;
       }
 
-      /* ── PAGE CANVAS ── */
+      /* -- PAGE CANVAS -- */
       .pcanvas {
         flex: 1;
         overflow: auto;
@@ -1088,14 +1088,14 @@
         pointer-events: none;
       }
 
-      /* ── DÉLIMITEURS VISUELS DES PAGES ── */
+      /* -- DELIMITEURS VISUELS DES PAGES -- */
       .editor-page-break {
         position: relative;
         width: 100%;
         margin: 8px 0;
       }
 
-      /* ── PAGES MULTIPLES ── */
+      /* -- PAGES MULTIPLES -- */
       .a4-page {
         position: relative;
         background-color: #fff;
@@ -1143,7 +1143,7 @@
         z-index: 1;
       }
 
-      /* ── DOC CONTENT (Tiptap) ── */
+      /* -- DOC CONTENT (Tiptap) -- */
       .tiptap-wrapper {
         width: 100%;
         /* min-height: 100px;*/
@@ -1312,7 +1312,7 @@
         outline-offset: -2px;
       }
 
-      /* ── APERÇU ── */
+      /* -- APERCU -- */
       .preview-page table {
         border-collapse: collapse;
         width: 100%;
@@ -1344,7 +1344,7 @@
         display: list-item;
       }
 
-      /* ── BUTTONS ── */
+      /* -- BUTTONS -- */
       .btn {
         display: inline-flex;
         align-items: center;
@@ -1411,7 +1411,7 @@
         height: 13px;
       }
 
-      /* ── MODALS ── */
+      /* -- MODALS -- */
       .modal-overlay {
         position: fixed;
         inset: 0;
@@ -1585,6 +1585,7 @@
         font-size: 12pt;
         line-height: 1.6;
         color: var(--doc-color-text);
+        white-space: break-spaces;
       }
       .preview-page .prev-body {
         flex: 1;
@@ -1594,6 +1595,7 @@
         font-size: 12pt;
         line-height: 1.6;
         color: var(--doc-color-text);
+        white-space: break-spaces;
       }
       .preview-page .prev-body.no-header {
         padding-top: var(--page-mt);
@@ -1610,6 +1612,7 @@
         font-size: 12pt;
         line-height: 1.6;
         color: var(--doc-color-text);
+        white-space: break-spaces;
       }
       .preview-page .var-resolved {
         color: #2563eb;
@@ -2080,7 +2083,7 @@
         display: none;
       }
 
-      /* ── Mini-toolbar charte graphique ── */
+      /* -- Mini-toolbar charte graphique -- */
       .gc-mini-tb {
         display: flex;
         flex-wrap: wrap;
@@ -2108,8 +2111,8 @@
     <div id="loading">
       <div class="ll">SIRH-<span>Doc</span></div>
       <div class="lb"><div class="lbf"></div></div>
-      <div class="lsub" id="loadSub">Chargement de Tiptap…</div>
-      <div class="lbadge">MIT LICENSE · 100% GRATUIT</div>
+      <div class="lsub" id="loadSub">Chargement de Tiptap...</div>
+      <div class="lbadge">MIT LICENSE - 100% GRATUIT</div>
     </div>
 
     <div id="app">
@@ -2120,7 +2123,7 @@
         </div>
         <div class="tdiv"></div>
         <span class="tchip">ADMIN</span>
-        <span class="tetab" id="etabLabel"></span>
+        <span class="tetab" id="organizationLabel"></span>
         <div class="tright">
           <div class="nlink" onclick="toggleSidebar()">
             <svg
@@ -2147,30 +2150,19 @@
             </svg>
             Variables
           </div>
-          <a class="nlink" href="superAdmin.html">
+          <div class="nlink" onclick="logoutAndRedirect()">
             <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
             >
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
             </svg>
-            Super Admin
-          </a>
-          <a class="nlink" href="user.html">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-            Utilisateur
-          </a>
+            Déconnexion
+          </div>
         </div>
       </div>
 
@@ -2336,28 +2328,28 @@
                 id="tab-header"
                 onclick="switchSection('header')"
               >
-                📋 En-tête
+                • En-t�te
               </div>
               <div
                 class="sec-tab on"
                 id="tab-body"
                 onclick="switchSection('body')"
               >
-                📄 Corps
+                • Corps
               </div>
               <div
                 class="sec-tab disabled"
                 id="tab-footer"
                 onclick="switchSection('footer')"
               >
-                📑 Pied de page
+                • Pied de page
               </div>
               <div
                 class="sec-tab"
                 id="tab-filters"
                 onclick="switchSection('filters')"
               >
-                🧩 Filtres
+                • Filtres
               </div>
               <div class="sec-toggle">
                 <div
@@ -2365,14 +2357,14 @@
                   id="toggleHeader"
                   onclick="toggleSection('header')"
                 >
-                  📋 En-tête OFF
+                  • En-t�te OFF
                 </div>
                 <div
                   class="toggle-btn"
                   id="toggleFooter"
                   onclick="toggleSection('footer')"
                 >
-                  📑 Pied OFF
+                  • Pied OFF
                 </div>
               </div>
             </div>
@@ -2442,9 +2434,9 @@
                   <option value="'Courier New',Courier,monospace">
                     Courier New
                   </option>
-                  <option value="Amiri,serif">Amiri (عربي)</option>
-                  <option value="Cairo,sans-serif">Cairo (عربي)</option>
-                  <option value="Tajawal,sans-serif">Tajawal (عربي)</option>
+                  <option value="Amiri,serif">Amiri (••)</option>
+                  <option value="Cairo,sans-serif">Cairo (••)</option>
+                  <option value="Tajawal,sans-serif">Tajawal (••)</option>
                 </select>
               </div>
               <div class="tb-grp">
@@ -2914,7 +2906,7 @@
                   data-tip="Date du jour"
                   style="font-size: 13px"
                 >
-                  📅
+                  •
                 </button>
                 <button
                   class="tb-btn"
@@ -2922,7 +2914,7 @@
                   data-tip="Bloc signature"
                   style="font-size: 13px"
                 >
-                  ✍
+                  ?
                 </button>
                 <button
                   class="tb-btn"
@@ -2966,7 +2958,7 @@
                   onclick="setZoom(-10)"
                   style="font-size: 14px; width: 22px; padding: 0"
                 >
-                  −
+                  -
                 </button>
                 <span
                   id="zoomLbl"
@@ -2986,7 +2978,7 @@
                 >
                   +
                 </button>
-                <button class="btn xs ghost" onclick="setZoom(0)">↺</button>
+                <button class="btn xs ghost" onclick="setZoom(0)">?</button>
               </div>
             </div>
 
@@ -3035,7 +3027,7 @@
                       <p>
                         Activez les filtres utiles pour ce template, définissez
                         les valeurs par défaut et gérez les restrictions sans
-                        encombrer la zone d’édition.
+                        encombrer la zone d'édition.
                       </p>
                     </div>
                     <div class="filter-panel-pill">Vue dédiée</div>
@@ -3061,7 +3053,7 @@
             </div>
             <div class="vars-sidepanel-sub">
               Organisées par type pour trouver plus vite la bonne variable.
-              Cliquez pour l’insérer dans la section active.
+              Cliquez pour l'insérer dans la section active.
             </div>
           </div>
           <div class="vars-panel-tabs" id="varsTypeTabs"></div>
@@ -3081,7 +3073,7 @@
         <span id="sbDir">LTR</span>
         <span id="sbFont" style="font-family: var(--mono)">Tiptap MIT</span>
         <span id="sbZoom" style="margin-left: auto">100%</span>
-        <span>A4 · Tiptap v2.4 · SIRH-Doc</span>
+        <span>A4 - Tiptap v2.4 - SIRH-Doc</span>
       </div>
     </div>
 
@@ -3090,7 +3082,7 @@
       <div class="modal modal-sm">
         <div class="mhdr">
           <span class="mtitle" id="delTplTitle">Supprimer le template ?</span>
-          <button class="mclose" onclick="closeModal('modalDelTpl')">✕</button>
+          <button class="mclose" onclick="closeModal('modalDelTpl')">?</button>
         </div>
         <p
           id="delTplMsg"
@@ -3111,7 +3103,7 @@
       <div class="modal modal-sm">
         <div class="mhdr">
           <span class="mtitle">Insérer un tableau</span>
-          <button class="mclose" onclick="closeModal('modalTable')">✕</button>
+          <button class="mclose" onclick="closeModal('modalTable')">?</button>
         </div>
         <div style="font-size: 10px; color: var(--text3); margin-bottom: 8px">
           Survolez la grille pour sélectionner la taille
@@ -3127,7 +3119,7 @@
             font-weight: 600;
           "
         >
-          Sélectionnez une taille…
+          Sélectionnez une taille...
         </div>
         <div class="fgrid2">
           <div class="frow" style="margin: 0">
@@ -3166,7 +3158,7 @@
       <div class="modal">
         <div class="mhdr">
           <span class="mtitle">Insérer une image</span>
-          <button class="mclose" onclick="closeModal('modalImage')">✕</button>
+          <button class="mclose" onclick="closeModal('modalImage')">?</button>
         </div>
         <div class="frow">
           <label class="flabel">Fichier local</label
@@ -3214,7 +3206,7 @@
           ><input
             class="finput"
             id="img-caption"
-            placeholder="Texte de légende…"
+            placeholder="Texte de légende..."
           />
         </div>
         <div class="mactions">
@@ -3230,7 +3222,7 @@
       <div class="modal modal-sm">
         <div class="mhdr">
           <span class="mtitle">Insérer un lien</span>
-          <button class="mclose" onclick="closeModal('modalLink')">✕</button>
+          <button class="mclose" onclick="closeModal('modalLink')">?</button>
         </div>
         <div class="frow">
           <label class="flabel">Texte affiché</label
@@ -3242,7 +3234,7 @@
             class="finput"
             type="url"
             id="link-url"
-            placeholder="https://…"
+            placeholder="https://..."
           />
         </div>
         <div class="mactions">
@@ -3257,7 +3249,7 @@
         <div class="mhdr">
           <span class="mtitle">Filigrane de page</span>
           <button class="mclose" onclick="closeModal('modalWatermark')">
-            ✕
+            ?
           </button>
         </div>
         <div class="frow">
@@ -3315,9 +3307,9 @@
     <div class="modal-overlay" id="modalPageSettings">
       <div class="modal">
         <div class="mhdr">
-          <span class="mtitle">Mise en page — Page A4</span>
+          <span class="mtitle">Mise en page - Page A4</span>
           <button class="mclose" onclick="closeModal('modalPageSettings')">
-            ✕
+            ?
           </button>
         </div>
         <div style="font-size: 11px; color: var(--text3); margin-bottom: 14px">
@@ -3422,7 +3414,7 @@
             >Nouvelle charte graphique</span
           >
           <button class="mclose" onclick="closeModal('modalGraphicCharter')">
-            ✕
+            ?
           </button>
         </div>
         <div class="fgrid2">
@@ -3634,7 +3626,7 @@
             </div>
           </div>
           <div class="frow" style="margin-bottom: 12px">
-            <label class="flabel">En-tête par défaut</label>
+            <label class="flabel">En-t�te par défaut</label>
             <div
               id="gc-header-editor-wrap"
               style="
@@ -3657,7 +3649,7 @@
                 <div class="tiptap-wrapper" id="gc-ck-header"></div>
               </div>
             </div>
-            <!-- Champ caché pour la persistance HTML -->
+            <!-- Champ cach - pour la persistance HTML -->
             <input type="hidden" id="gc-header-html" />
           </div>
           <div class="frow" style="margin: 0">
@@ -3692,14 +3684,14 @@
             style="display: flex; gap: 8px; align-items: center"
           >
             <input id="gc-header-enabled" type="checkbox" />
-            Activer l'en-tête à la création
+            Activer l'en-tête - la création
           </label>
           <label
             class="flabel"
             style="display: flex; gap: 8px; align-items: center"
           >
             <input id="gc-footer-enabled" type="checkbox" />
-            Activer le pied à la création
+            Activer le pied - la création
           </label>
         </div>
         <div class="frow" style="margin-top: 14px">
@@ -3729,7 +3721,7 @@
       <div class="modal" style="max-width: 880px">
         <div class="mhdr">
           <span class="mtitle">Aperçu du document</span>
-          <button class="mclose" onclick="closeModal('modalPreview')">✕</button>
+          <button class="mclose" onclick="closeModal('modalPreview')">?</button>
         </div>
         <div
           style="
@@ -3765,14 +3757,14 @@
             class="btn sm"
             onclick="doPreviewFromPreview()"
           >
-            👁 Aperçu
+            • Aperçu
           </button>
           <button
             id="prevPrintBtn"
             class="btn sm primary"
             onclick="doPrintFromPreview()"
           >
-            🖨 Imprimer
+            • Imprimer
           </button>
           <span
             style="
@@ -3783,7 +3775,7 @@
               border-radius: 3px;
               border: 1px solid var(--accent-bdr);
             "
-            >✓ Aperçu identique à l'impression</span
+            >? Aperçu identique - l'impression</span
           >
         </div>
         <div class="preview-a4-wrap" id="previewA4Wrap">
@@ -3813,11 +3805,15 @@
             color: var(--text3);
           "
         >
-          ✕
+          ?
         </button>
       </div>
       <div style="display: flex; gap: 6px; align-items: center">
-        <input id="srch-find" placeholder="Rechercher…" oninput="doSearch()" />
+        <input
+          id="srch-find"
+          placeholder="Rechercher..."
+          oninput="doSearch()"
+        />
         <span
           id="srch-count"
           style="
@@ -3828,12 +3824,12 @@
           "
           >0/0</span
         >
-        <button class="btn sm ghost" onclick="srchNav(-1)">↑</button>
-        <button class="btn sm ghost" onclick="srchNav(1)">↓</button>
+        <button class="btn sm ghost" onclick="srchNav(-1)">?</button>
+        <button class="btn sm ghost" onclick="srchNav(1)">?</button>
       </div>
       <div style="display: flex; gap: 6px; align-items: center">
-        <input id="srch-replace" placeholder="Remplacer par…" />
-        <button class="btn sm" onclick="doReplaceOne()">1×</button>
+        <input id="srch-replace" placeholder="Remplacer par..." />
+        <button class="btn sm" onclick="doReplaceOne()">1er</button>
         <button class="btn sm" onclick="doReplaceAll()">Tout</button>
       </div>
       <label
@@ -3865,7 +3861,7 @@
           <rect x="3" y="3" width="18" height="18" rx="1" />
           <line x1="3" y1="9" x2="21" y2="9" />
           <line x1="12" y1="3" x2="12" y2="9" /></svg
-        >↑
+        >?
       </button>
       <button
         class="tbl-tb-btn"
@@ -3881,7 +3877,7 @@
           <rect x="3" y="3" width="18" height="18" rx="1" />
           <line x1="3" y1="15" x2="21" y2="15" />
           <line x1="12" y1="15" x2="12" y2="21" /></svg
-        >↓
+        >?
       </button>
       <button
         class="tbl-tb-btn danger"
@@ -3897,7 +3893,7 @@
           <line x1="3" y1="12" x2="21" y2="12" />
           <line x1="18" y1="8" x2="21" y2="5" />
           <line x1="18" y1="16" x2="21" y2="19" /></svg
-        >−L
+        >-L
       </button>
       <div class="tbl-tb-sep"></div>
       <button
@@ -3914,7 +3910,7 @@
           <rect x="3" y="3" width="18" height="18" rx="1" />
           <line x1="9" y1="3" x2="9" y2="21" />
           <line x1="3" y1="12" x2="9" y2="12" /></svg
-        >←
+        >?
       </button>
       <button
         class="tbl-tb-btn"
@@ -3930,7 +3926,7 @@
           <rect x="3" y="3" width="18" height="18" rx="1" />
           <line x1="15" y1="3" x2="15" y2="21" />
           <line x1="15" y1="12" x2="21" y2="12" /></svg
-        >→
+        >?
       </button>
       <button
         class="tbl-tb-btn danger"
@@ -3946,7 +3942,7 @@
           <line x1="12" y1="3" x2="12" y2="21" />
           <line x1="8" y1="18" x2="5" y2="21" />
           <line x1="16" y1="18" x2="19" y2="21" /></svg
-        >−C
+        >-C
       </button>
       <div class="tbl-tb-sep"></div>
       <div class="tbl-cell-clr-wrap">
@@ -3967,7 +3963,7 @@
             <line x1="3" y1="18" x2="18" y2="18" />
           </svg>
           <span id="tblAlignIndicator" style="font-size: 8px; opacity: 0.7"
-            >⬡</span
+            >?</span
           >
         </button>
         <div class="tbl-clr-pop" id="tblAlignPop" style="width: 210px">
@@ -4171,7 +4167,7 @@
       <button
         class="tbl-tb-btn"
         onclick="tblCmd('toggleHeaderRow')"
-        title="En-tête ligne"
+        title="En-t�te ligne"
       >
         <svg
           viewBox="0 0 24 24"
@@ -4193,7 +4189,7 @@
       <button
         class="tbl-tb-btn"
         onclick="tblCmd('toggleHeaderColumn')"
-        title="En-tête col."
+        title="En-t�te col."
       >
         <svg
           viewBox="0 0 24 24"
@@ -4348,7 +4344,7 @@
           closeCtx();
         "
       >
-        Rétablir<span class="ctx-kbd">Ctrl+Y</span>
+        R�tablir<span class="ctx-kbd">Ctrl+Y</span>
       </div>
       <div class="ctx-sep"></div>
       <div
@@ -4376,7 +4372,7 @@
           closeCtx();
         "
       >
-        Souligné<span class="ctx-kbd">Ctrl+U</span>
+        Soulign�<span class="ctx-kbd">Ctrl+U</span>
       </div>
       <div class="ctx-sep"></div>
       <div
@@ -4400,7 +4396,7 @@
       const ESM = "https://esm.sh";
       const V = "2.4.0";
       document.getElementById("loadSub").textContent =
-        "Téléchargement des modules Tiptap…";
+        "Téléchargement des modules Tiptap...";
 
       const { Extension, Mark } = await import(`${ESM}/@tiptap/core@${V}`);
       const [
@@ -4442,9 +4438,9 @@
       ]);
 
       document.getElementById("loadSub").textContent =
-        "Initialisation des éditeurs…";
+        "Initialisation des éditeurs...";
 
-      // ── FontSize extension ──
+      // -- FontSize extension --
       const FontSize = TextStyle.extend({
         addAttributes() {
           return {
@@ -4497,7 +4493,7 @@
         },
       });
 
-      // ── TableCell/Header with bg, text color, align ──
+      // -- TableCell/Header with bg, text color, align --
       function _cellStyle(attrs) {
         let s = "";
         if (attrs.backgroundColor && attrs.backgroundColor !== "transparent")
@@ -4759,17 +4755,23 @@
         });
       }
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // ═══════════════════════════════════════════════════════════
       //  STATE
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-      const DEFAULT_ETAB_ID = "etab_1";
-      function getActiveEtabId() {
-        if (DB.getEtablissement(DEFAULT_ETAB_ID)) return DEFAULT_ETAB_ID;
-        const firstId = DB.getEtablissements()[0]?.id || null;
+      // ═══════════════════════════════════════════════════════════
+      const DEFAULT_ORG_ID = "org_1";
+      function getActiveOrganizationId() {
+        const authUser = getCurrentAuthUser();
+        if (
+          authUser?.organizationId &&
+          DB.getOrganization(authUser.organizationId)
+        )
+          return authUser.organizationId;
+        if (DB.getOrganization(DEFAULT_ORG_ID)) return DEFAULT_ORG_ID;
+        const firstId = DB.getOrganizations()[0]?.id || null;
         if (firstId) return firstId;
-        const created = DB.saveEtablissement({
-          id: DEFAULT_ETAB_ID,
-          nom: "Établissement principal",
+        const created = DB.saveOrganization({
+          id: DEFAULT_ORG_ID,
+          nom: "Organization principale",
           ville: "",
           adresse: "",
           tel: "",
@@ -4777,7 +4779,7 @@
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
-        return created?.id || DEFAULT_ETAB_ID;
+        return created?.id || DEFAULT_ORG_ID;
       }
       let curFamId = null,
         curTplId = null,
@@ -4817,7 +4819,7 @@
 
       window.__getActiveEditor = () => activeEditor || editorBody;
 
-      // ── insertListVar ──
+      // -- insertListVar --
       async function insertListVar(editor, varDef) {
         if (!editor || !varDef) return;
         const inCell =
@@ -4835,7 +4837,7 @@
               })
               .run();
             toast(
-              "Marqueur :table inséré — la ligne sera répétée par objet",
+              "Marqueur :table inséré  - la ligne sera répétée par objet",
               "success",
             );
             return;
@@ -4865,7 +4867,7 @@
           const tableHTML = `<table style="border-collapse:collapse;width:100%"><thead><tr>${thCells}</tr></thead><tbody><tr>${tdCells}</tr></tbody></table><p></p>`;
           editor.chain().focus().insertContent(tableHTML).run();
           toast(
-            `Tableau éditable inséré pour « ${varDef.label} » — personnalisez le style !`,
+            `Tableau éditable inséré pour  - ${varDef.label}  -  - personnalisez le style !`,
             "success",
           );
           return;
@@ -4882,7 +4884,7 @@
             })
             .run();
           toast(
-            "Liste insérée — 1 ligne par élément dans le tableau",
+            "Liste insérée  - 1 ligne par élément dans le tableau",
             "success",
           );
         } else {
@@ -4897,11 +4899,11 @@
               marks: [{ type: "textStyle", attrs: { color: "#7c3aed" } }],
             })
             .run();
-          toast(`Liste insérée en mode « ${mode} »`, "success");
+          toast(`Liste insérée en mode ${mode} �`, "success");
         }
       }
 
-      // ── buildVarsPanel ──
+      // -- buildVarsPanel --
       function getVarBucket(type) {
         if (type === "list-object") return "table";
         if (type === "list") return "list";
@@ -4922,7 +4924,7 @@
         if (isObj) {
           const colsPreview =
             v.columns && v.columns.length
-              ? v.columns.map((c) => c.label).join(" · ")
+              ? v.columns.map((c) => c.label).join("  - ")
               : "colonnes auto-détectées";
           chip.innerHTML = `<span class="vchip-badge tbl">TABLE</span>${v.label}`;
           chip.title = `Insère un tableau éditable Tiptap\nColonnes : ${colsPreview}`;
@@ -4938,7 +4940,7 @@
         }
         if (isList) {
           chip.innerHTML = `<span class="vchip-badge">LIST</span>${v.label}`;
-          chip.title = `{{#${v.tech}:ul}} · :inline · :cell-expand`;
+          chip.title = `{{#${v.tech}:ul}}  - :inline  - :cell-expand`;
           chip.onclick = () => {
             const ed = activeEditor || editorBody;
             if (!ed) {
@@ -4950,7 +4952,7 @@
           return chips.appendChild(chip);
         }
         chip.textContent = v.label;
-        chip.title = `{{${v.tech}}} — ${v.label}`;
+        chip.title = `{{${v.tech}}}  - ${v.label}`;
         chip.onclick = () => window.insertVar(v.tech);
         chips.appendChild(chip);
       }
@@ -5057,6 +5059,33 @@
         });
 
         let rendered = 0;
+        if (currentVarPanelType === "simple") {
+          const etab = DB.getOrganization(getActiveOrganizationId());
+          const orgVars = Object.entries(
+            buildOrganizationTemplateVars(etab),
+          ).filter(([key]) => !key.startsWith("org_"));
+          if (orgVars.length) {
+            const sec = document.createElement("section");
+            sec.className = "vars-panel-group";
+            sec.innerHTML =
+              '<div class="vars-panel-group-title">Variables Organization</div>';
+            const chips = document.createElement("div");
+            chips.className = "vchips";
+            orgVars.forEach(([key]) => {
+              const chip = document.createElement("span");
+              chip.className = "vchip";
+              chip.style.cssText =
+                "background:#0f766e12;color:#0f766e;border-color:#0f766e33";
+              chip.textContent = key;
+              chip.title = `{{${key}}} — colonne Organization`;
+              chip.onclick = () => window.insertVar(key);
+              chips.appendChild(chip);
+            });
+            sec.appendChild(chips);
+            panel.appendChild(sec);
+            rendered += orgVars.length;
+          }
+        }
         fam.classes.forEach((cls) => {
           const vars = (cls.vars || []).filter(
             (v) => getVarBucket(v.type) === currentVarPanelType,
@@ -5101,7 +5130,7 @@
         }
       }
 
-      // ── Color palettes ──
+      // -- Color palettes --
       const TEXT_COLORS = [
         "#000000",
         "#1a1d2e",
@@ -5191,7 +5220,7 @@
         "#1e3a5f",
       ];
 
-      // ── TIPTAP FACTORY ──
+      // -- TIPTAP FACTORY --
       function buildGcMiniToolbar(tbId, getEd) {
         const tb = document.getElementById(tbId);
         if (!tb) return;
@@ -5286,7 +5315,7 @@
         );
         grp1.appendChild(
           mkBtn(
-            "Souligné",
+            "Soulign�",
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v7a6 6 0 0012 0V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>',
             "toggleUnderline",
           ),
@@ -5406,7 +5435,7 @@
             TableCellExt,
             TableHeaderExt,
             Placeholder.configure({
-              placeholder: placeholder || "Rédigez ici…",
+              placeholder: placeholder || "Rédigez ici...",
             }),
           ],
           content: "",
@@ -5626,7 +5655,7 @@
             image.startsWith("data:")
               ? "Fichier local chargé"
               : "Image distante prête"
-          } • ${bg.size} • ${bg.position}`;
+          }  - ${bg.size}  - ${bg.position}`;
           return;
         }
 
@@ -5774,11 +5803,11 @@
         if (!badge) return;
 
         if (activeEditor === editorHeader) {
-          badge.textContent = "En-tête · Page 1";
+          badge.textContent = "En-t�te  - Page 1";
           return;
         }
         if (activeEditor === editorFooter) {
-          badge.textContent = "Pied de page · Page 1";
+          badge.textContent = "Pied de page  - Page 1";
           return;
         }
 
@@ -5953,7 +5982,7 @@
           _scheduleTableAutoFit(ed, "equalize", "active");
         }
         closeModal("modalTable");
-        toast(`Tableau ${rows}×${cols} inséré`);
+        toast(`Tableau ${rows}�${cols} inséré`);
       };
       window.tblCmd = function (cmd) {
         const ed = activeEditor || editorBody;
@@ -6198,7 +6227,7 @@
       window.applyTblAlign = function (align) {
         applyTblAttrScoped("textAlign", align, _tblAlignScope);
         document.getElementById("tblAlignIndicator").textContent =
-          { left: "←", center: "↔", right: "→", justify: "≡" }[align] || "⬡";
+          { left: "?", center: "?", right: "?", justify: "=" }[align] || "?";
         document
           .querySelectorAll(".tbl-align-dir-btn")
           .forEach((b) => b.classList.remove("on"));
@@ -6209,7 +6238,7 @@
           col: "colonne",
           all: "tableau",
         }[_tblAlignScope];
-        toast(`Alignement ${align} appliqué à la ${scopeLabel}`, "success");
+        toast(`Alignement ${align} appliqu -  - la ${scopeLabel}`, "success");
         closeTblPops();
       };
       window.applyTblValign = function (valign) {
@@ -6221,13 +6250,13 @@
           all: "tableau",
         }[_tblAlignScope];
         toast(
-          `Alignement vertical ${valign} appliqué à la ${scopeLabel}`,
+          `Alignement vertical ${valign} appliqu -  - la ${scopeLabel}`,
           "success",
         );
         closeTblPops();
       };
 
-      // ── Images ──
+      // -- Images --
       window.previewImgFile = function (input) {
         const f = input.files[0];
         if (!f) return;
@@ -6287,7 +6316,7 @@
         const tb = document.createElement("div");
         tb.style.cssText =
           "position:fixed;z-index:3000;background:#1a1d2e;border-radius:7px;display:none;align-items:center;gap:1px;padding:3px 5px;box-shadow:0 4px 18px rgba(0,0,0,.28);white-space:nowrap;pointer-events:auto";
-        tb.innerHTML = `<button onclick="setImgAlign(this,'left')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">◧</button><button onclick="setImgAlign(this,'center')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▣</button><button onclick="setImgAlign(this,'right')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">▧</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="setImgWidthFixed(this,'25%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">25%</button><button onclick="setImgWidthFixed(this,'50%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">50%</button><button onclick="setImgWidthFixed(this,'75%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">75%</button><button onclick="setImgWidthFixed(this,'100%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">100%</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="removeImgFixed()" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:#f87171;font-size:14px;font-weight:700">✕</button>`;
+        tb.innerHTML = `<button onclick="setImgAlign(this,'left')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">?</button><button onclick="setImgAlign(this,'center')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">?</button><button onclick="setImgAlign(this,'right')" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:rgba(255,255,255,.8);font-size:13px">?</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="setImgWidthFixed(this,'25%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">25%</button><button onclick="setImgWidthFixed(this,'50%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">50%</button><button onclick="setImgWidthFixed(this,'75%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">75%</button><button onclick="setImgWidthFixed(this,'100%')" style="height:26px;padding:0 6px;border:none;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;border-radius:4px;font-size:10px;font-weight:600">100%</button><div style="width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 3px"></div><button onclick="removeImgFixed()" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:#f87171;font-size:14px;font-weight:700">?</button>`;
         document.body.appendChild(tb);
         img._floatTb = tb;
         const badge = document.createElement("div");
@@ -6407,7 +6436,7 @@
           img.style.width = nw + "px";
           img.style.height = nh + "px";
           wrap.style.width = nw + "px";
-          badge.textContent = nw + "×" + nh + " px";
+          badge.textContent = nw + "�" + nh + " px";
         }
         function onUp() {
           wrap.classList.remove("resizing");
@@ -6434,7 +6463,7 @@
         }
       });
 
-      // ── Links ──
+      // -- Links --
       window.previewImgFile = function (input) {
         const f = input.files[0];
         const area = document.getElementById("img-preview-area");
@@ -6463,7 +6492,7 @@
           window.__sirhDoInsertImage();
           return;
         }
-        toast("Le gestionnaire d'image unifié n'est pas disponible", "error");
+        toast("Le gestionnaire d'image unifi - n'est pas disponible", "error");
       };
       activateImageResizers = function (ed) {
         if (!ed || !window.SirhImgResize) return;
@@ -6518,7 +6547,7 @@
         toast("Lien inséré");
       };
 
-      // ── Misc inserts ──
+      // -- Misc inserts --
       window.insHR = () => {
         const ed = activeEditor || editorBody;
         if (ed) ed.chain().focus().setHorizontalRule().run();
@@ -6544,13 +6573,13 @@
         ed.chain()
           .focus()
           .insertContent(
-            `<table style="width:100%;border-collapse:collapse;border:none"><tr><td style="border:none;width:50%;padding:8px 0;vertical-align:top"><p><strong>L'intéressé(e)</strong></p><p style="margin-top:40px;border-top:1px solid #c8cdd8;padding-top:4px;font-size:10px;color:#666">Signature</p></td><td style="border:none;width:50%;padding:8px 0;vertical-align:top;text-align:right"><p><strong>Le Directeur de l'Établissement</strong></p><p style="margin-top:4px;font-size:10px;color:#444">{{directeur}}</p><p style="margin-top:32px;border-top:1px solid #c8cdd8;padding-top:4px;font-size:10px;color:#666">Signature et cachet</p></td></tr></table>`,
+            `<table style="width:100%;border-collapse:collapse;border:none"><tr><td style="border:none;width:50%;padding:8px 0;vertical-align:top"><p><strong>L'intéressé(e)</strong></p><p style="margin-top:40px;border-top:1px solid #c8cdd8;padding-top:4px;font-size:10px;color:#666">Signature</p></td><td style="border:none;width:50%;padding:8px 0;vertical-align:top;text-align:right"><p><strong>Le Directeur de l'Organization</strong></p><p style="margin-top:4px;font-size:10px;color:#444">{{directeur}}</p><p style="margin-top:32px;border-top:1px solid #c8cdd8;padding-top:4px;font-size:10px;color:#666">Signature et cachet</p></td></tr></table>`,
           )
           .run();
         toast("Bloc signature inséré");
       };
 
-      // ── Word count ──
+      // -- Word count --
       function updateWordCount() {
         if (!editorBody) return;
         try {
@@ -6561,7 +6590,7 @@
         } catch (_) {}
       }
 
-      // ── Aperçu et Impression ──
+      // -- Aperçu et Impression --
       window.doPreviewFromPreview = async function () {
         const pId = document.getElementById("prevPerson")?.value;
         const person = pId
@@ -6602,7 +6631,7 @@
         printDocPaginated(liveTpl, person, cachedPages);
       };
 
-      // ── Save state ──
+      // -- Save state --
       function setSaveState(msg, modified) {
         document.getElementById("saveSt").textContent = msg;
         document.getElementById("saveSt").className =
@@ -6612,11 +6641,11 @@
         document.getElementById("sbText").textContent = msg;
       }
       function onEditorChange() {
-        setSaveState("Modifié •", true);
+        setSaveState("Modifié *", true);
         updateWordCount();
       }
 
-      // ── Family & template list ──
+      // -- Family & template list --
       function getSelectedGraphicCharterId() {
         const select = document.getElementById("graphicCharterSelect");
         return select?.value || null;
@@ -6650,7 +6679,7 @@
         const hasTpl = !!curTplId;
         const disabled = !section || !charterId || !hasTpl;
         const labels = {
-          header: "En-tete",
+          header: "En-tête",
           footer: "Pied de page",
         };
         if (loadBtn) loadBtn.disabled = disabled;
@@ -6662,7 +6691,7 @@
         }
         if (!section) {
           meta.textContent =
-            "Passez sur En-tete ou Pied de page pour gerer la charte depuis l'editeur.";
+            "Passez sur En-tête ou Pied de page pour gerer la charte depuis l'editeur.";
           return;
         }
         meta.textContent = `${labels[section]} actif - synchronisation directe avec la charte.`;
@@ -6671,7 +6700,7 @@
       function populateGraphicCharterSelect(selectedId = null) {
         const select = document.getElementById("graphicCharterSelect");
         if (!select) return [];
-        const charters = getGraphicCharters(getActiveEtabId());
+        const charters = getGraphicCharters(getActiveOrganizationId());
         select.innerHTML = "";
         charters.forEach((charter) => {
           const option = document.createElement("option");
@@ -6683,11 +6712,13 @@
         });
         const resolvedId =
           selectedId ||
-          getDefaultGraphicCharterId(getActiveEtabId()) ||
+          getDefaultGraphicCharterId(getActiveOrganizationId()) ||
           charters[0]?.id ||
           "";
         select.value = resolvedId;
-        setGraphicCharterMeta(getGraphicCharter(getActiveEtabId(), resolvedId));
+        setGraphicCharterMeta(
+          getGraphicCharter(getActiveOrganizationId(), resolvedId),
+        );
         return charters;
       }
 
@@ -6721,7 +6752,7 @@
 
       function readGraphicCharterForm() {
         const existing = normalizeGraphicCharterConfig(
-          getGraphicCharter(getActiveEtabId(), editingGraphicCharterId)
+          getGraphicCharter(getActiveOrganizationId(), editingGraphicCharterId)
             ?.config || {},
         );
         return {
@@ -6771,7 +6802,7 @@
           normalizeGraphicCharterEntry(
             {
               name: "Nouvelle charte",
-              isDefault: !getGraphicCharters(getActiveEtabId()).length,
+              isDefault: !getGraphicCharters(getActiveOrganizationId()).length,
               config: {},
             },
             0,
@@ -6808,7 +6839,7 @@
       window.openGraphicCharterModal = function (charterId = null) {
         editingGraphicCharterId = charterId;
         const charter = charterId
-          ? getGraphicCharter(getActiveEtabId(), charterId)
+          ? getGraphicCharter(getActiveOrganizationId(), charterId)
           : null;
         document.getElementById("graphicCharterModalTitle").textContent =
           charter
@@ -6825,7 +6856,7 @@
 
         gcEditorHeader = createEditor(
           "gc-ck-header",
-          "En-tête de la charte…",
+          "En-t�te de la charte�",
           () => {
             document.getElementById("gc-header-html").value =
               gcEditorHeader?.getHTML() || "";
@@ -6834,7 +6865,7 @@
         );
         gcEditorFooter = createEditor(
           "gc-ck-footer",
-          "Pied de page de la charte…",
+          "Pied de page de la charte�",
           () => {
             document.getElementById("gc-footer-html").value =
               gcEditorFooter?.getHTML() || "";
@@ -6876,9 +6907,12 @@
           return;
         }
         const current = editingGraphicCharterId
-          ? getGraphicCharter(getActiveEtabId(), editingGraphicCharterId)
+          ? getGraphicCharter(
+              getActiveOrganizationId(),
+              editingGraphicCharterId,
+            )
           : null;
-        const saved = saveGraphicCharter(getActiveEtabId(), {
+        const saved = saveGraphicCharter(getActiveOrganizationId(), {
           id: editingGraphicCharterId || undefined,
           createdAt: current?.createdAt || new Date().toISOString(),
           ...payload,
@@ -6902,7 +6936,7 @@
       window.onGraphicCharterChange = function () {
         const charterId = getSelectedGraphicCharterId();
         const tpl = curTplId ? DB.getTemplate(curTplId) : null;
-        const charter = getGraphicCharter(getActiveEtabId(), charterId);
+        const charter = getGraphicCharter(getActiveOrganizationId(), charterId);
         setGraphicCharterMeta(charter);
         updateGraphicCharterSectionActions();
         if (!tpl || !charterId || !charter) return;
@@ -6916,11 +6950,11 @@
         const section = getGraphicCharterEditableSection();
         const charterId =
           getSelectedGraphicCharterId() ||
-          getDefaultGraphicCharterId(getActiveEtabId());
-        const charter = getGraphicCharter(getActiveEtabId(), charterId);
+          getDefaultGraphicCharterId(getActiveOrganizationId());
+        const charter = getGraphicCharter(getActiveOrganizationId(), charterId);
         if (!curTplId || !section) {
           toast(
-            "Ouvrez l'en-tete ou le pied pour charger depuis la charte",
+            "Ouvrez l'en-tête ou le pied pour charger depuis la charte",
             "error",
           );
           return;
@@ -6945,8 +6979,8 @@
         onEditorChange();
         toast(
           section === "header"
-            ? "En-tete charge depuis la charte"
-            : "Pied de page charge depuis la charte",
+            ? "En-tête chargé depuis la charte"
+            : "Pied de page chargé depuis la charte",
           "success",
         );
       };
@@ -6955,11 +6989,11 @@
         const section = getGraphicCharterEditableSection();
         const charterId =
           getSelectedGraphicCharterId() ||
-          getDefaultGraphicCharterId(getActiveEtabId());
-        const current = getGraphicCharter(getActiveEtabId(), charterId);
+          getDefaultGraphicCharterId(getActiveOrganizationId());
+        const current = getGraphicCharter(getActiveOrganizationId(), charterId);
         if (!curTplId || !section) {
           toast(
-            "Passez sur l'en-tete ou le pied de page pour enregistrer dans la charte",
+            "Passez sur l'en-tête ou le pied de page pour enregistrer dans la charte",
             "error",
           );
           return;
@@ -6979,7 +7013,7 @@
         const display = getGraphicCharterHeaderFooterDisplay();
         cfg.header.displayMode = display.headerDisplay;
         cfg.footer.displayMode = display.footerDisplay;
-        const saved = saveGraphicCharter(getActiveEtabId(), {
+        const saved = saveGraphicCharter(getActiveOrganizationId(), {
           ...current,
           config: cfg,
         });
@@ -6992,8 +7026,8 @@
         setSaveState("Modifie", true);
         toast(
           section === "header"
-            ? "En-tete enregistre dans la charte"
-            : "Pied de page enregistre dans la charte",
+            ? "En-tête enregistré dans la charte"
+            : "Pied de page enregistré dans la charte",
           "success",
         );
       };
@@ -7006,8 +7040,8 @@
         const tpl = DB.getTemplate(curTplId);
         const charterId =
           getSelectedGraphicCharterId() ||
-          getDefaultGraphicCharterId(getActiveEtabId());
-        const charter = getGraphicCharter(getActiveEtabId(), charterId);
+          getDefaultGraphicCharterId(getActiveOrganizationId());
+        const charter = getGraphicCharter(getActiveOrganizationId(), charterId);
         if (!charter) {
           toast("Aucune charte disponible", "error");
           return;
@@ -7040,20 +7074,20 @@
           toast("Aucune charte a supprimer", "error");
           return;
         }
-        const charter = getGraphicCharter(getActiveEtabId(), charterId);
+        const charter = getGraphicCharter(getActiveOrganizationId(), charterId);
         document.getElementById("delTplTitle").textContent =
           "Supprimer la charte graphique ?";
         document.getElementById("delTplMsg").textContent =
           `Supprimer la charte "${charter?.name || "Sans nom"}" ? Les templates lies basculeront sur la charte par defaut.`;
         document.getElementById("delTplBtn").onclick = () => {
-          deleteGraphicCharter(getActiveEtabId(), charterId);
+          deleteGraphicCharter(getActiveOrganizationId(), charterId);
           closeModal("modalDelTpl");
           populateGraphicCharterSelect(
-            getDefaultGraphicCharterId(getActiveEtabId()),
+            getDefaultGraphicCharterId(getActiveOrganizationId()),
           );
           if (curTplId) buildEditorUI(DB.getTemplate(curTplId));
           renderTplList(curFamId);
-          toast("Charte supprimee", "success");
+          toast("Charte supprimée", "success");
         };
         openModal("modalDelTpl");
       };
@@ -7066,8 +7100,9 @@
           o.textContent = (f.icon || "") + " " + f.nom;
           sel.appendChild(o);
         });
-        const etab = DB.getEtablissement(getActiveEtabId());
-        if (etab) document.getElementById("etabLabel").textContent = etab.nom;
+        const etab = DB.getOrganization(getActiveOrganizationId());
+        if (etab)
+          document.getElementById("organizationLabel").textContent = etab.nom;
         populateGraphicCharterSelect();
       }
       window.onFamChange = function () {
@@ -7088,7 +7123,7 @@
             '<div style="padding:18px;font-size:11px;color:var(--text3);text-align:center;line-height:1.6">Sélectionnez une famille</div>';
           return;
         }
-        const tpls = DB.getTemplates(famId, getActiveEtabId());
+        const tpls = DB.getTemplates(famId, getActiveOrganizationId());
         if (!tpls?.length) {
           scroll.innerHTML =
             '<div style="padding:16px;font-size:11px;color:var(--text3);text-align:center;line-height:1.6">Aucun template.<br>Créez le premier !</div>';
@@ -7097,7 +7132,7 @@
         tpls.forEach((tpl) => {
           const item = document.createElement("div");
           item.className = "tpl-item" + (curTplId === tpl.id ? " on" : "");
-          item.innerHTML = `<span style="font-size:16px;flex-shrink:0;margin-top:1px">📄</span><div class="tpl-body"><div class="tpl-name">${escHtml(tpl.nom)}</div><div class="tpl-meta">${new Date(tpl.updatedAt).toLocaleDateString("fr-FR")}<span style="background:#dcfce7;color:#15803d;padding:1px 5px;border-radius:2px;font-size:8px;font-weight:700">Publié</span>${tpl.hasHeader ? "<span title='Avec en-tête'>📋</span>" : ""}${tpl.hasFooter ? "<span title='Avec pied'>📑</span>" : ""}</div></div><button class="tpl-del" title="Supprimer" onclick="event.stopPropagation();confirmDelTpl('${tpl.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>`;
+          item.innerHTML = `<span style="font-size:16px;flex-shrink:0;margin-top:1px">•</span><div class="tpl-body"><div class="tpl-name">${escHtml(tpl.nom)}</div><div class="tpl-meta">${new Date(tpl.updatedAt).toLocaleDateString("fr-FR")}<span style="background:#dcfce7;color:#15803d;padding:1px 5px;border-radius:2px;font-size:8px;font-weight:700">Publié</span>${tpl.hasHeader ? "<span title='Avec en-tête'>•</span>" : ""}${tpl.hasFooter ? "<span title='Avec pied'>•</span>" : ""}</div></div><button class="tpl-del" title="Supprimer" onclick="event.stopPropagation();confirmDelTpl('${tpl.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>`;
           item.onclick = () => openTemplate(tpl.id);
           scroll.appendChild(item);
         });
@@ -7175,14 +7210,15 @@
         updateVarsPanelVisibility();
         document.getElementById("tnameInput").value = tpl.nom;
         populateGraphicCharterSelect(
-          tpl.graphicCharterId || getDefaultGraphicCharterId(getActiveEtabId()),
+          tpl.graphicCharterId ||
+            getDefaultGraphicCharterId(getActiveOrganizationId()),
         );
         applyDocumentThemeToRoot(tpl);
         setSaveState("Prêt", false);
         destroyEditors();
         editorBody = createEditor(
           "ck-body",
-          "Rédigez le corps du document ici…",
+          "Rédigez le corps du document ici...",
           onEditorChange,
           (ed) => {
             activeEditor = ed;
@@ -7190,7 +7226,7 @@
         );
         editorHeader = createEditor(
           "ck-header",
-          "En-tête du document…",
+          "En-t�te du document�",
           onEditorChange,
           (ed) => {
             activeEditor = ed;
@@ -7198,7 +7234,7 @@
         );
         editorFooter = createEditor(
           "ck-footer",
-          "Pied de page…",
+          "Pied de page�",
           onEditorChange,
           (ed) => {
             activeEditor = ed;
@@ -7227,7 +7263,7 @@
           const panel = document.getElementById("templateFilterProfilePanel");
           if (panel) {
             panel.innerHTML =
-              '<div class="vars-panel-empty">Template créé. Les panneaux avancés se chargeront à la prochaine ouverture.</div>';
+              '<div class="vars-panel-empty">Template créé. Les panneaux avanc�s se chargeront  - la prochaine ouverture.</div>';
           }
           return;
         }
@@ -7244,7 +7280,7 @@
       }
 
       function escAttr(value) {
-        return String(value ?? "")
+        return String(value || "")
           .replace(/&/g, "&amp;")
           .replace(/"/g, "&quot;")
           .replace(/</g, "&lt;")
@@ -7340,7 +7376,7 @@
                         allowedValues: [],
                       },
                     },
-                    getActiveEtabId(),
+                    getActiveOrganizationId(),
                     previewDefaults,
                     {},
                     catalog,
@@ -7355,7 +7391,7 @@
               .map(
                 (option) =>
                   `<option value="${escAttr(option.value)}" ${
-                    String(profile.defaultValue ?? "") === String(option.value)
+                    String(profile.defaultValue || "") === String(option.value)
                       ? "selected"
                       : ""
                   }>${escHtml(option.label)}</option>`,
@@ -7386,7 +7422,7 @@
                               <option value="">— Aucune —</option>
                               ${selectOptions}
                             </select>`
-                          : `<input class="tname-input" style="width:100%;height:34px" value="${escAttr(profile.defaultValue ?? "")}" onchange="updateTemplateFilterDefault('${filter.id}', this.value)" placeholder="${escAttr(filter.placeholder || "Valeur par défaut")}">`
+                          : `<input class="tname-input" style="width:100%;height:34px" value="${escAttr(profile.defaultValue || "")}" onchange="updateTemplateFilterDefault('${filter.id}', this.value)" placeholder="${escAttr(filter.placeholder || "Valeur par défaut")}">`
                       }
                     </div>
                     ${
@@ -7405,7 +7441,7 @@
                     filter.type === "select" &&
                     profile.allowedValueMode === "subset"
                       ? `<div style="margin-top:10px;padding:10px;border:1px dashed var(--border);border-radius:12px;background:#fbfcfe">
-                          <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Choisissez les valeurs autorisées pour ce template.</div>
+                          <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Choisissez les valeurs autoris�es pour ce template.</div>
                           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
                             ${
                               options.length
@@ -7430,7 +7466,7 @@
                           </div>
                           <div style="display:flex;gap:8px;flex-wrap:wrap">
                             <input id="customAllowedValue_${index}" class="tname-input" style="height:34px;flex:1;min-width:180px" placeholder="Valeur personnalisée">
-                            <input id="customAllowedLabel_${index}" class="tname-input" style="height:34px;flex:1;min-width:180px" placeholder="Libellé (optionnel)">
+                            <input id="customAllowedLabel_${index}" class="tname-input" style="height:34px;flex:1;min-width:180px" placeholder="Libell - (optionnel)">
                             <button class="btn ghost sm" onclick="addCustomTemplateAllowedValue('${filter.id}', ${index})">Ajouter</button>
                           </div>
                           ${
@@ -7441,7 +7477,7 @@
                                   .map((option) =>
                                     formatAllowedFilterOption(option),
                                   )
-                                  .join(" · ")}</div>`
+                                  .join("  - ")}</div>`
                               : ""
                           }
                         </div>`
@@ -7468,7 +7504,7 @@
           curFamId,
           curTplId,
           "admin",
-          getActiveEtabId(),
+          getActiveOrganizationId(),
           seedValues,
         );
         adminFilterValues = validateRuntimeFilterValues(
@@ -7498,7 +7534,7 @@
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;width:100%;margin-bottom:6px">
             ${adminResolvedFilters
               .map((entry) => {
-                const value = adminFilterValues?.[entry.id] ?? "";
+                const value = adminFilterValues?.[entry.id] || "";
                 const help = entry.helpText
                   ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">${escHtml(entry.helpText)}</div>`
                   : "";
@@ -7653,20 +7689,20 @@
         }
         const fam = DB.getFamily(curFamId);
         const tpl = createTemplateFromGraphicCharter(
-          getActiveEtabId(),
+          getActiveOrganizationId(),
           curFamId,
           "Nouveau template - " + fam.nom,
           getSelectedGraphicCharterId() ||
-            getDefaultGraphicCharterId(getActiveEtabId()),
+            getDefaultGraphicCharterId(getActiveOrganizationId()),
         );
         tpl.nom = "Nouveau template - " + fam.nom;
         DB.saveTemplate(tpl);
         /*
-          nom: "Nouveau template — " + fam.nom,
-            '<p style="text-align:center"><strong>{{nom_etab}}</strong></p><p style="text-align:center;font-size:10pt;color:#666">{{adresse_etab}} — Tél : {{tel_etab}}</p>',
-          body: "<p>Rédigez le contenu du document ici.</p>",
+          nom: "Nouveau template  - " + fam.nom,
+            '<p style="text-align:center"><strong>{{nom_etab}}</strong></p><p style="text-align:center;font-size:10pt;color:#666">{{adresse_etab}}  - Tél : {{tel_etab}}</p>',
+          body: "<p>R�digez le contenu du document ici.</p>",
           footer:
-            '<p style="text-align:center;font-size:9pt;color:#999">Document officiel — {{nom_etab}} — Année {{annee_univ}}</p>',
+            '<p style="text-align:center;font-size:9pt;color:#999">Document officiel  - {{nom_etab}}  - Année {{annee_univ}}</p>',
         */
         curTplId = tpl.id;
         renderTplList(curFamId);
@@ -7685,15 +7721,15 @@
         tpl.hasFooter = footerEnabled;
         tpl.graphicCharterId =
           getSelectedGraphicCharterId() ||
-          getDefaultGraphicCharterId(getActiveEtabId());
+          getDefaultGraphicCharterId(getActiveOrganizationId());
         tpl.pageMargins = getCurrentPageMargins();
         tpl.headerFooterDistances = getCurrentHeaderFooterDistances();
         tpl.orientation = getCurrentPageOrientation();
         tpl.updatedAt = new Date().toISOString();
         DB.saveTemplate(tpl);
         renderTplList(curFamId);
-        setSaveState("Enregistré ✓", false);
-        toast("Template enregistré avec succès", "success");
+        setSaveState("Enregistr - ?", false);
+        toast("Template enregistr - avec succès", "success");
       };
 
       window.switchSection = function (sec) {
@@ -7749,7 +7785,7 @@
           sec === "header"
             ? headerEnabled
               ? "En-tête activé"
-              : "En-tête désactivé"
+              : "En-t�te désactivé"
             : footerEnabled
               ? "Pied activé"
               : "Pied désactivé",
@@ -7766,10 +7802,10 @@
           : "none";
         const tH = document.getElementById("toggleHeader");
         tH.classList.toggle("on", headerEnabled);
-        tH.textContent = headerEnabled ? "✓ En-tête ON" : "📋 En-tête OFF";
+        tH.textContent = headerEnabled ? "? En-t�te ON" : "• En-t�te OFF";
         const tF = document.getElementById("toggleFooter");
         tF.classList.toggle("on", footerEnabled);
-        tF.textContent = footerEnabled ? "✓ Pied ON" : "📑 Pied OFF";
+        tF.textContent = footerEnabled ? "? Pied ON" : "• Pied OFF";
         document
           .getElementById("tab-header")
           .classList.toggle("disabled", !headerEnabled);
@@ -7781,7 +7817,7 @@
         body.classList.toggle("no-footer", !footerEnabled);
         scheduleEditorPaginationRefresh();
 
-        // Recalculer les délimiteurs des pages
+        // Recalculer les d�limiteurs des pages
         setTimeout(() => {
           rebuildEditorPageVisualizer();
           scheduleEditorPaginationRefresh();
@@ -7873,7 +7909,7 @@
           scheduleEditorPaginationRefresh();
         }, 50);
         toast(
-          `Marges : haut ${margins.mt}mm · bas ${margins.mb}mm · gauche ${margins.ml}mm · droite ${margins.mr}mm · en-tête ${distances.headerTop}mm · pied ${distances.footerBottom}mm · orientation ${orientation}`,
+          `Marges : haut ${margins.mt}mm  - bas ${margins.mb}mm  - gauche ${margins.ml}mm  - droite ${margins.mr}mm  - en-tête ${distances.headerTop}mm  - pied ${distances.footerBottom}mm  - orientation ${orientation}`,
         );
       };
       window.resetPageMargins = function () {
@@ -7885,7 +7921,7 @@
         window.applyPageMargins();
       };
 
-      // ── Modal Aperçu ──
+      // -- Modal Aperçu --
       window.openPreviewModal = function () {
         if (!curTplId || !editorBody) {
           toast("Ouvrez d'abord un template", "error");
@@ -7893,10 +7929,10 @@
         }
         const sel = document.getElementById("prevPerson");
         sel.innerHTML = "";
-        DB.getPersonnel(getActiveEtabId()).forEach((p) => {
+        DB.getPersonnel(getActiveOrganizationId()).forEach((p) => {
           const o = document.createElement("option");
           o.value = p.id;
-          o.textContent = p.nom_prenom + " — " + p.poste;
+          o.textContent = p.nom_prenom + "  - " + p.poste;
           sel.appendChild(o);
         });
         window.refreshPrev();
@@ -7933,7 +7969,7 @@
         adminPreviewState = null;
         if (!result.pages.length) {
           prevPage.innerHTML =
-            '<div style="font-size:12px;color:var(--text3);text-align:center;padding:30px 20px">Aucun contenu à afficher</div>';
+            '<div style="font-size:12px;color:var(--text3);text-align:center;padding:30px 20px">Aucun contenu  - afficher</div>';
           return;
         }
 
@@ -7978,7 +8014,7 @@
         const previousValue = sel.value;
         const beneficiaries = await DB.getBeneficiariesForFamily(
           curFamId,
-          getActiveEtabId(),
+          getActiveOrganizationId(),
           adminFilterValues,
         );
         sel.innerHTML = "";
@@ -7986,7 +8022,7 @@
           const o = document.createElement("option");
           o.value = item.id;
           o.textContent = item._displaySubtitle
-            ? `${item._displayLabel} — ${item._displaySubtitle}`
+            ? `${item._displayLabel}  - ${item._displaySubtitle}`
             : item._displayLabel;
           sel.appendChild(o);
         });
@@ -7998,8 +8034,8 @@
         }
         if (label) {
           label.textContent =
-            fam.beneficiaryMode === "etablissement"
-              ? "Établissement :"
+            fam.beneficiaryMode === "organization"
+              ? "Organization :"
               : `Bénéficiaire (${fam.beneficiaryTable || "personnel"}) :`;
         }
         return beneficiaries;
@@ -8022,7 +8058,7 @@
         const person = await DB.getDocumentDataForFamily(
           curFamId,
           beneficiaryId,
-          getActiveEtabId(),
+          getActiveOrganizationId(),
           adminFilterValues,
         );
         const liveTpl = buildLivePreviewTemplate();
@@ -8030,7 +8066,7 @@
         if (!liveTpl || !prevPage) return;
         if (!person) {
           prevPage.innerHTML =
-            '<div style="font-size:12px;color:var(--text3);text-align:center;padding:30px 20px">Aucune donnée à afficher avec les filtres actuels.</div>';
+            '<div style="font-size:12px;color:var(--text3);text-align:center;padding:30px 20px">Aucune donnée  - afficher avec les filtres actuels.</div>';
           adminPreviewState = null;
           return;
         }
@@ -8041,7 +8077,7 @@
         adminPreviewState = null;
         if (!result.pages.length) {
           prevPage.innerHTML =
-            '<div style="font-size:12px;color:var(--text3);text-align:center;padding:30px 20px">Aucun contenu à afficher</div>';
+            '<div style="font-size:12px;color:var(--text3);text-align:center;padding:30px 20px">Aucun contenu  - afficher</div>';
           return;
         }
 
@@ -8084,7 +8120,7 @@
         const person = await DB.getDocumentDataForFamily(
           curFamId,
           beneficiaryId,
-          getActiveEtabId(),
+          getActiveOrganizationId(),
           adminFilterValues,
         );
         const liveTpl = buildLivePreviewTemplate();
@@ -8094,7 +8130,7 @@
         }
         if (!person) {
           toast(
-            "Sélectionnez un bénéficiaire ou l'établissement pour afficher l'aperçu",
+            "Sélectionnez un bénéficiaire ou l'Organization pour afficher l'aperçu",
             "error",
           );
           return;
@@ -8108,7 +8144,7 @@
         const person = await DB.getDocumentDataForFamily(
           curFamId,
           beneficiaryId,
-          getActiveEtabId(),
+          getActiveOrganizationId(),
           adminFilterValues,
         );
         const liveTpl = buildLivePreviewTemplate();
@@ -8118,7 +8154,7 @@
         }
         if (!person) {
           toast(
-            "Sélectionnez un bénéficiaire ou l'établissement pour imprimer",
+            "Sélectionnez un bénéficiaire ou l'Organization pour imprimer",
             "error",
           );
           return;
@@ -8132,7 +8168,7 @@
         printDocPaginated(liveTpl, person, cachedPages);
       };
 
-      // ── Zoom ──
+      // -- Zoom --
       window.setZoom = function (delta) {
         if (delta === 0) zoomLv = 100;
         else zoomLv = Math.max(40, Math.min(220, zoomLv + delta));
@@ -8145,7 +8181,7 @@
         scheduleEditorPaginationRefresh();
       };
 
-      // ── Search & replace ──
+      // -- Search & replace --
       let srchMatches = [],
         srchIdx = 0;
       window.openSearchPanel = function () {
@@ -8217,7 +8253,7 @@
         window.doSearch();
       };
 
-      // ── UI helpers ──
+      // -- UI helpers --
       window.toggleSidebar = function () {
         document.getElementById("sidebarEl").classList.toggle("closed");
       };
@@ -8314,7 +8350,7 @@
                   ),
                 );
               document.getElementById("tgSize").textContent =
-                `Tableau ${r} × ${c}`;
+                `Tableau ${r}  - ${c}`;
               document.getElementById("ti-rows").value = r;
               document.getElementById("ti-cols").value = c;
             });
@@ -8331,7 +8367,7 @@
         );
       }
 
-      // ── Keyboard shortcuts ──
+      // -- Keyboard shortcuts --
       document.addEventListener("keydown", (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === "s") {
           e.preventDefault();
@@ -8369,12 +8405,14 @@
         scheduleEditorPaginationRefresh();
       });
 
-      // ── BOOT ──
+      // -- BOOT --
       buildSwatches("sw-text", TEXT_COLORS, (c) => window.applyTextColor(c));
       buildSwatches("sw-bg", BG_COLORS, (c) => window.applyHighlight(c));
       buildTableGrid();
       buildTblColorSwatches();
       (async () => {
+        const authUser = await requireAuth("admin");
+        if (!authUser) return;
         await DB.init();
         populateFamilySelect();
         document.getElementById("loading").classList.add("done");

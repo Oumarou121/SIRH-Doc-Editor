@@ -16,6 +16,52 @@ const API_BASE = (() => {
   return "http://localhost:3000";
 })();
 const API_ROOT = `${API_BASE}/api`;
+let currentAuthUser = null;
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${API_ROOT}${path}`, {
+    credentials: "same-origin",
+    ...options,
+  });
+  return res;
+}
+
+async function fetchJsonOrThrow(path, options = {}) {
+  const res = await apiFetch(path, options);
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(payload.error || `HTTP ${res.status}`);
+  return payload;
+}
+
+function getCurrentAuthUser() {
+  return cloneData(currentAuthUser);
+}
+
+async function requireAuth(expectedRole = null) {
+  try {
+    const payload = await fetchJsonOrThrow("/me");
+    currentAuthUser = payload.user || null;
+    if (
+      expectedRole &&
+      payload.redirectTo &&
+      !window.location.pathname.endsWith(payload.redirectTo)
+    ) {
+      window.location.href = payload.redirectTo;
+      return null;
+    }
+    return currentAuthUser;
+  } catch (_) {
+    window.location.href = "/login.html";
+    return null;
+  }
+}
+
+async function logoutAndRedirect() {
+  try {
+    await apiFetch("/logout", { method: "POST" });
+  } catch (_) {}
+  window.location.href = "/login.html";
+}
 
 function cloneData(data) {
   if (data === undefined) return undefined;
@@ -32,6 +78,42 @@ const SUPERADMIN_FAMILY_HIDDEN_TABLES = Object.freeze([
   "admin_account",
   "charte",
 ]);
+
+function normalizeOrganizationId(value, fallback = null) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return String(value);
+}
+
+function getScopedOrganizationId(record = {}, fallback = null) {
+  return normalizeOrganizationId(
+    record?.organizationId ?? record?.etablissementId,
+    fallback,
+  );
+}
+
+function isOrganizationBeneficiaryMode(mode) {
+  return String(mode || "").toLowerCase() === "organization";
+}
+
+function isScopedOrganizationFamily(family = {}) {
+  return (
+    family?.beneficiaryMode === "etablissement" ||
+    isOrganizationBeneficiaryMode(family?.beneficiaryMode)
+  );
+}
+
+function withOrganizationQueryParams(params = {}) {
+  const scopedId = normalizeOrganizationId(
+    params.organizationId ?? params.etablissementId ?? params.etabId,
+    null,
+  );
+  return {
+    ...params,
+    organizationId: scopedId,
+    etablissementId: scopedId,
+    etabId: scopedId,
+  };
+}
 
 function normalizeFilterParamName(value, fallback = "filtre") {
   const normalized = String(value || "")
@@ -291,7 +373,7 @@ function buildDistinctFilterSqlQuery(builder, schema = null) {
     `FROM ${quoteSqlIdentifier(normalized.tableName)}`,
     `WHERE ${quoteSqlIdentifier(normalized.valueColumn)} IS NOT NULL${
       hasEtabColumn
-        ? "\n  AND (:etablissementId IS NULL OR [etablissement_id] = :etablissementId)"
+        ? "\n  AND (:organizationId IS NULL OR [etablissement_id] = :organizationId)"
         : ""
     }`,
     "ORDER BY label ASC",
@@ -317,8 +399,9 @@ function getEnabledTemplateFilters(family, template, role = "user") {
 
 function normalizeFamilyRecord(record = {}) {
   const next = cloneData(record || {}) || {};
-  next.beneficiaryMode =
-    next.beneficiaryMode === "etablissement" ? "etablissement" : "table";
+  next.beneficiaryMode = isScopedOrganizationFamily(next)
+    ? "organization"
+    : "table";
   next.beneficiaryTable =
     next.beneficiaryMode === "table"
       ? String(
@@ -373,12 +456,18 @@ function getVisibleFamilySchemaTables(schema, extraTables = []) {
 
 function normalizeState(state) {
   const next = state && typeof state === "object" ? state : {};
-  return {
-    etablissements: Array.isArray(next.etablissements)
+  const normalizedOrganizations = Array.isArray(next.organizations)
+    ? next.organizations.map((org) =>
+        normalizeEtablissementRecord(cloneData(org)),
+      )
+    : Array.isArray(next.etablissements)
       ? next.etablissements.map((etab) =>
           normalizeEtablissementRecord(cloneData(etab)),
         )
-      : [],
+      : [];
+  return {
+    etablissements: normalizedOrganizations,
+    organizations: cloneData(normalizedOrganizations),
     admins: Array.isArray(next.admins) ? cloneData(next.admins) : [],
     families: Array.isArray(next.families)
       ? next.families.map((fam) => normalizeFamilyRecord(cloneData(fam)))
@@ -520,7 +609,7 @@ const DB = {
     if (this._readyPromise && !force) return this._readyPromise;
     this._readyPromise = (async () => {
       try {
-        const res = await fetch(`${API_ROOT}/bootstrap`, {
+        const res = await apiFetch("/bootstrap", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({}),
@@ -529,6 +618,7 @@ const DB = {
           throw new Error(`Bootstrap failed with status ${res.status}`);
         }
         const payload = await res.json();
+        currentAuthUser = payload.user || currentAuthUser;
         this._cache = normalizeState(payload.state);
         return this.get();
       } catch (error) {
@@ -546,7 +636,7 @@ const DB = {
 
   async getSchema(force = false) {
     if (this._schemaPromise && !force) return this._schemaPromise;
-    this._schemaPromise = fetch(`${API_ROOT}/schema`)
+    this._schemaPromise = apiFetch("/schema")
       .then((res) => {
         if (!res.ok) throw new Error(`Schema failed with status ${res.status}`);
         return res.json();
@@ -556,10 +646,13 @@ const DB = {
   },
 
   async runSelect(sql, params = {}) {
-    const res = await fetch(`${API_ROOT}/query`, {
+    const res = await apiFetch("/query", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sql, params }),
+      body: JSON.stringify({
+        sql,
+        params: withOrganizationQueryParams(params),
+      }),
     });
     if (!res.ok) {
       const payload = await res.json().catch(() => ({}));
@@ -581,7 +674,7 @@ const DB = {
     return this.getDocumentDataForFamily(
       familyId,
       personId,
-      etablissementId || basePerson?.etablissementId || null,
+      etablissementId || getScopedOrganizationId(basePerson) || null,
       filters,
     );
   },
@@ -596,18 +689,18 @@ const DB = {
     const filterDefs = getFamilyFilterCatalog(family);
     const filterParams = buildDocumentFilterParams(filters, filterDefs);
 
-    if (family.beneficiaryMode === "etablissement") {
+    if (isScopedOrganizationFamily(family)) {
       const etab = etablissementId
-        ? this.getEtablissement(etablissementId)
+        ? this.getOrganization(etablissementId)
         : null;
       if (!etab) return [];
       return [
         {
           ...cloneData(etab),
           id: String(etab.id),
-          _displayLabel: etab.nom || "Établissement",
+          _displayLabel: etab.nom || "Organization",
           _displaySubtitle: etab.ville || "",
-          _sourceTable: "etablissement",
+          _sourceTable: "organization",
         },
       ];
     }
@@ -623,8 +716,7 @@ const DB = {
           tableName,
         );
         const rows = await this.runSelect(family.beneficiarySql, {
-          etablissementId,
-          etabId: etablissementId,
+          organizationId: etablissementId,
           ...filterParams,
         });
         return rows
@@ -708,13 +800,12 @@ const DB = {
              }
            FROM ${quoteSqlIdentifier(tableName)} src${
              etabColumn && etablissementId
-               ? `\n           WHERE src.${quoteSqlIdentifier(etabColumn.name)} = :etablissementId`
+               ? `\n           WHERE src.${quoteSqlIdentifier(etabColumn.name)} = :organizationId`
                : ""
            }
            ORDER BY src.${quoteSqlIdentifier(defaultOrderColumn)} ASC`;
       const rows = await this.runSelect(fallbackSql, {
-        etablissementId,
-        etabId: etablissementId,
+        organizationId: etablissementId,
         ...filterParams,
       });
       return rows
@@ -756,7 +847,7 @@ const DB = {
   ) {
     const family = this.getFamily(familyId);
     if (!family) return null;
-    if (family.beneficiaryMode !== "etablissement" && !beneficiaryId) {
+    if (!isScopedOrganizationFamily(family) && !beneficiaryId) {
       return null;
     }
 
@@ -764,9 +855,9 @@ const DB = {
     const tableName =
       family.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
 
-    if (family.beneficiaryMode === "etablissement") {
+    if (isScopedOrganizationFamily(family)) {
       const etab = etablissementId
-        ? this.getEtablissement(etablissementId)
+        ? this.getOrganization(etablissementId)
         : null;
       baseRecord = etab ? cloneData(etab) : {};
     } else if (beneficiaryId) {
@@ -798,14 +889,12 @@ const DB = {
     try {
       const filterDefs = getFamilyFilterCatalog(family);
       const rows = await this.runSelect(family.sql, {
-        id:
-          family.beneficiaryMode === "etablissement"
-            ? etablissementId
-            : beneficiaryId,
+        id: isScopedOrganizationFamily(family)
+          ? etablissementId
+          : beneficiaryId,
         personId: beneficiaryId,
         beneficiaryId,
-        etablissementId,
-        etabId: etablissementId,
+        organizationId: etablissementId,
         ...buildDocumentFilterParams(filters, filterDefs),
       });
       const row = rows?.[0];
@@ -818,7 +907,7 @@ const DB = {
 
   save(d) {
     this._cache = normalizeState(d);
-    fetch(`${API_ROOT}/state`, {
+    apiFetch("/state", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ state: this._cache }),
@@ -844,26 +933,38 @@ const DB = {
   getTemplates: (fId, eId) => {
     let t = DB._cache?.templates || [];
     if (fId) t = t.filter((x) => x.familyId === fId);
-    if (eId) t = t.filter((x) => x.etablissementId === eId);
+    if (eId) t = t.filter((x) => getScopedOrganizationId(x) === eId);
     return cloneData(t);
   },
   getTemplate: (id) =>
     cloneData((DB._cache?.templates || []).find((t) => t.id === id) || null),
   getPersonnel: (eId) => {
     let l = DB._cache?.personnel || [];
-    l = eId ? l.filter((p) => p.etablissementId === eId) : l;
+    l = eId ? l.filter((p) => getScopedOrganizationId(p) === eId) : l;
     return cloneData(l);
   },
   getPerson: (id) =>
     cloneData((DB._cache?.personnel || []).find((p) => p.id === id) || null),
   getEtablissements: () => cloneData(DB._cache?.etablissements || []),
+  getOrganizations: () =>
+    cloneData(DB._cache?.organizations || DB._cache?.etablissements || []),
   getEtablissement: (id) =>
     cloneData(
       (DB._cache?.etablissements || []).find((e) => e.id === id) || null,
     ),
+  getOrganization: (id) =>
+    cloneData(
+      (DB._cache?.organizations || DB._cache?.etablissements || []).find(
+        (e) => e.id === id,
+      ) || null,
+    ),
   getAdmins: () => cloneData(DB._cache?.admins || []),
   getAdmin: (id) =>
     cloneData((DB._cache?.admins || []).find((a) => a.id === id) || null),
+  getTemplatesByOrganization: (familyId, organizationId) =>
+    DB.getTemplates(familyId, organizationId),
+  getPersonnelByOrganization: (organizationId) =>
+    DB.getPersonnel(organizationId),
 
   // ── Mutateurs ───────────────────────────────────────────────
   saveFamily(fam) {
@@ -895,23 +996,47 @@ const DB = {
   },
   saveEtablissement(e) {
     const s = DB.get();
-    const i = s.etablissements.findIndex((x) => x.id === e.id);
-    i >= 0 ? (s.etablissements[i] = e) : s.etablissements.push(e);
+    const normalized = normalizeEtablissementRecord(e);
+    const i = s.etablissements.findIndex((x) => x.id === normalized.id);
+    i >= 0
+      ? (s.etablissements[i] = normalized)
+      : s.etablissements.push(normalized);
+    s.organizations = cloneData(s.etablissements);
     DB.save(s);
-    return e;
+    return normalized;
+  },
+  saveOrganization(org) {
+    const s = DB.get();
+    const normalized = normalizeEtablissementRecord(org);
+    const i = s.organizations.findIndex((x) => x.id === normalized.id);
+    i >= 0
+      ? (s.organizations[i] = normalized)
+      : s.organizations.push(normalized);
+    s.etablissements = cloneData(s.organizations);
+    DB.save(s);
+    return normalized;
   },
   deleteEtablissement(id) {
     const s = DB.get();
     s.etablissements = s.etablissements.filter((e) => e.id !== id);
-    s.admins = s.admins.filter((a) => a.etablissementId !== id);
+    s.organizations = cloneData(s.etablissements);
+    s.admins = s.admins.filter((a) => getScopedOrganizationId(a) !== id);
     DB.save(s);
+  },
+  deleteOrganization(id) {
+    return DB.deleteEtablissement(id);
   },
   saveAdmin(a) {
     const s = DB.get();
-    const i = s.admins.findIndex((x) => x.id === a.id);
-    i >= 0 ? (s.admins[i] = a) : s.admins.push(a);
+    const normalized = {
+      ...a,
+      organizationId: getScopedOrganizationId(a),
+      etablissementId: getScopedOrganizationId(a),
+    };
+    const i = s.admins.findIndex((x) => x.id === normalized.id);
+    i >= 0 ? (s.admins[i] = normalized) : s.admins.push(normalized);
     DB.save(s);
-    return a;
+    return normalized;
   },
   deleteAdmin(id) {
     const s = DB.get();
@@ -1067,8 +1192,7 @@ async function resolveFilterOptionsForEntry(
     }
     try {
       const rows = await DB.runSelect(filterEntry.sqlQuery, {
-        etablissementId,
-        etabId: etablissementId,
+        organizationId: etablissementId,
         ...buildDocumentFilterParams(
           values,
           filterDefs.length ? filterDefs : [filterEntry],
@@ -1223,6 +1347,11 @@ function normalizeGraphicCharterCollection(raw) {
 
 function normalizeEtablissementRecord(record = {}) {
   const next = cloneData(record || {}) || {};
+  next.organizationId = normalizeOrganizationId(next.organizationId, next.id);
+  next.etablissementId = normalizeOrganizationId(
+    next.etablissementId,
+    next.organizationId,
+  );
   next.graphicCharters = normalizeGraphicCharterCollection(
     next.graphicCharters ?? next.graphicCharter,
   );
@@ -1232,6 +1361,8 @@ function normalizeEtablissementRecord(record = {}) {
 
 function normalizeTemplateRecord(record = {}) {
   const next = cloneData(record || {}) || {};
+  next.organizationId = getScopedOrganizationId(next);
+  next.etablissementId = next.organizationId;
   next.graphicCharterId = next.graphicCharterId
     ? String(next.graphicCharterId)
     : null;
@@ -1423,13 +1554,17 @@ function normalizeGraphicCharterConfig(config = {}) {
   return merged;
 }
 
-function getGraphicCharters(etablissementId) {
-  const etab = etablissementId ? DB.getEtablissement(etablissementId) : null;
-  return normalizeGraphicCharterCollection(etab?.graphicCharters || []);
+function getOrganizationGraphicCharters(organizationId) {
+  const org = organizationId ? DB.getOrganization(organizationId) : null;
+  return normalizeGraphicCharterCollection(org?.graphicCharters || []);
 }
 
-function getGraphicCharter(etablissementId, charterId = null) {
-  const charters = getGraphicCharters(etablissementId);
+function getGraphicCharters(etablissementId) {
+  return getOrganizationGraphicCharters(etablissementId);
+}
+
+function getOrganizationGraphicCharter(organizationId, charterId = null) {
+  const charters = getOrganizationGraphicCharters(organizationId);
   if (!charters.length) return null;
   if (charterId) {
     const match = charters.find((item) => item.id === String(charterId));
@@ -1438,39 +1573,51 @@ function getGraphicCharter(etablissementId, charterId = null) {
   return charters.find((item) => item.isDefault) || charters[0] || null;
 }
 
-function getDefaultGraphicCharterId(etablissementId) {
-  return getGraphicCharter(etablissementId)?.id || null;
+function getGraphicCharter(etablissementId, charterId = null) {
+  return getOrganizationGraphicCharter(etablissementId, charterId);
 }
 
-function ensureEtablissementGraphicCharters(etablissementId) {
-  const etab = etablissementId ? DB.getEtablissement(etablissementId) : null;
-  if (!etab) return [];
-  const current = getGraphicCharters(etablissementId);
+function getDefaultOrganizationGraphicCharterId(organizationId) {
+  return getOrganizationGraphicCharter(organizationId)?.id || null;
+}
+
+function getDefaultGraphicCharterId(etablissementId) {
+  return getDefaultOrganizationGraphicCharterId(etablissementId);
+}
+
+function ensureOrganizationGraphicCharters(organizationId) {
+  const org = organizationId ? DB.getOrganization(organizationId) : null;
+  if (!org) return [];
+  const current = getOrganizationGraphicCharters(organizationId);
   if (current.length) return current;
   const created = [
     normalizeGraphicCharterEntry(
       {
         id: genId("charter"),
         name: "Charte standard",
-        description: "Charte par defaut de l'etablissement",
+        description: "Charte par defaut de l'Organization",
         isDefault: true,
         config: {},
       },
       0,
     ),
   ];
-  DB.saveEtablissement({
-    ...etab,
+  DB.saveOrganization({
+    ...org,
     graphicCharters: created,
     updatedAt: new Date().toISOString(),
   });
   return created;
 }
 
-function saveGraphicCharter(etablissementId, charter) {
-  const etab = etablissementId ? DB.getEtablissement(etablissementId) : null;
-  if (!etab) return null;
-  const current = getGraphicCharters(etablissementId);
+function ensureEtablissementGraphicCharters(etablissementId) {
+  return ensureOrganizationGraphicCharters(etablissementId);
+}
+
+function saveOrganizationGraphicCharter(organizationId, charter) {
+  const org = organizationId ? DB.getOrganization(organizationId) : null;
+  if (!org) return null;
+  const current = getOrganizationGraphicCharters(organizationId);
   const normalized = normalizeGraphicCharterEntry(
     {
       ...charter,
@@ -1488,18 +1635,22 @@ function saveGraphicCharter(etablissementId, charter) {
       isDefault: item.id === normalized.id,
     }));
   }
-  DB.saveEtablissement({
-    ...etab,
+  DB.saveOrganization({
+    ...org,
     graphicCharters: next,
     updatedAt: new Date().toISOString(),
   });
   return normalized;
 }
 
-function deleteGraphicCharter(etablissementId, charterId) {
-  const etab = etablissementId ? DB.getEtablissement(etablissementId) : null;
-  if (!etab) return null;
-  const current = getGraphicCharters(etablissementId);
+function saveGraphicCharter(etablissementId, charter) {
+  return saveOrganizationGraphicCharter(etablissementId, charter);
+}
+
+function deleteOrganizationGraphicCharter(organizationId, charterId) {
+  const org = organizationId ? DB.getOrganization(organizationId) : null;
+  if (!org) return null;
+  const current = getOrganizationGraphicCharters(organizationId);
   const removed = current.find((item) => item.id === String(charterId));
   if (!removed) return null;
   let next = current.filter((item) => item.id !== String(charterId));
@@ -1513,7 +1664,7 @@ function deleteGraphicCharter(etablissementId, charterId) {
     next.find((item) => item.isDefault)?.id || next[0]?.id || null;
   const state = DB.get();
   state.etablissements = state.etablissements.map((item) =>
-    item.id === etablissementId
+    item.id === organizationId
       ? {
           ...item,
           graphicCharters: next,
@@ -1521,8 +1672,9 @@ function deleteGraphicCharter(etablissementId, charterId) {
         }
       : item,
   );
+  state.organizations = cloneData(state.etablissements);
   state.templates = state.templates.map((tpl) =>
-    tpl.etablissementId === etablissementId &&
+    getScopedOrganizationId(tpl) === organizationId &&
     tpl.graphicCharterId === String(charterId)
       ? { ...tpl, graphicCharterId: fallbackId }
       : tpl,
@@ -1531,10 +1683,14 @@ function deleteGraphicCharter(etablissementId, charterId) {
   return removed;
 }
 
-function setDefaultGraphicCharter(etablissementId, charterId) {
-  const etab = etablissementId ? DB.getEtablissement(etablissementId) : null;
-  if (!etab) return null;
-  const current = getGraphicCharters(etablissementId);
+function deleteGraphicCharter(etablissementId, charterId) {
+  return deleteOrganizationGraphicCharter(etablissementId, charterId);
+}
+
+function setDefaultOrganizationGraphicCharter(organizationId, charterId) {
+  const org = organizationId ? DB.getOrganization(organizationId) : null;
+  if (!org) return null;
+  const current = getOrganizationGraphicCharters(organizationId);
   if (!current.some((item) => item.id === String(charterId))) return null;
   const next = current.map((item) => ({
     ...item,
@@ -1542,27 +1698,37 @@ function setDefaultGraphicCharter(etablissementId, charterId) {
     updatedAt:
       item.id === String(charterId) ? new Date().toISOString() : item.updatedAt,
   }));
-  DB.saveEtablissement({
-    ...etab,
+  DB.saveOrganization({
+    ...org,
     graphicCharters: next,
     updatedAt: new Date().toISOString(),
   });
-  return getGraphicCharter(etablissementId, charterId);
+  return getOrganizationGraphicCharter(organizationId, charterId);
 }
 
-function getEtablissementGraphicCharter(etablissementId, charterId = null) {
-  return getGraphicCharter(etablissementId, charterId)?.config
+function setDefaultGraphicCharter(etablissementId, charterId) {
+  return setDefaultOrganizationGraphicCharter(etablissementId, charterId);
+}
+
+function getOrganizationGraphicCharterConfig(organizationId, charterId = null) {
+  return getOrganizationGraphicCharter(organizationId, charterId)?.config
     ? normalizeGraphicCharterConfig(
-        getGraphicCharter(etablissementId, charterId).config,
+        getOrganizationGraphicCharter(organizationId, charterId).config,
       )
     : normalizeGraphicCharterConfig({});
 }
 
+function getEtablissementGraphicCharter(etablissementId, charterId = null) {
+  return getOrganizationGraphicCharterConfig(etablissementId, charterId);
+}
+
 function getTemplateGraphicCharterRecord(tpl) {
-  if (!tpl?.etablissementId) return null;
+  const organizationId = getScopedOrganizationId(tpl);
+  if (!organizationId) return null;
   const resolvedId =
-    tpl.graphicCharterId || getDefaultGraphicCharterId(tpl.etablissementId);
-  return getGraphicCharter(tpl.etablissementId, resolvedId);
+    tpl.graphicCharterId ||
+    getDefaultOrganizationGraphicCharterId(organizationId);
+  return getOrganizationGraphicCharter(organizationId, resolvedId);
 }
 
 function getTemplateGraphicCharter(tpl) {
@@ -1578,17 +1744,31 @@ function getAcademicYearLabel(date = new Date()) {
   return month >= 9 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
 }
 
+function buildOrganizationTemplateVars(etab) {
+  const raw = etab?.raw && typeof etab.raw === "object" ? etab.raw : {};
+  const out = {};
+  Object.entries(raw).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    if (typeof value === "object") return;
+    const normalizedKey = normalizeFilterParamName(key, "");
+    if (!normalizedKey) return;
+    out[normalizedKey] = value;
+    out[`org_${normalizedKey}`] = value;
+  });
+  return out;
+}
+
 function buildDocumentContext(tpl, person) {
   const base = person ? cloneData(person) : {};
-  const etab = tpl?.etablissementId
-    ? DB.getEtablissement(tpl.etablissementId)
-    : null;
+  const organizationId = getScopedOrganizationId(tpl);
+  const etab = organizationId ? DB.getOrganization(organizationId) : null;
   const charter = getTemplateGraphicCharter(tpl);
   const officialName =
     charter.identity.officialName || etab?.nom || base.nom_etab || "";
 
   return {
     ...base,
+    ...buildOrganizationTemplateVars(etab),
     nom_etab: officialName,
     adresse_etab: etab?.adresse || base.adresse_etab || "",
     tel_etab: etab?.tel || base.tel_etab || "",
@@ -3023,6 +3203,7 @@ function previewDocument(tpl, person) {
       line-height: 1.6;
       color: var(--doc-color-text, #111);
       overflow: hidden;
+      white-space: break-spaces;
     }
 
     .preview-page-body {
@@ -3033,6 +3214,7 @@ function previewDocument(tpl, person) {
       line-height: 1.6;
       color: var(--doc-color-text, #111);
       overflow: hidden;
+      white-space: break-spaces;
     }
 
     .preview-page-body.no-header {
@@ -3055,10 +3237,12 @@ function previewDocument(tpl, person) {
       line-height: 1.6;
       color: var(--doc-color-text, #111);
       overflow: hidden;
+      white-space: break-spaces;
     }
 
     .preview-page p {
       margin: 0 0 0.4em 0;
+      white-space: inherit;
     }
 
     .preview-page ul, .preview-page ol {
@@ -3086,6 +3270,7 @@ function previewDocument(tpl, person) {
     .preview-page td p, .preview-page th p {
       color: inherit;
       margin: 0;
+      white-space: inherit;
     }
 
     .preview-page th:not([style]) {
@@ -3293,6 +3478,7 @@ function printDocPaginated(tpl, person, pages = null) {
       font-size: 12pt;
       line-height: 1.6;
       color: var(--doc-color-text, #111);
+      white-space: break-spaces;
     }
 
     .sirh-print-body {
@@ -3303,6 +3489,7 @@ function printDocPaginated(tpl, person, pages = null) {
       line-height: 1.6;
       color: var(--doc-color-text, #111);
       overflow: visible;
+      white-space: break-spaces;
     }
 
     .sirh-print-body.no-header {
@@ -3324,12 +3511,14 @@ function printDocPaginated(tpl, person, pages = null) {
       font-size: 12pt;
       line-height: 1.6;
       color: var(--doc-color-text, #111);
+      white-space: break-spaces;
     }
 
     .sirh-print-header p,
     .sirh-print-body p,
     .sirh-print-footer p {
       margin: 0 0 0.4em;
+      white-space: inherit;
     }
 
     .sirh-print-header ul,
@@ -3355,7 +3544,7 @@ function printDocPaginated(tpl, person, pages = null) {
       -webkit-print-color-adjust: exact;
     }
 
-    td p, th p { color: inherit; margin: 0; }
+    td p, th p { color: inherit; margin: 0; white-space: inherit; }
 
     th:not([style]) {
       background: var(--doc-table-header-bg, #f2f2f2);

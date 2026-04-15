@@ -1179,7 +1179,7 @@
           class="icon-nav-btn"
           id="nav-etablissements"
           onclick="showSection('etablissements', this)"
-          title="Établissements"
+          title="Organizations"
         >
           <svg
             viewBox="0 0 24 24"
@@ -1190,13 +1190,13 @@
             <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
-          <span>Étab.</span>
+          <span>Orgs</span>
         </button>
         <button
           class="icon-nav-btn"
           id="nav-admins"
           onclick="showSection('admins', this)"
-          title="Administrateurs"
+          title="Users"
         >
           <svg
             viewBox="0 0 24 24"
@@ -1285,30 +1285,23 @@
             >Gestion des familles</span
           >
           <div class="ml-auto flex gap-8">
-            <a class="nav-link" href="admin.html">
+            <button
+              class="nav-link"
+              type="button"
+              onclick="logoutAndRedirect()"
+            >
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
               >
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
               </svg>
-              Admin Établissement
-            </a>
-            <a class="nav-link" href="user.html">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-              </svg>
-              Utilisateur Final
-            </a>
+              Déconnexion
+            </button>
           </div>
         </div>
 
@@ -1336,14 +1329,14 @@
               </div>
             </div>
           </div>
-          <!-- Établissements -->
+          <!-- Organizations -->
           <div class="content-panel" id="panel-etablissements">
-            <div class="section-heading">Établissements gérés</div>
-            <div id="etabContent"></div>
+            <div class="section-heading">Organizations</div>
+            <div id="organizationContent"></div>
           </div>
           <!-- Admins -->
           <div class="content-panel" id="panel-admins">
-            <div class="section-heading">Administrateurs d'établissements</div>
+            <div class="section-heading">Utilisateurs rattachés</div>
             <div id="adminContent"></div>
           </div>
           <!-- Dashboard -->
@@ -1381,14 +1374,14 @@
       </div>
     </div>
 
-    <!-- Modal établissement -->
-    <div class="modal-overlay" id="modalEtab">
+    <!-- Modal organization -->
+    <div class="modal-overlay" id="modalOrganization">
       <div class="modal" style="max-width: 960px">
         <div class="modal-header">
-          <span class="modal-title" id="etabModalTitle"
-            >Nouvel établissement</span
+          <span class="modal-title" id="organizationModalTitle"
+            >Nouvelle Organization</span
           >
-          <button class="modal-close" onclick="closeModal('modalEtab')">
+          <button class="modal-close" onclick="closeModal('modalOrganization')">
             ✕
           </button>
         </div>
@@ -1397,30 +1390,42 @@
             <label class="form-label">Nom <span class="req">*</span></label
             ><input
               class="form-input"
-              id="etabNom"
+              id="organizationName"
               placeholder="Ex: ISET Tunis"
             />
           </div>
           <div class="form-row" style="margin: 0">
             <label class="form-label">Ville</label
-            ><input class="form-input" id="etabVille" placeholder="Tunis" />
+            ><input
+              class="form-input"
+              id="organizationCity"
+              placeholder="Tunis"
+            />
           </div>
         </div>
         <div class="form-row" style="margin-top: 14px">
           <label class="form-label">Adresse</label
           ><input
             class="form-input"
-            id="etabAdresse"
+            id="organizationAddress"
             placeholder="Adresse complète"
           />
         </div>
         <div class="form-row">
           <label class="form-label">Téléphone</label
-          ><input class="form-input" id="etabTel" placeholder="+216 ..." />
+          ><input
+            class="form-input"
+            id="organizationPhone"
+            placeholder="+216 ..."
+          />
         </div>
         <div class="modal-actions">
-          <button class="btn" onclick="closeModal('modalEtab')">Annuler</button>
-          <button class="btn primary" onclick="saveEtab()">Enregistrer</button>
+          <button class="btn" onclick="closeModal('modalOrganization')">
+            Annuler
+          </button>
+          <button class="btn primary" onclick="saveOrganization()">
+            Enregistrer
+          </button>
         </div>
       </div>
     </div>
@@ -1448,15 +1453,15 @@
               class="form-input"
               id="adminEmail"
               type="email"
-              placeholder="email@etab.tn"
+              placeholder="email@organization.tn"
             />
           </div>
         </div>
         <div class="form-row" style="margin-top: 14px">
           <label class="form-label"
-            >Établissement assigné <span class="req">*</span></label
+            >Organization assignée <span class="req">*</span></label
           >
-          <select class="form-input" id="adminEtab">
+          <select class="form-input" id="adminOrganization">
             <option value="">— Choisir —</option>
           </select>
         </div>
@@ -1473,12 +1478,12 @@
     <script src="shared.js"></script>
 
     <script>
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  STATE
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       let currentSection = "families";
       let selectedFamId = null;
-      let editingEtabId = null;
+      let editingOrganizationId = null;
       let editingAdminId = null;
 
       const SECTION_META = {
@@ -1488,14 +1493,14 @@
           topbar: "Gestion des familles",
         },
         etablissements: {
-          panelTitle: "Établissements",
-          addLabel: "Nouvel établissement",
-          topbar: "Gestion des établissements",
+          panelTitle: "Organizations",
+          addLabel: null,
+          topbar: "Gestion des Organizations",
         },
         admins: {
-          panelTitle: "Administrateurs",
-          addLabel: "Nouvel administrateur",
-          topbar: "Gestion des administrateurs",
+          panelTitle: "Users / Admins",
+          addLabel: null,
+          topbar: "Gestion des users",
         },
         dashboard: {
           panelTitle: "Tableau de bord",
@@ -1504,9 +1509,9 @@
         },
       };
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  SECTIONS
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       function showSection(section, btn) {
         currentSection = section;
         document
@@ -1527,14 +1532,14 @@
           : "none";
         document.getElementById("searchInput").value = "";
         renderLeftPanel();
-        if (section === "etablissements") renderEtabContent();
+        if (section === "etablissements") renderOrganizationContent();
         if (section === "admins") renderAdminContent();
         if (section === "dashboard") renderDashboard();
       }
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  LEFT PANEL
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       function renderLeftPanel() {
         const search = document
           .getElementById("searchInput")
@@ -1547,8 +1552,8 @@
             .forEach((fam) => {
               const tplCount = DB.getTemplates(fam.id).length;
               const beneficiaryMeta =
-                fam.beneficiaryMode === "etablissement"
-                  ? "lié à l'établissement"
+                fam.beneficiaryMode === "organization"
+                  ? "lié à l'Organization"
                   : `bénéficiaire: ${fam.beneficiaryTable || "personnel"}`;
               const item = document.createElement("div");
               item.className =
@@ -1563,7 +1568,7 @@
             });
         }
         if (currentSection === "etablissements") {
-          DB.getEtablissements()
+          DB.getOrganizations()
             .filter((e) => e.nom.toLowerCase().includes(search))
             .forEach((etab) => {
               const item = document.createElement("div");
@@ -1576,7 +1581,9 @@
           DB.getAdmins()
             .filter((a) => a.nom.toLowerCase().includes(search))
             .forEach((admin) => {
-              const etab = DB.getEtablissement(admin.etablissementId);
+              const etab = DB.getOrganization(
+                admin.organizationId || admin.etablissementId,
+              );
               const item = document.createElement("div");
               item.className = "list-item";
               item.innerHTML = `<div class="list-item-icon" style="font-size:13px;font-weight:700;color:var(--purple)">${admin.nom
@@ -1597,13 +1604,11 @@
       }
       function addItem() {
         if (currentSection === "families") newFamily();
-        if (currentSection === "etablissements") openEtabModal();
-        if (currentSection === "admins") openAdminModal();
       }
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  FAMILY EDITOR
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       function newFamily() {
         const id = genId("fam");
         DB.saveFamily({
@@ -1628,6 +1633,7 @@
       function renderFamilyEditor(famId) {
         const fam = DB.getFamily(famId);
         if (!fam) return;
+        const isOrganizationMode = fam.beneficiaryMode === "organization";
         const templates = DB.getTemplates(famId);
         const wrap = document.getElementById("familyEditorWrap");
 
@@ -1691,8 +1697,8 @@
       <div class="form-row" style="margin:0">
         <label class="form-label">Cible du document</label>
         <select class="form-input" id="fBeneficiaryMode" onchange="updateFamilyBeneficiaryMode('${famId}', this.value)">
-          <option value="table" ${fam.beneficiaryMode !== "etablissement" ? "selected" : ""}>Bénéficiaire d'une table</option>
-          <option value="etablissement" ${fam.beneficiaryMode === "etablissement" ? "selected" : ""}>Lié à l'établissement</option>
+          <option value="table" ${!isOrganizationMode ? "selected" : ""}>Bénéficiaire d'une table</option>
+          <option value="organization" ${isOrganizationMode ? "selected" : ""}>Lié à l'Organization</option>
         </select>
       </div>
       <div class="form-row" style="margin:0" id="familyBeneficiaryTableWrap">
@@ -1722,7 +1728,7 @@
       <button class="btn sm" onclick="testFamilyBeneficiaryQuery('${famId}')">Tester la liste</button>
     </div>
     <div class="sql-wrap">
-      <textarea class="sql-input" id="fBeneficiarySql" rows="7" ${fam.beneficiaryMode === "etablissement" ? "disabled" : ""} onchange="updateFamilyDraftField('${famId}', 'beneficiarySql', this.value)">${escHtml(fam.beneficiarySql || "")}</textarea>
+      <textarea class="sql-input" id="fBeneficiarySql" rows="7" ${isOrganizationMode ? "disabled" : ""} onchange="updateFamilyDraftField('${famId}', 'beneficiarySql', this.value)">${escHtml(fam.beneficiarySql || "")}</textarea>
       <div class="sql-badge">BENEF</div>
     </div>
     <pre id="beneficiaryPreviewBox" style="margin-top:10px;white-space:pre-wrap;font-size:11px;color:var(--text2);background:#fbfcfe;border:1px solid var(--line);border-radius:12px;padding:12px">Cliquez sur "Tester la liste" pour voir un bénéficiaire retourné.</pre>
@@ -1787,10 +1793,12 @@
   <div class="card-body" style="padding:0">
     ${
       templates.length === 0
-        ? '<div class="text-muted" style="padding:16px;text-align:center">Aucun template — créez-en depuis l\'interface Admin Établissement</div>'
-        : `<table class="data-table"><thead><tr><th>Nom</th><th>Établissement</th><th>Mis à jour</th><th>Statut</th></tr></thead><tbody>${templates
+        ? '<div class="text-muted" style="padding:16px;text-align:center">Aucun template — créez-en depuis l\'interface Admin Organization</div>'
+        : `<table class="data-table"><thead><tr><th>Nom</th><th>Organization</th><th>Mis à jour</th><th>Statut</th></tr></thead><tbody>${templates
             .map((t) => {
-              const etab = DB.getEtablissement(t.etablissementId);
+              const etab = DB.getOrganization(
+                t.organizationId || t.etablissementId,
+              );
               return `<tr><td><strong>${t.nom}</strong></td><td>${etab?.nom || "—"}</td><td>${new Date(t.updatedAt).toLocaleDateString("fr-FR")}</td><td><span class="chip chip-green">Publié</span></td></tr>`;
             })
             .join("")}</tbody></table>`
@@ -1802,7 +1810,7 @@
         renderFamilyBeneficiaryTableSelect(famId);
         renderSchemaAssistant(famId);
         if (
-          fam.beneficiaryMode === "etablissement" &&
+          fam.beneficiaryMode === "organization" &&
           (!fam.sql || /:beneficiaryId\b/i.test(fam.sql))
         ) {
           setTimeout(() => regenerateFamilySql(famId, true), 0);
@@ -1818,10 +1826,10 @@
         }
         if (!fam || !wrap) return;
 
-        if (fam.beneficiaryMode === "etablissement") {
+        if (fam.beneficiaryMode === "organization") {
           wrap.innerHTML = `
         <label class="form-label">Table bénéficiaire</label>
-        <div class="text-muted" style="padding-top:9px">Aucune table requise : ce document sera généré à partir du contexte de l'établissement.</div>`;
+        <div class="text-muted" style="padding-top:9px">Aucune table requise : ce document sera généré à partir du contexte de l'Organization.</div>`;
           return;
         }
 
@@ -1900,7 +1908,7 @@
         const fam = DB.getFamily(famId);
         if (!fam) return;
         fam.beneficiaryMode =
-          mode === "etablissement" ? "etablissement" : "table";
+          mode === "organization" ? "organization" : "table";
         if (fam.beneficiaryMode === "table") {
           fam.beneficiaryTable =
             fam.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
@@ -1911,6 +1919,8 @@
           fam.beneficiarySql = "";
         }
         DB.saveFamily(fam);
+        const modeSelect = document.getElementById("fBeneficiaryMode");
+        if (modeSelect) modeSelect.value = fam.beneficiaryMode;
         renderLeftPanel();
         renderFamilyBeneficiaryTableSelect(famId);
         renderSchemaAssistant(famId);
@@ -2169,8 +2179,8 @@
                           </div>
                           <div class="form-row" style="margin-top:12px">
                           <label class="form-label">Requête SQL des valeurs possibles</label>
-                          <textarea class="form-input" rows="5" style="min-height:120px" onchange="updateFamilyFilterField('${famId}','${filter.id}','sqlQuery',this.value)" placeholder="SELECT code AS value, libelle AS label FROM ... WHERE etablissement_id = :etablissementId">${escHtml(filter.sqlQuery || "")}</textarea>
-                          <div class="text-muted" style="margin-top:8px">La requête doit retourner au minimum les colonnes <strong>value</strong> et idéalement <strong>label</strong>. Les paramètres de la famille et <strong>:etablissementId</strong> sont disponibles.</div>
+                          <textarea class="form-input" rows="5" style="min-height:120px" onchange="updateFamilyFilterField('${famId}','${filter.id}','sqlQuery',this.value)" placeholder="SELECT code AS value, libelle AS label FROM ... WHERE organization_id = :organizationId">${escHtml(filter.sqlQuery || "")}</textarea>
+                          <div class="text-muted" style="margin-top:8px">La requête doit retourner au minimum les colonnes <strong>value</strong> et idéalement <strong>label</strong>. Les paramètres de la famille, <strong>:organizationId</strong> et <strong>:etablissementId</strong> sont disponibles.</div>
                           </div>
                         </div>`
                       : `<div class="form-row" style="margin-top:12px">
@@ -2837,7 +2847,7 @@
         if (
           !fam ||
           !schemaMetaCache ||
-          fam.beneficiaryMode === "etablissement"
+          fam.beneficiaryMode === "organization"
         ) {
           return "";
         }
@@ -2907,11 +2917,11 @@
 
         const etabFilter =
           tableName === "etablissement"
-            ? `${sourceAlias}.${sqlId(getPrimaryColumn(schemaMetaCache, tableName))} = :etablissementId`
+            ? `${sourceAlias}.${sqlId(getPrimaryColumn(schemaMetaCache, tableName))} = :organizationId`
             : pathToEtab?.length
-              ? `${etabAlias}.${sqlId(getPrimaryColumn(schemaMetaCache, "etablissement"))} = :etablissementId`
+              ? `${etabAlias}.${sqlId(getPrimaryColumn(schemaMetaCache, "etablissement"))} = :organizationId`
               : columns.some((column) => column.name === "etablissement_id")
-                ? `${sourceAlias}.${sqlId("etablissement_id")} = :etablissementId`
+                ? `${sourceAlias}.${sqlId("etablissement_id")} = :organizationId`
                 : "";
         const whereClauses = [etabFilter, ...extraFilterClauses].filter(
           Boolean,
@@ -2966,27 +2976,27 @@
       function getFamilyFilterClause(fam, schema, baseTable, baseAlias) {
         const basePk = getPrimaryColumn(schema, baseTable);
 
-        if (fam?.beneficiaryMode === "etablissement") {
+        if (fam?.beneficiaryMode === "organization") {
           if (baseTable === "etablissement") {
-            return `${baseAlias}.${sqlId(basePk)} = :etablissementId`;
+            return `${baseAlias}.${sqlId(basePk)} = :organizationId`;
           }
           if (
             getColumnsForTable(schema, baseTable).some(
               (c) => c.name === "etablissement_id",
             )
           ) {
-            return `${baseAlias}.${sqlId("etablissement_id")} = :etablissementId`;
+            return `${baseAlias}.${sqlId("etablissement_id")} = :organizationId`;
           }
           const etabPathClause = buildPathExistsClause(
             schema,
             baseTable,
             baseAlias,
             "etablissement",
-            "etablissementId",
+            "organizationId",
             "etf",
           );
           if (etabPathClause) return etabPathClause;
-          return `${baseAlias}.${sqlId(basePk)} = :etablissementId`;
+          return `${baseAlias}.${sqlId(basePk)} = :organizationId`;
         }
 
         const beneficiaryTable = getFamilyBeneficiaryTable(fam);
@@ -3013,7 +3023,7 @@
         const visibleTables = getVisibleFamilySchemaTables(schema, [
           fam?.beneficiaryTable,
         ]);
-        if (fam?.beneficiaryMode !== "etablissement" && fam?.beneficiaryTable) {
+        if (fam?.beneficiaryMode !== "organization" && fam?.beneficiaryTable) {
           return fam.beneficiaryTable;
         }
         if (generatedVar?.baseTable) {
@@ -3246,11 +3256,11 @@
         let etabMatcher = "";
 
         if (sourceTable === "etablissement") {
-          etabMatcher = `${sourceAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))} = :etablissementId`;
+          etabMatcher = `${sourceAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))} = :organizationId`;
         } else if (
           sourceColumns.some((column) => column.name === "etablissement_id")
         ) {
-          etabMatcher = `${sourceAlias}.${sqlId("etablissement_id")} = :etablissementId`;
+          etabMatcher = `${sourceAlias}.${sqlId("etablissement_id")} = :organizationId`;
         } else {
           const pathToEtab = getRelationPath(
             schema,
@@ -3270,7 +3280,7 @@
               currentAlias = nextAlias;
               etabAlias = nextAlias;
             });
-            etabMatcher = `${etabAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))} = :etablissementId`;
+            etabMatcher = `${etabAlias}.${sqlId(getPrimaryColumn(schema, "etablissement"))} = :organizationId`;
           }
         }
 
@@ -3332,7 +3342,7 @@
       function buildSqlFromFamily(famId) {
         const fam = DB.getFamily(famId);
         if (!fam || !schemaMetaCache) return fam?.sql || "";
-        if (fam.beneficiaryMode === "etablissement") {
+        if (fam.beneficiaryMode === "organization") {
           return buildEtablissementFamilySql(fam);
         }
 
@@ -3408,9 +3418,9 @@
         const fam = DB.getFamily(famId);
         const box = document.getElementById("beneficiaryPreviewBox");
         if (!box || !fam) return;
-        if (fam.beneficiaryMode === "etablissement") {
+        if (fam.beneficiaryMode === "organization") {
           box.textContent =
-            "Mode établissement : aucun SELECT bénéficiaires n'est nécessaire.";
+            "Mode Organization : aucun SELECT bénéficiaires n'est nécessaire.";
           return;
         }
         const sql =
@@ -4149,6 +4159,10 @@
       // ── Autres mutations ──────────────────────────────────────────
       function saveFamily(famId) {
         const fam = DB.getFamily(famId);
+        const beneficiaryModeValue =
+          document.getElementById("fBeneficiaryMode")?.value || "table";
+        const beneficiaryTableValue =
+          document.getElementById("fBeneficiaryTable")?.value?.trim() || "";
         const sqlValue = document.getElementById("fSql")?.value?.trim() || "";
         const beneficiarySqlValue =
           document.getElementById("fBeneficiarySql")?.value?.trim() || "";
@@ -4160,7 +4174,7 @@
           return;
         }
         if (
-          fam.beneficiaryMode !== "etablissement" &&
+          fam.beneficiaryMode !== "organization" &&
           beneficiarySqlValue &&
           !/^select\b/i.test(beneficiarySqlValue)
         ) {
@@ -4173,8 +4187,16 @@
         fam.nom = document.getElementById("fNom")?.value || fam.nom;
         fam.description = document.getElementById("fDesc")?.value || "";
         fam.icon = document.getElementById("fIcon")?.value || "📄";
+        fam.beneficiaryMode =
+          beneficiaryModeValue === "organization" ? "organization" : "table";
+        fam.beneficiaryTable =
+          fam.beneficiaryMode === "organization"
+            ? null
+            : beneficiaryTableValue ||
+              fam.beneficiaryTable ||
+              DEFAULT_FAMILY_BENEFICIARY_TABLE;
         fam.beneficiarySql =
-          fam.beneficiaryMode === "etablissement" ? "" : beneficiarySqlValue;
+          fam.beneficiaryMode === "organization" ? "" : beneficiarySqlValue;
         fam.sql = sqlValue;
         DB.saveFamily(fam);
         renderLeftPanel();
@@ -4318,13 +4340,7 @@
         regenerateFamilySql(famId, true);
       };
 
-      window.updateListVarLookupField = function (
-        famId,
-        ci,
-        vi,
-        field,
-        value,
-      ) {
+      window.updateListVarLookupField = function (famId, ci, vi, field, value) {
         const fam = DB.getFamily(famId);
         const varDef = fam?.classes?.[ci]?.vars?.[vi];
         if (!varDef || varDef.type !== "list") return;
@@ -4354,35 +4370,26 @@
         regenerateFamilySql(famId, true);
       };
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-      //  ÉTABLISSEMENTS
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      //  ORGANIZATIONS
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-      function renderEtabContent() {
-        const etabs = DB.getEtablissements();
-        document.getElementById("etabContent").innerHTML = `
-<div class="flex gap-8" style="margin-bottom:16px">
-  <button class="btn primary" onclick="openEtabModal()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    Nouvel établissement
-  </button>
-</div>
+      function renderOrganizationContent() {
+        const etabs = DB.getOrganizations();
+        document.getElementById("organizationContent").innerHTML = `
+<div class="text-muted" style="margin-bottom:16px">Lecture seule depuis DSSGAEIAM..Organization.</div>
 <div class="card" style="padding:0">
   <table class="data-table">
-    <thead><tr><th>Établissement</th><th>Ville</th><th>Adresse</th><th>Téléphone</th><th>Administrateur</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Organization</th><th>Ville</th><th>Adresse</th><th>Téléphone</th><th>Admin lié</th></tr></thead>
     <tbody>${etabs
       .map((etab) => {
-        const admin = DB.getAdmins().find((a) => a.etablissementId === etab.id);
+        const admin = DB.getAdmins().find(
+          (a) => (a.organizationId || a.etablissementId) === etab.id,
+        );
         return `<tr>
         <td><strong>${etab.nom}</strong></td><td>${etab.ville || "—"}</td>
         <td>${etab.adresse || "—"}</td><td>${etab.tel || "—"}</td>
         <td>${admin ? `<span class="chip chip-green">${admin.nom}</span>` : '<span class="chip chip-amber">Non assigné</span>'}</td>
-        <td class="flex gap-6">
-          <button class="btn sm" onclick="openEtabModal('${etab.id}')">Modifier</button>
-          <button class="btn sm danger" onclick="deleteEtabConfirm('${etab.id}')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-          </button>
-        </td>
       </tr>`;
       })
       .join("")}</tbody>
@@ -4390,89 +4397,80 @@
 </div>`;
       }
 
-      function openEtabModal(id = null) {
-        editingEtabId = id;
-        const etab = id ? DB.getEtablissement(id) : null;
-        document.getElementById("etabModalTitle").textContent = id
-          ? "Modifier l'établissement"
-          : "Nouvel établissement";
-        document.getElementById("etabNom").value = etab?.nom || "";
-        document.getElementById("etabVille").value = etab?.ville || "";
-        document.getElementById("etabAdresse").value = etab?.adresse || "";
-        document.getElementById("etabTel").value = etab?.tel || "";
-        openModal("modalEtab");
+      function openOrganizationModal(id = null) {
+        editingOrganizationId = id;
+        const etab = id ? DB.getOrganization(id) : null;
+        document.getElementById("organizationModalTitle").textContent = id
+          ? "Modifier l'Organization"
+          : "Nouvelle Organization";
+        document.getElementById("organizationName").value = etab?.nom || "";
+        document.getElementById("organizationCity").value = etab?.ville || "";
+        document.getElementById("organizationAddress").value =
+          etab?.adresse || "";
+        document.getElementById("organizationPhone").value = etab?.tel || "";
+        openModal("modalOrganization");
       }
-      function saveEtab() {
-        const nom = document.getElementById("etabNom").value.trim();
+      function saveOrganization() {
+        const nom = document.getElementById("organizationName").value.trim();
         if (!nom) {
           toast("Le nom est requis", "error");
           return;
         }
-        const existing = editingEtabId
-          ? DB.getEtablissement(editingEtabId)
+        const existing = editingOrganizationId
+          ? DB.getOrganization(editingOrganizationId)
           : null;
-        DB.saveEtablissement({
-          id: editingEtabId || genId("etab"),
+        DB.saveOrganization({
+          id: editingOrganizationId || genId("org"),
           nom,
-          ville: document.getElementById("etabVille").value,
-          adresse: document.getElementById("etabAdresse").value,
-          tel: document.getElementById("etabTel").value,
+          ville: document.getElementById("organizationCity").value,
+          adresse: document.getElementById("organizationAddress").value,
+          tel: document.getElementById("organizationPhone").value,
           graphicCharters: existing?.graphicCharters || [],
           createdAt: existing?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
-        closeModal("modalEtab");
-        renderEtabContent();
+        closeModal("modalOrganization");
+        renderOrganizationContent();
         renderLeftPanel();
         toast(
-          `Établissement ${editingEtabId ? "mis à jour" : "créé"}`,
+          `Organization ${editingOrganizationId ? "mise à jour" : "créée"}`,
           "success",
         );
       }
-      function deleteEtabConfirm(id) {
-        const etab = DB.getEtablissement(id);
+      function deleteOrganizationConfirm(id) {
+        const etab = DB.getOrganization(id);
         document.getElementById("confirmTitle").textContent =
-          "Supprimer l'établissement ?";
+          "Supprimer l'Organization ?";
         document.getElementById("confirmMsg").textContent =
           `"${etab.nom}" et son administrateur associé seront supprimés.`;
         document.getElementById("confirmBtn").onclick = () => {
-          DB.deleteEtablissement(id);
+          DB.deleteOrganization(id);
           closeModal("modalConfirm");
-          renderEtabContent();
+          renderOrganizationContent();
           renderLeftPanel();
-          toast("Établissement supprimé");
+          toast("Organization supprimée");
         };
         openModal("modalConfirm");
       }
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  ADMINS
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       function renderAdminContent() {
         const admins = DB.getAdmins();
         document.getElementById("adminContent").innerHTML = `
-<div class="flex gap-8" style="margin-bottom:16px">
-  <button class="btn primary" onclick="openAdminModal()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    Nouvel administrateur
-  </button>
-</div>
+<div class="text-muted" style="margin-bottom:16px">Lecture seule depuis DSSGAEIAM..[User].</div>
 <div class="card" style="padding:0">
   <table class="data-table">
-    <thead><tr><th>Nom</th><th>E-mail</th><th>Établissement</th><th>Familles accès</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Nom</th><th>E-mail</th><th>Role</th><th>Organization</th><th>Profil</th></tr></thead>
     <tbody>${admins
       .map((a) => {
-        const etab = DB.getEtablissement(a.etablissementId);
+        const etab = DB.getOrganization(a.organizationId || a.etablissementId);
         return `<tr>
         <td><strong>${a.nom}</strong></td><td>${a.email || "—"}</td>
+        <td><span class="chip chip-purple">${a.role || "admin"}</span></td>
         <td>${etab ? `<span class="chip chip-blue">${etab.nom}</span>` : '<span class="chip chip-amber">—</span>'}</td>
-        <td><span class="chip chip-purple">${DB.getFamilies().length} famille(s)</span></td>
-        <td class="flex gap-6">
-          <button class="btn sm" onclick="openAdminModal('${a.id}')">Modifier</button>
-          <button class="btn sm danger" onclick="deleteAdminConfirm('${a.id}')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-          </button>
-        </td>
+        <td>${a.profile || "—"}</td>
       </tr>`;
       })
       .join("")}</tbody>
@@ -4488,29 +4486,31 @@
           : "Nouvel administrateur";
         document.getElementById("adminNom").value = admin?.nom || "";
         document.getElementById("adminEmail").value = admin?.email || "";
-        const sel = document.getElementById("adminEtab");
+        const sel = document.getElementById("adminOrganization");
         sel.innerHTML = '<option value="">— Choisir —</option>';
-        DB.getEtablissements().forEach((e) => {
+        DB.getOrganizations().forEach((e) => {
           const opt = document.createElement("option");
           opt.value = e.id;
           opt.textContent = e.nom;
-          if (admin?.etablissementId === e.id) opt.selected = true;
+          if ((admin?.organizationId || admin?.etablissementId) === e.id)
+            opt.selected = true;
           sel.appendChild(opt);
         });
         openModal("modalAdmin");
       }
       function saveAdmin() {
         const nom = document.getElementById("adminNom").value.trim();
-        const etabId = document.getElementById("adminEtab").value;
-        if (!nom || !etabId) {
-          toast("Nom et établissement requis", "error");
+        const organizationId =
+          document.getElementById("adminOrganization").value;
+        if (!nom || !organizationId) {
+          toast("Nom et Organization requis", "error");
           return;
         }
         DB.saveAdmin({
           id: editingAdminId || genId("admin"),
           nom,
           email: document.getElementById("adminEmail").value,
-          etablissementId: etabId,
+          organizationId,
         });
         closeModal("modalAdmin");
         renderAdminContent();
@@ -4536,20 +4536,20 @@
         openModal("modalConfirm");
       }
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  DASHBOARD
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       function renderDashboard() {
         const fams = DB.getFamilies(),
           tpls = DB.get().templates,
-          etabs = DB.getEtablissements(),
+          etabs = DB.getOrganizations(),
           admins = DB.getAdmins();
         document.getElementById("dashboardContent").innerHTML = `
 <div class="stats-grid">
   <div class="stat-card purple"><div class="stat-num">${fams.length}</div><div class="stat-label">Familles de documents</div></div>
   <div class="stat-card green"><div class="stat-num">${tpls.length}</div><div class="stat-label">Templates créés</div></div>
-  <div class="stat-card blue"><div class="stat-num">${etabs.length}</div><div class="stat-label">Établissements</div></div>
-  <div class="stat-card amber"><div class="stat-num">${admins.length}</div><div class="stat-label">Administrateurs</div></div>
+  <div class="stat-card blue"><div class="stat-num">${etabs.length}</div><div class="stat-label">Organizations</div></div>
+  <div class="stat-card amber"><div class="stat-num">${admins.length}</div><div class="stat-label">Users admin</div></div>
 </div>
 <div class="card">
   <div class="card-header"><div class="card-title">Familles et leurs templates</div></div>
@@ -4581,10 +4581,12 @@
 </div>`;
       }
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       //  INIT
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       window.addEventListener("DOMContentLoaded", async () => {
+        const authUser = await requireAuth("supAdmin");
+        if (!authUser) return;
         await DB.init();
         renderLeftPanel();
         setTimeout(() => {

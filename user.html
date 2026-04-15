@@ -1,9 +1,9 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>SIRH-Doc — Génération de Documents</title>
+    <title>SIRH-Doc - Génération de Documents</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Cairo:wght@400;600&display=swap"
@@ -47,11 +47,11 @@
         --page-w: 210mm;
         --page-h: 297mm;
         --page-mt: 20mm;
-      --page-mb: 20mm;
-      --page-ml: 25mm;
-      --page-mr: 25mm;
-      --page-header-top: 5mm;
-      --page-footer-bottom: 5mm;
+        --page-mb: 20mm;
+        --page-ml: 25mm;
+        --page-mr: 25mm;
+        --page-header-top: 5mm;
+        --page-footer-bottom: 5mm;
         --doc-font-body: "Times New Roman", Times, serif;
         --doc-font-heading: "Times New Roman", Times, serif;
         --doc-color-primary: #1d4ed8;
@@ -82,7 +82,7 @@
         border-radius: 3px;
       }
 
-      /* ── LOADING ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ LOADING Ã¢â€â‚¬Ã¢â€â‚¬ */
       #loading {
         position: fixed;
         inset: 0;
@@ -126,7 +126,7 @@
         }
       }
 
-      /* ── TOP NAV ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ TOP NAV Ã¢â€â‚¬Ã¢â€â‚¬ */
       .topnav {
         background: var(--surface);
         border-bottom: 1px solid var(--border);
@@ -175,18 +175,20 @@
         padding: 5px 10px;
         border-radius: var(--r);
         font-size: 11px;
+        font-family: inherit;
         color: var(--text3);
         border: 1px solid var(--border);
         background: var(--surface2);
         text-decoration: none;
         transition: all 0.12s;
+        cursor: pointer;
       }
       .nav-link:hover {
         border-color: var(--border2);
         color: var(--text);
       }
 
-      /* ── HERO ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ HERO Ã¢â€â‚¬Ã¢â€â‚¬ */
       .hero {
         background: linear-gradient(
           135deg,
@@ -234,7 +236,7 @@
         white-space: nowrap;
       }
 
-      /* ── LAYOUT ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ LAYOUT Ã¢â€â‚¬Ã¢â€â‚¬ */
       .main-wrap {
         max-width: 1200px;
         margin: 0 auto;
@@ -245,7 +247,7 @@
         align-items: start;
       }
 
-      /* ── STEPPER ── */
+      /* STEPPER */
       .stepper {
         background: var(--surface);
         border: 1px solid var(--border);
@@ -363,7 +365,7 @@
         display: block;
       }
 
-      /* ── CARDS ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ CARDS Ã¢â€â‚¬Ã¢â€â‚¬ */
       .fam-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -502,7 +504,7 @@
         margin-top: 1px;
       }
 
-      /* ── DOC PANEL ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ DOC PANEL Ã¢â€â‚¬Ã¢â€â‚¬ */
       .doc-panel {
         background: var(--surface);
         border: 1px solid var(--border);
@@ -567,7 +569,7 @@
         font-size: 10px;
       }
 
-      /* ── A4 CANVAS ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ A4 CANVAS Ã¢â€â‚¬Ã¢â€â‚¬ */
       .a4-canvas {
         background: #c8cdd8;
         overflow-y: auto;
@@ -639,7 +641,7 @@
         padding-bottom: var(--page-mb);
       }
 
-      /* ── ZOOM BAR ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ ZOOM BAR Ã¢â€â‚¬Ã¢â€â‚¬ */
       .zoom-bar {
         display: flex;
         align-items: center;
@@ -656,15 +658,17 @@
         text-align: center;
       }
 
-      /* ── CONTENU DOC ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ CONTENU DOC Ã¢â€â‚¬Ã¢â€â‚¬ */
       .doc-content {
         font-family: var(--doc-font-body);
         font-size: 12pt;
         line-height: 1.6;
         color: var(--doc-color-text);
+        white-space: break-spaces;
       }
       .doc-content p {
         margin: 0 0 0.4em;
+        white-space: inherit;
       }
       .doc-content p:last-child {
         margin-bottom: 0;
@@ -731,6 +735,7 @@
       .doc-content td p,
       .doc-content th p {
         color: inherit !important;
+        white-space: inherit;
       }
       .var-resolved {
         color: #2563eb;
@@ -748,7 +753,7 @@
         font-size: 0.9em;
       }
 
-      /* ── DOC WAIT ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ DOC WAIT Ã¢â€â‚¬Ã¢â€â‚¬ */
       .doc-wait {
         display: flex;
         flex-direction: column;
@@ -773,7 +778,7 @@
         line-height: 1.6;
       }
 
-      /* ── BUTTONS ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ BUTTONS Ã¢â€â‚¬Ã¢â€â‚¬ */
       .btn {
         display: inline-flex;
         align-items: center;
@@ -822,7 +827,7 @@
         font-size: 10px;
       }
 
-      /* ── TOAST ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ TOAST Ã¢â€â‚¬Ã¢â€â‚¬ */
       .toast-stack {
         position: fixed;
         bottom: 24px;
@@ -878,10 +883,14 @@
         <div class="nav-logo">SIRH-<span>Doc</span></div>
         <div class="nav-sep"></div>
         <span class="nav-chip">UTILISATEUR FINAL</span>
-        <span id="navEtab" style="font-size: 12px; color: var(--text2)"></span>
+        <span
+          id="navOrganization"
+          style="font-size: 12px; color: var(--text2)"
+        ></span>
         <div class="nav-right">
-          <a class="nav-link" href="superAdmin.html">Super Admin</a>
-          <a class="nav-link" href="admin.html">Admin Étab.</a>
+          <button class="nav-link" type="button" onclick="logoutAndRedirect()">
+            Déconnexion
+          </button>
         </div>
       </nav>
 
@@ -897,7 +906,7 @@
       </div>
 
       <div class="main-wrap">
-        <!-- ── STEPPER gauche ── -->
+        <!-- STEPPER gauche -->
         <div class="stepper">
           <div class="stepper-hdr">
             <span class="stepper-title">Étapes de génération</span>
@@ -979,7 +988,7 @@
           </div>
         </div>
 
-        <!-- ── DOC PANEL droit ── -->
+        <!-- DOC PANEL droit -->
         <div class="doc-panel">
           <div class="doc-ph">
             <span class="doc-pt">Aperçu A4</span>
@@ -999,7 +1008,7 @@
               onclick="setZoom(-10)"
               style="font-size: 14px; width: 22px; padding: 0"
             >
-              −
+              -
             </button>
             <span class="zoom-lbl" id="zoomLbl">100%</span>
             <button
@@ -1049,7 +1058,7 @@
     <script src="shared.js"></script>
 
     <script>
-      const ETAB_ID = "etab_1";
+      let ORGANIZATION_ID = null;
       let selFamId = null,
         selTplId = null,
         selPersonId = null;
@@ -1060,10 +1069,14 @@
       let zoomLv = 100;
 
       window.addEventListener("DOMContentLoaded", async () => {
+        const authUser = await requireAuth("user");
+        if (!authUser) return;
         await DB.init();
-        const etab = DB.getEtablissement(ETAB_ID);
+        ORGANIZATION_ID =
+          authUser.organizationId || DB.getOrganizations()[0]?.id || null;
+        const etab = DB.getOrganization(ORGANIZATION_ID);
         if (etab) {
-          document.getElementById("navEtab").textContent = etab.nom;
+          document.getElementById("navOrganization").textContent = etab.nom;
           document.getElementById("heroBadge").textContent = etab.nom;
         }
         buildFamGrid();
@@ -1073,7 +1086,7 @@
         }, 500);
       });
 
-      /* ── STEPPER ── */
+      /* Ã¢â€â‚¬Ã¢â€â‚¬ STEPPER Ã¢â€â‚¬Ã¢â€â‚¬ */
       function toggleStep(n) {
         openSteps[n] = !openSteps[n];
         syncStepBodies();
@@ -1120,8 +1133,8 @@
           ps2 = document.getElementById("ps2"),
           ps3 = document.getElementById("ps3");
         const step3Default =
-          fam?.beneficiaryMode === "etablissement"
-            ? "Établissement"
+          fam?.beneficiaryMode === "organization"
+            ? "Organization"
             : "Bénéficiaire";
         ps1.className = "pb-step" + (selFamId ? " done" : " cur");
         ps1.textContent = fam
@@ -1142,18 +1155,18 @@
           : step3Default;
       }
 
-      /* ── ÉTAPE 1 ── */
+      /* ETAPE 1 */
       function refreshBeneficiaryLabels() {
         const fam = selFamId ? DB.getFamily(selFamId) : null;
         const sl3 = document.getElementById("sl3");
         const ps3 = document.getElementById("ps3");
         if (!sl3 || !ps3) return;
         const hasFilters = !!(selTplId && userResolvedFilters.length);
-        if (fam?.beneficiaryMode === "etablissement") {
+        if (fam?.beneficiaryMode === "organization") {
           sl3.textContent = hasFilters
             ? "Filtres du document"
-            : "Établissement bénéficiaire";
-          if (!selPersonId) ps3.textContent = "Établissement";
+            : "Organization bénéficiaire";
+          if (!selPersonId) ps3.textContent = "Organization";
           return;
         }
         const tableName = fam?.beneficiaryTable || "personnel";
@@ -1314,7 +1327,7 @@
         const fieldsMarkup = buildUserFilterFieldsMarkup();
         const etab =
           typeof DB.getEtablissement === "function"
-            ? DB.getEtablissement(ETAB_ID)
+            ? DB.getOrganization(ORGANIZATION_ID)
             : null;
         if (panel) panel.innerHTML = fieldsMarkup;
         if (previewWrap) {
@@ -1323,8 +1336,8 @@
               <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Filtres du document</div>
               ${fieldsMarkup}
               <div style="font-size:11px;color:var(--text2);margin-top:2px">
-                Etablissement :
-                <strong>${escHtml(etab?.nom || "Etablissement principal")}</strong>
+                Organization :
+                <strong>${escHtml(etab?.nom || "Organization principale")}</strong>
               </div>
             </div>`;
         }
@@ -1346,7 +1359,7 @@
           selFamId,
           selTplId,
           "user",
-          ETAB_ID,
+          ORGANIZATION_ID,
           baseValues,
         );
         userFilterValues = validateRuntimeFilterValues(
@@ -1392,7 +1405,7 @@
           return;
         }
         if (
-          fam?.beneficiaryMode === "etablissement" &&
+          fam?.beneficiaryMode === "organization" &&
           currentBeneficiaries.length === 1
         ) {
           await selectPerson(currentBeneficiaries[0].id);
@@ -1410,7 +1423,7 @@
         const grid = document.getElementById("famGrid");
         grid.innerHTML = "";
         DB.getFamilies().forEach((fam) => {
-          const tplCount = DB.getTemplates(fam.id, ETAB_ID).length;
+          const tplCount = DB.getTemplates(fam.id, ORGANIZATION_ID).length;
           const card = document.createElement("div");
           card.className = "fam-card" + (selFamId === fam.id ? " sel" : "");
           if (!tplCount) {
@@ -1446,11 +1459,11 @@
         showWait("Sélectionnez un modèle de document");
       }
 
-      /* ── ÉTAPE 2 ── */
+      /* ETAPE 2 */
       function buildTplList(famId) {
         const c = document.getElementById("tplList");
         c.innerHTML = "";
-        const tpls = DB.getTemplates(famId, ETAB_ID);
+        const tpls = DB.getTemplates(famId, ORGANIZATION_ID);
         if (!tpls.length) {
           c.innerHTML =
             '<div style="font-size:11px;color:#aaa;text-align:center;padding:14px">Aucun modèle</div>';
@@ -1485,11 +1498,11 @@
         showWait("Sélectionnez la personne concernée");
       }
 
-      /* ── ÉTAPE 3 ── */
+      /* ETAPE 3 */
       function buildPersonList() {
         const c = document.getElementById("personList");
         c.innerHTML = "";
-        const persons = DB.getPersonnel(ETAB_ID);
+        const persons = DB.getPersonnel(ORGANIZATION_ID);
         if (!persons.length) {
           c.innerHTML =
             '<div style="font-size:11px;color:#aaa;text-align:center;padding:14px">Aucune personne</div>';
@@ -1522,7 +1535,7 @@
         await generateDocument();
       }
 
-      /* ── GÉNÉRATION ── */
+      /* GENERATION */
       async function generateDocument() {
         const tpl = DB.getTemplate(selTplId);
         const person = await DB.getPersonDataForFamily(selFamId, selPersonId);
@@ -1547,7 +1560,7 @@
         toast("Document généré !", "success");
       }
 
-      /* ── CANVAS A4 (pages paginées avec variables bleues) ── */
+      /* CANVAS A4 */
       async function selectTemplate(tplId) {
         selTplId = tplId;
         selPersonId = null;
@@ -1567,7 +1580,7 @@
         closeStep(2);
         updatePbar();
         if (
-          fam?.beneficiaryMode === "etablissement" &&
+          fam?.beneficiaryMode === "organization" &&
           currentBeneficiaries.length === 1
         ) {
           await selectPerson(currentBeneficiaries[0].id);
@@ -1576,8 +1589,8 @@
         showWait(
           hasMissingRequiredUserFilters()
             ? "Renseignez les filtres pour continuer"
-            : fam?.beneficiaryMode === "etablissement"
-              ? "Document lié à l'établissement"
+            : fam?.beneficiaryMode === "organization"
+              ? "Document lié à l'Organization"
               : "Sélectionnez le bénéficiaire concerné",
         );
       }
@@ -1592,7 +1605,7 @@
         }
         currentBeneficiaries = await DB.getBeneficiariesForFamily(
           selFamId,
-          ETAB_ID,
+          ORGANIZATION_ID,
           userFilterValues,
         );
         if (!currentBeneficiaries.length) {
@@ -1605,8 +1618,8 @@
             p._displayLabel || p.nom_prenom || p.nom || "Bénéficiaire";
           const subtitle =
             p._displaySubtitle ||
-            (p._sourceTable === "etablissement"
-              ? "Document établissement"
+            (p._sourceTable === "organization"
+              ? "Document Organization"
               : p._sourceTable || "");
           const initials = label
             .split(" ")
@@ -1652,7 +1665,7 @@
         const person = await DB.getDocumentDataForFamily(
           selFamId,
           selPersonId,
-          ETAB_ID,
+          ORGANIZATION_ID,
           userFilterValues,
         );
         if (!tpl || !person) return;
@@ -1711,14 +1724,14 @@
           distances.footerBottom + "mm",
         );
 
-        // Récupérer les pages paginées (avec variables en bleu)
+        // Recuperer les pages paginees (avec variables en bleu)
         const result = paginateWithVariablesBlue(tpl, person);
         if (!result.pages.length) {
           toast("Aucun contenu à afficher", "error");
           return;
         }
 
-        // Créer un conteneur pour toutes les pages
+        // Creer un conteneur pour toutes les pages
         const allPages = document.createElement("div");
         allPages.style.display = "flex";
         allPages.style.flexDirection = "column";
@@ -1730,7 +1743,7 @@
           pageEl.className = "a4-page";
           let pageHTML = "";
 
-          // En-tête
+          // En-tete
           if (page.header) {
             pageHTML += `<div class="a4-header"><div class="a4-hf-label">EN-TÊTE</div><div class="doc-content">${page.header}</div></div>`;
           }
@@ -1747,7 +1760,7 @@
 
           pageEl.innerHTML = pageHTML;
 
-          // Ajouter un numéro de page
+          // Ajouter un numero de page
           const pageNum = document.createElement("div");
           pageNum.style.cssText =
             "text-align:center;color:#999;font-size:10px;margin-top:8px";
@@ -1760,7 +1773,7 @@
         scaler.appendChild(allPages);
       }
 
-      /* ── ZOOM ── */
+      /* ZOOM */
       function setZoom(delta) {
         if (delta === 0) zoomLv = 100;
         else zoomLv = Math.max(40, Math.min(200, zoomLv + delta));
@@ -1771,7 +1784,7 @@
         document.getElementById("zoomLbl").textContent = zoomLv + "%";
       }
 
-      /* ── HELPERS ── */
+      /* HELPERS */
       function showWait(msg) {
         document.getElementById("docWait").innerHTML =
           `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><h3>${msg}</h3>`;

@@ -7,12 +7,17 @@ const sql = require("mssql");
 const PORT = Number(3000);
 const ROOT_DIR = __dirname;
 const DEFAULT_FAMILY_BENEFICIARY_TABLE = "personnel";
+const INTERNAL_DB_NAME = "UnivAdENIMDB";
+const AUTH_DB_NAME = "DSSGAEIAM";
+const SESSION_COOKIE = "sirhdoc_session";
+
+const sessions = new Map();
 
 const config = {
   user: "sa",
   password: "N7vR2pXk9Lm4Qz8T",
   server: "92.222.230.31",
-  database: "UnivAdENIMDB",
+  database: INTERNAL_DB_NAME,
   options: {
     encrypt: false,
     trustServerCertificate: true,
@@ -37,6 +42,42 @@ let schemaReadyPromise = null;
 
 function clone(data) {
   return JSON.parse(JSON.stringify(data));
+}
+
+function normalizeOrganizationId(value, fallback = null) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return String(value);
+}
+
+function getScopedOrganizationId(record = {}, fallback = null) {
+  return normalizeOrganizationId(
+    record?.organizationId ?? record?.etablissementId,
+    fallback,
+  );
+}
+
+function isOrganizationBeneficiaryMode(mode) {
+  return String(mode || "").toLowerCase() === "organization";
+}
+
+function isScopedOrganizationFamily(family = {}) {
+  return (
+    family?.beneficiaryMode === "etablissement" ||
+    isOrganizationBeneficiaryMode(family?.beneficiaryMode)
+  );
+}
+
+function withOrganizationQueryParams(params = {}) {
+  const scopedId = normalizeOrganizationId(
+    params.organizationId ?? params.etablissementId ?? params.etabId,
+    null,
+  );
+  return {
+    ...params,
+    organizationId: scopedId,
+    etablissementId: scopedId,
+    etabId: scopedId,
+  };
 }
 
 function normalizeFilterOption(option) {
@@ -158,8 +199,9 @@ function normalizeTemplateFilterProfileEntry(entry = {}, index = 0) {
 
 function normalizeFamilyRecord(record = {}) {
   const next = clone(record || {});
-  next.beneficiaryMode =
-    next.beneficiaryMode === "etablissement" ? "etablissement" : "table";
+  next.beneficiaryMode = isScopedOrganizationFamily(next)
+    ? "organization"
+    : "table";
   next.beneficiaryTable =
     next.beneficiaryMode === "table"
       ? String(next.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE)
@@ -175,6 +217,8 @@ function normalizeFamilyRecord(record = {}) {
 
 function normalizeTemplateRecord(record = {}) {
   const next = clone(record || {});
+  next.organizationId = getScopedOrganizationId(next);
+  next.etablissementId = next.organizationId;
   next.filterProfile = (
     Array.isArray(next.filterProfile) ? next.filterProfile : []
   )
@@ -188,10 +232,14 @@ function normalizeTemplateRecord(record = {}) {
 
 function normalizeState(state) {
   const next = state && typeof state === "object" ? state : {};
-  return {
-    etablissements: Array.isArray(next.etablissements)
+  const normalizedOrganizations = Array.isArray(next.organizations)
+    ? clone(next.organizations)
+    : Array.isArray(next.etablissements)
       ? clone(next.etablissements)
-      : [],
+      : [];
+  return {
+    etablissements: normalizedOrganizations,
+    organizations: clone(normalizedOrganizations),
     admins: Array.isArray(next.admins) ? clone(next.admins) : [],
     families: Array.isArray(next.families)
       ? next.families.map((family) => normalizeFamilyRecord(family))
@@ -311,6 +359,80 @@ function safeJson(value, fallback) {
   } catch (_) {
     return fallback;
   }
+}
+
+function parseCookies(req) {
+  const raw = String(req?.headers?.cookie || "");
+  return Object.fromEntries(
+    raw
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const idx = part.indexOf("=");
+        if (idx < 0) return [part, ""];
+        return [
+          decodeURIComponent(part.slice(0, idx)),
+          decodeURIComponent(part.slice(idx + 1)),
+        ];
+      }),
+  );
+}
+
+function createSession(user) {
+  const token = `sess_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  sessions.set(token, {
+    token,
+    user: clone(user),
+    createdAt: new Date().toISOString(),
+  });
+  return token;
+}
+
+function getSession(req) {
+  const token = parseCookies(req)[SESSION_COOKIE];
+  return token ? sessions.get(token) || null : null;
+}
+
+function clearSession(req, res) {
+  const token = parseCookies(req)[SESSION_COOKIE];
+  if (token) sessions.delete(token);
+  res.setHeader(
+    "Set-Cookie",
+    `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
+  );
+}
+
+function setSessionCookie(res, token) {
+  res.setHeader(
+    "Set-Cookie",
+    `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax`,
+  );
+}
+
+function normalizeRole(role) {
+  const value = String(role || "")
+    .trim()
+    .toLowerCase();
+  if (value === "supadmin" || value === "superadmin") return "supAdmin";
+  if (value === "admin") return "admin";
+  return "user";
+}
+
+function getRoleHome(role) {
+  if (role === "supAdmin") return "/superAdmin.html";
+  if (role === "admin") return "/admin.html";
+  return "/user.html";
+}
+
+function sqlString(row, keys = []) {
+  for (const key of keys) {
+    const value = row?.[key];
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value).trim();
+    }
+  }
+  return "";
 }
 
 function serializeDateValue(value) {
@@ -897,17 +1019,102 @@ async function loadFamilies() {
     nom: row.nom,
     icon: row.icon,
     description: row.description,
-    beneficiaryMode: row.beneficiary_mode || "table",
-    beneficiaryTable:
-      row.beneficiary_mode === "etablissement"
-        ? null
-        : row.beneficiary_table || DEFAULT_FAMILY_BENEFICIARY_TABLE,
+    beneficiaryMode: isScopedOrganizationFamily({
+      beneficiaryMode: row.beneficiary_mode,
+    })
+      ? "organization"
+      : "table",
+    beneficiaryTable: isScopedOrganizationFamily({
+      beneficiaryMode: row.beneficiary_mode,
+    })
+      ? null
+      : row.beneficiary_table || DEFAULT_FAMILY_BENEFICIARY_TABLE,
     beneficiarySql: row.beneficiary_sql_text || "",
     filterCatalog: safeJson(row.filter_catalog_json, []),
     sql: row.sql_text,
     createdAt: row.created_at,
     classes: safeJson(row.classes_json, []),
   }));
+}
+
+async function loadOrganizations() {
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .query(`SELECT * FROM [${AUTH_DB_NAME}].[dbo].[Organization] ORDER BY 1`);
+  return result.recordset.map((row) => {
+    const raw = {};
+    Object.entries(row || {}).forEach(([key, value]) => {
+      raw[key] = value;
+    });
+    const idValue =
+      row.Id ??
+      row.ID ??
+      row.id ??
+      row.OrganizationId ??
+      row.IdOrganization ??
+      null;
+    return {
+      id: idValue === undefined || idValue === null ? "" : String(idValue),
+      nom:
+        sqlString(row, ["Name", "Nom", "Libelle", "Label", "Title"]) ||
+        "Organisation",
+      ville: sqlString(row, ["City", "Ville", "Town"]),
+      adresse: sqlString(row, ["Address", "Adresse", "Address1"]),
+      tel: sqlString(row, ["Phone", "Telephone", "Tel", "Mobile"]),
+      email: sqlString(row, ["Email", "Mail"]),
+      raw,
+      graphicCharters: [],
+      createdAt: row.CreatedAt || row.CreatedDate || null,
+      updatedAt: row.UpdatedAt || row.ModifiedDate || null,
+    };
+  });
+}
+
+async function loadUsers() {
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .query(`SELECT * FROM [${AUTH_DB_NAME}].[dbo].[User] ORDER BY [Name]`);
+  return result.recordset.map((row) => ({
+    id: String(row.Id),
+    name: row.Name || "",
+    email: row.Email || "",
+    password: row.PassWord || "",
+    organizationId:
+      row.IdOrganization === undefined || row.IdOrganization === null
+        ? null
+        : String(row.IdOrganization),
+    role: normalizeRole(row.Role),
+    profile: row.Profil || "",
+    raw: clone(row),
+  }));
+}
+
+async function authenticateUser(identifier, password) {
+  const pool = await getPool();
+  const request = pool.request();
+  request.input("identifier", sql.NVarChar, identifier);
+  request.input("password", sql.NVarChar, password);
+  const result = await request.query(
+    `SELECT TOP (1) *
+     FROM [${AUTH_DB_NAME}].[dbo].[User]
+     WHERE ([Name] = @identifier OR [Email] = @identifier)
+       AND [PassWord] = @password`,
+  );
+  const row = result.recordset[0];
+  if (!row) return null;
+  return {
+    id: String(row.Id),
+    name: row.Name || "",
+    email: row.Email || "",
+    organizationId:
+      row.IdOrganization === undefined || row.IdOrganization === null
+        ? null
+        : String(row.IdOrganization),
+    role: normalizeRole(row.Role),
+    profile: row.Profil || "",
+  };
 }
 
 async function loadEtablissements() {
@@ -970,19 +1177,17 @@ async function loadGraphicCharters() {
 }
 
 async function loadAdmins() {
-  if (!(await tableExists("admin_user"))) return [];
-  const pool = await getPool();
-  const result = await pool
-    .request()
-    .query(
-      "SELECT id, etablissement_id, nom, email FROM admin_user ORDER BY nom",
-    );
-  return result.recordset.map((row) => ({
-    id: String(row.id),
-    etablissementId: row.etablissement_id ? String(row.etablissement_id) : null,
-    nom: row.nom || "",
-    email: row.email || "",
-  }));
+  const users = await loadUsers();
+  return users
+    .filter((user) => user.role === "admin")
+    .map((user) => ({
+      id: user.id,
+      etablissementId: user.organizationId,
+      nom: user.name,
+      email: user.email,
+      role: user.role,
+      profile: user.profile,
+    }));
 }
 
 async function loadTemplates() {
@@ -1101,8 +1306,8 @@ async function loadPersonnel() {
   }));
 }
 
-async function loadState() {
-  const etablissements = await loadEtablissements();
+async function loadState(currentUser = null) {
+  const organizations = await loadOrganizations();
   const graphicCharters = await loadGraphicCharters();
   const chartersByEtab = graphicCharters.reduce((acc, item) => {
     const key = item.etablissementId || "__none__";
@@ -1111,8 +1316,8 @@ async function loadState() {
     return acc;
   }, {});
 
-  return normalizeState({
-    etablissements: etablissements.map((etab) => ({
+  const state = normalizeState({
+    etablissements: organizations.map((etab) => ({
       ...etab,
       graphicCharters: chartersByEtab[etab.id]?.length
         ? chartersByEtab[etab.id]
@@ -1123,6 +1328,15 @@ async function loadState() {
     templates: await loadTemplates(),
     personnel: await loadPersonnel(),
   });
+  if (!currentUser || currentUser.role === "supAdmin") return state;
+  const orgId = currentUser.organizationId || null;
+  return {
+    ...state,
+    etablissements: state.etablissements.filter((item) => item.id === orgId),
+    admins: state.admins.filter((item) => item.etablissementId === orgId),
+    templates: state.templates.filter((item) => item.etablissementId === orgId),
+    personnel: state.personnel.filter((item) => item.etablissementId === orgId),
+  };
 }
 
 async function loadSchema() {
@@ -1226,7 +1440,7 @@ async function runSelectQuery(querySql, params = {}) {
   }
   const { sql: compiledSql, params: namedParams } = parseNamedSql(
     cleanedSql,
-    params,
+    withOrganizationQueryParams(params),
   );
   const pool = await getPool();
   const request = pool.request();
@@ -1310,74 +1524,8 @@ async function replaceState(state) {
 
     if (hasGraphicCharterTable)
       await req().query("DELETE FROM graphic_charter");
-    if (hasAdmins) await req().query("DELETE FROM admin_user");
-    if (hasEtablissements) await req().query("DELETE FROM etablissement");
     await req().query("DELETE FROM template");
     await req().query("DELETE FROM family");
-
-    // --- etablissements ---
-    if (hasEtablissements) {
-      for (const item of normalized.etablissements) {
-        const r = req();
-        r.input("id", sql.NVarChar, item.id);
-        r.input("nom", sql.NVarChar, item.nom || "");
-        r.input("ville", sql.NVarChar, item.ville || "");
-        r.input("adresse", sql.NVarChar, item.adresse || "");
-        r.input("tel", sql.NVarChar, item.tel || "");
-
-        const extraCols = [];
-        const extraVals = [];
-
-        if (hasGraphicCharterJson || hasBrandingJson) {
-          const colName = hasGraphicCharterJson
-            ? "graphic_charter_json"
-            : "branding_json";
-          r.input(
-            "gcj",
-            sql.NVarChar,
-            JSON.stringify(item.graphicCharters || item.graphicCharter || []),
-          );
-          extraCols.push(colName);
-          extraVals.push("@gcj");
-        }
-        if (hasEtabCreatedAt) {
-          r.input(
-            "created_at",
-            sql.NVarChar,
-            serializeDateValue(item.createdAt),
-          );
-          extraCols.push("created_at");
-          extraVals.push("@created_at");
-        }
-        if (hasEtabUpdatedAt) {
-          r.input(
-            "updated_at",
-            sql.NVarChar,
-            serializeDateValue(item.updatedAt || item.createdAt),
-          );
-          extraCols.push("updated_at");
-          extraVals.push("@updated_at");
-        }
-
-        const cols = [
-          "id",
-          "nom",
-          "ville",
-          "adresse",
-          "tel",
-          ...extraCols,
-        ].join(", ");
-        const vals = [
-          "@id",
-          "@nom",
-          "@ville",
-          "@adresse",
-          "@tel",
-          ...extraVals,
-        ].join(", ");
-        await r.query(`INSERT INTO etablissement (${cols}) VALUES (${vals})`);
-      }
-    }
 
     // --- graphic_charter ---
     if (hasGraphicCharterTable) {
@@ -1414,21 +1562,6 @@ async function replaceState(state) {
       }
     }
 
-    // --- admins ---
-    if (hasAdmins) {
-      for (const item of normalized.admins) {
-        const r = req();
-        r.input("id", sql.NVarChar, item.id);
-        r.input("etablissement_id", sql.NVarChar, item.etablissementId || null);
-        r.input("nom", sql.NVarChar, item.nom || "");
-        r.input("email", sql.NVarChar, item.email || "");
-        await r.query(
-          `INSERT INTO admin_user (id, etablissement_id, nom, email)
-           VALUES (@id, @etablissement_id, @nom, @email)`,
-        );
-      }
-    }
-
     // --- families ---
     for (const item of normalized.families) {
       const r = req();
@@ -1439,12 +1572,12 @@ async function replaceState(state) {
       r.input(
         "beneficiary_mode",
         sql.NVarChar,
-        item.beneficiaryMode || "table",
+        isScopedOrganizationFamily(item) ? "organization" : "table",
       );
       r.input(
         "beneficiary_table",
         sql.NVarChar,
-        item.beneficiaryMode === "etablissement"
+        isScopedOrganizationFamily(item)
           ? null
           : item.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE,
       );
@@ -1607,21 +1740,73 @@ function readBody(req) {
 // ---------------------------------------------------------------------------
 
 async function handleApi(req, res, url) {
+  if (!url.pathname.startsWith("/api/")) {
+    return false;
+  }
   await ensureSchema();
   if (req.method === "OPTIONS") {
     sendText(res, 204, "");
     return true;
   }
 
+  if (req.method === "POST" && url.pathname === "/api/login") {
+    const raw = await readBody(req);
+    const body = raw ? JSON.parse(raw) : {};
+    const identifier = String(body.identifier || "").trim();
+    const password = String(body.password || "");
+    if (!identifier || !password) {
+      sendJson(res, 400, {
+        ok: false,
+        error: "identifier and password are required",
+      });
+      return true;
+    }
+    const user = await authenticateUser(identifier, password);
+    if (!user) {
+      sendJson(res, 401, { ok: false, error: "Identifiants invalides" });
+      return true;
+    }
+    const token = createSession(user);
+    setSessionCookie(res, token);
+    sendJson(res, 200, { ok: true, user, redirectTo: getRoleHome(user.role) });
+    return true;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/logout") {
+    clearSession(req, res);
+    sendJson(res, 200, { ok: true });
+    return true;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/me") {
+    const session = getSession(req);
+    if (!session?.user) {
+      sendJson(res, 401, { ok: false, error: "Not authenticated" });
+      return true;
+    }
+    sendJson(res, 200, {
+      ok: true,
+      user: session.user,
+      redirectTo: getRoleHome(session.user.role),
+    });
+    return true;
+  }
+
+  const session = getSession(req);
+  if (!session?.user) {
+    sendJson(res, 401, { ok: false, error: "Authentication required" });
+    return true;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/bootstrap") {
-    const state = await loadState();
-    sendJson(res, 200, { ok: true, state });
+    const state = await loadState(session.user);
+    sendJson(res, 200, { ok: true, state, user: session.user });
     return true;
   }
 
   if (req.method === "GET" && url.pathname === "/api/state") {
-    const state = await loadState();
-    sendJson(res, 200, { ok: true, state });
+    const state = await loadState(session.user);
+    sendJson(res, 200, { ok: true, state, user: session.user });
     return true;
   }
 
@@ -1655,7 +1840,38 @@ async function handleApi(req, res, url) {
 }
 
 async function handleStatic(req, res, url) {
-  const rawPath = url.pathname === "/" ? "/admin.html" : url.pathname;
+  const rawPath = url.pathname === "/" ? "/login.html" : url.pathname;
+  const htmlPath = rawPath.toLowerCase();
+  const isHtml = htmlPath.endsWith(".html") || htmlPath === "/";
+  const publicPaths = new Set(["/login.html"]);
+  const roleByPath = {
+    "/superadmin.html": "supAdmin",
+    "/admin.html": "admin",
+    "/user.html": "user",
+  };
+  if (isHtml) {
+    const session = getSession(req);
+    const requiredRole = roleByPath[htmlPath];
+    if (!publicPaths.has(htmlPath) && !session?.user) {
+      res.writeHead(302, { Location: "/login.html" });
+      res.end();
+      return;
+    }
+    if (publicPaths.has(htmlPath) && session?.user) {
+      res.writeHead(302, { Location: getRoleHome(session.user.role) });
+      res.end();
+      return;
+    }
+    if (
+      requiredRole &&
+      session?.user &&
+      getRoleHome(session.user.role).toLowerCase() !== htmlPath
+    ) {
+      res.writeHead(302, { Location: getRoleHome(session.user.role) });
+      res.end();
+      return;
+    }
+  }
   const filePath = path.normalize(path.join(ROOT_DIR, rawPath));
   if (!filePath.startsWith(ROOT_DIR)) {
     sendText(res, 403, "Forbidden");
