@@ -458,13 +458,36 @@ function isTempClientId(value) {
 
 function getPreferredColumnName(columns = [], candidates = []) {
   const lowerMap = new Map(
-    columns.map((column) => [String(column.name || "").toLowerCase(), column.name]),
+    columns.map((column) => [
+      String(column.name || "").toLowerCase(),
+      column.name,
+    ]),
   );
   for (const candidate of candidates) {
     const match = lowerMap.get(String(candidate || "").toLowerCase());
     if (match) return match;
   }
   return null;
+}
+
+function normalizeComparableValue(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function getOrganizationNameForPersistence(record = {}, preferredColumn = "") {
+  const rawValue =
+    preferredColumn && record?.raw && typeof record.raw === "object"
+      ? record.raw[preferredColumn]
+      : undefined;
+  if (rawValue !== undefined && rawValue !== null && String(rawValue).trim()) {
+    return String(rawValue).trim();
+  }
+  const nextName = String(record?.nom || "").trim();
+  if (!nextName) return "";
+  if (normalizeComparableValue(nextName) === "organisation") return "";
+  return nextName;
 }
 
 async function getExternalTableColumns(databaseName, tableName) {
@@ -523,37 +546,60 @@ async function saveAppSettings(settings = {}, transaction = null) {
 }
 
 function buildOrganizationDbRow(record = {}, columns = []) {
-  const raw = record?.raw && typeof record.raw === "object" ? clone(record.raw) : {};
+  const raw =
+    record?.raw && typeof record.raw === "object" ? clone(record.raw) : {};
   const row = { ...raw };
   const nameCol = getPreferredColumnName(columns, ["NameFr", "Name", "Nom"]);
   const cityCol = getPreferredColumnName(columns, ["City", "Ville"]);
   const addressCol = getPreferredColumnName(columns, ["Address", "Adresse"]);
-  const phoneCol = getPreferredColumnName(columns, ["Phone", "Telephone", "Tel"]);
+  const phoneCol = getPreferredColumnName(columns, [
+    "Phone",
+    "Telephone",
+    "Tel",
+  ]);
   const emailCol = getPreferredColumnName(columns, ["Email", "Mail"]);
-  if (nameCol && record.nom !== undefined) row[nameCol] = record.nom;
+  const persistedName = getOrganizationNameForPersistence(record, nameCol);
+  if (nameCol && persistedName) row[nameCol] = persistedName;
   if (cityCol && record.ville !== undefined) row[cityCol] = record.ville;
-  if (addressCol && record.adresse !== undefined) row[addressCol] = record.adresse;
+  if (addressCol && record.adresse !== undefined)
+    row[addressCol] = record.adresse;
   if (phoneCol && record.tel !== undefined) row[phoneCol] = record.tel;
   if (emailCol && record.email !== undefined) row[emailCol] = record.email;
   return row;
 }
 
-function buildAdminDbRow(record = {}, columns = [], mappedOrganizationId = null) {
-  const raw = record?.raw && typeof record.raw === "object" ? clone(record.raw) : {};
+function buildAdminDbRow(
+  record = {},
+  columns = [],
+  mappedOrganizationId = null,
+) {
+  const raw =
+    record?.raw && typeof record.raw === "object" ? clone(record.raw) : {};
   const row = { ...raw };
   const nameCol = getPreferredColumnName(columns, ["Name", "Nom"]);
   const emailCol = getPreferredColumnName(columns, ["Email", "Mail"]);
   const passwordCol = getPreferredColumnName(columns, ["PassWord", "Password"]);
-  const orgCol = getPreferredColumnName(columns, ["IdOrganization", "OrganizationId"]);
+  const orgCol = getPreferredColumnName(columns, [
+    "IdOrganization",
+    "OrganizationId",
+  ]);
   const roleCol = getPreferredColumnName(columns, ["Role"]);
   const profileCol = getPreferredColumnName(columns, ["Profil", "Profile"]);
   if (nameCol && record.nom !== undefined) row[nameCol] = record.nom;
   if (emailCol && record.email !== undefined) row[emailCol] = record.email;
-  if (orgCol && mappedOrganizationId !== undefined && mappedOrganizationId !== null)
+  if (
+    orgCol &&
+    mappedOrganizationId !== undefined &&
+    mappedOrganizationId !== null
+  )
     row[orgCol] = mappedOrganizationId;
   if (roleCol) row[roleCol] = "admin";
-  if (profileCol && record.profile !== undefined) row[profileCol] = record.profile;
-  if (passwordCol && (row[passwordCol] === undefined || row[passwordCol] === null))
+  if (profileCol && record.profile !== undefined)
+    row[profileCol] = record.profile;
+  if (
+    passwordCol &&
+    (row[passwordCol] === undefined || row[passwordCol] === null)
+  )
     row[passwordCol] = "";
   return row;
 }
@@ -1588,7 +1634,16 @@ async function getTableColumns(tableName) {
 async function syncOrganizations(stateOrganizations = [], transaction) {
   const columns = await getExternalTableColumns(AUTH_DB_NAME, "Organization");
   if (!columns.length) return new Map();
-  const idColumn = getPreferredColumnName(columns, ["Id", "OrganizationId", "IdOrganization"]);
+  const idColumn = getPreferredColumnName(columns, [
+    "Id",
+    "OrganizationId",
+    "IdOrganization",
+  ]);
+  const uniqueNameColumn = getPreferredColumnName(columns, [
+    "NameFr",
+    "Name",
+    "Nom",
+  ]);
   if (!idColumn) return new Map();
 
   const existingRows = await buildRequest(transaction).query(
@@ -1597,16 +1652,35 @@ async function syncOrganizations(stateOrganizations = [], transaction) {
   const existingById = new Map(
     existingRows.recordset.map((row) => [String(row[idColumn]), row]),
   );
-  const identityColumn = columns.find((column) => column.name === idColumn)?.identity;
+  const existingByName = new Map(
+    uniqueNameColumn
+      ? existingRows.recordset
+          .map((row) => [
+            normalizeComparableValue(row[uniqueNameColumn]),
+            String(row[idColumn]),
+          ])
+          .filter(([key]) => key)
+      : [],
+  );
+  const identityColumn = columns.find(
+    (column) => column.name === idColumn,
+  )?.identity;
   const idMap = new Map();
   const incomingIds = new Set();
 
   for (const org of stateOrganizations) {
     const sourceId = String(org?.id || "").trim();
+    const comparableName = uniqueNameColumn
+      ? normalizeComparableValue(
+          getOrganizationNameForPersistence(org, uniqueNameColumn),
+        )
+      : "";
     const existingId =
       sourceId && !isTempClientId(sourceId) && existingById.has(sourceId)
         ? sourceId
-        : null;
+        : comparableName && existingByName.has(comparableName)
+          ? existingByName.get(comparableName)
+          : null;
     const row = buildOrganizationDbRow(
       existingId ? { ...org, raw: existingById.get(existingId) } : org,
       columns,
@@ -1627,7 +1701,10 @@ async function syncOrganizations(stateOrganizations = [], transaction) {
         await req.query(
           `UPDATE [${AUTH_DB_NAME}].[dbo].[Organization]
            SET ${writableColumns
-             .map((column, index) => `${quoteSqlServerIdentifier(column.name)} = @c${index}`)
+             .map(
+               (column, index) =>
+                 `${quoteSqlServerIdentifier(column.name)} = @c${index}`,
+             )
              .join(", ")}
            WHERE ${quoteSqlServerIdentifier(idColumn)} = @pk`,
         );
@@ -1670,7 +1747,11 @@ async function syncOrganizations(stateOrganizations = [], transaction) {
   return idMap;
 }
 
-async function syncAdmins(stateAdmins = [], transaction, organizationIdMap = new Map()) {
+async function syncAdmins(
+  stateAdmins = [],
+  transaction,
+  organizationIdMap = new Map(),
+) {
   const columns = await getExternalTableColumns(AUTH_DB_NAME, "User");
   if (!columns.length) return;
   const idColumn = getPreferredColumnName(columns, ["Id"]);
@@ -1686,7 +1767,9 @@ async function syncAdmins(stateAdmins = [], transaction, organizationIdMap = new
   const existingById = new Map(
     existingResult.recordset.map((row) => [String(row[idColumn]), row]),
   );
-  const identityColumn = columns.find((column) => column.name === idColumn)?.identity;
+  const identityColumn = columns.find(
+    (column) => column.name === idColumn,
+  )?.identity;
   const incomingIds = new Set();
 
   for (const admin of stateAdmins) {
@@ -1696,7 +1779,9 @@ async function syncAdmins(stateAdmins = [], transaction, organizationIdMap = new
         ? sourceId
         : null;
     const resolvedOrganizationId =
-      organizationIdMap.get(String(admin?.organizationId || admin?.etablissementId || "")) ||
+      organizationIdMap.get(
+        String(admin?.organizationId || admin?.etablissementId || ""),
+      ) ||
       String(admin?.organizationId || admin?.etablissementId || "").trim() ||
       null;
     const row = buildAdminDbRow(
@@ -1719,7 +1804,10 @@ async function syncAdmins(stateAdmins = [], transaction, organizationIdMap = new
         await req.query(
           `UPDATE [${AUTH_DB_NAME}].[dbo].[User]
            SET ${writableColumns
-             .map((column, index) => `${quoteSqlServerIdentifier(column.name)} = @c${index}`)
+             .map(
+               (column, index) =>
+                 `${quoteSqlServerIdentifier(column.name)} = @c${index}`,
+             )
              .join(", ")}
            WHERE ${quoteSqlServerIdentifier(idColumn)} = @pk`,
         );
