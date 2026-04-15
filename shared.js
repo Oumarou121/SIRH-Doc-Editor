@@ -1848,8 +1848,13 @@ function buildDocumentContext(tpl, person) {
 }
 
 function getDocumentThemeVars(tpl) {
-  const charter = getTemplateGraphicCharter(tpl);
-  const pageBackground = getTemplatePageBackground(tpl);
+  const charterRecord = getTemplateGraphicCharterRecord(tpl);
+  const charter = charterRecord?.config
+    ? normalizeGraphicCharterConfig(charterRecord.config)
+    : normalizeGraphicCharterConfig({});
+  const pageBackground = normalizePageBackground(
+    charterRecord?.config?.layout?.pageBackground,
+  );
   const margins = getTemplatePageMargins(tpl);
   const distances = getTemplateHeaderFooterDistances(tpl);
   return {
@@ -1866,7 +1871,10 @@ function getDocumentThemeVars(tpl) {
     "--doc-watermark-opacity": String(charter.watermark.opacity),
     "--doc-page-bg-image":
       pageBackground.enabled && pageBackground.image
-        ? toCssUrlValue(pageBackground.image)
+        ? toCssUrlValue(
+            pageBackground.image,
+            charterRecord?.updatedAt || tpl?.updatedAt || "",
+          )
         : "none",
     "--doc-page-bg-size": pageBackground.size,
     "--doc-page-bg-position": pageBackground.position,
@@ -2048,11 +2056,9 @@ function _filterObjectColumns(columns, items, selectedKeys = []) {
 function getPageSectionPaddings(margins, distances) {
   const headerTop = Number(distances?.headerTop) || 5;
   const footerBottom = Number(distances?.footerBottom) || 5;
-  const contentTopGap = 2;
-  const contentBottomGap = 2;
   return {
     header: `${headerTop}mm ${margins.mr}mm 3mm ${margins.ml}mm`,
-    body: `${contentTopGap}mm ${margins.mr}mm ${contentBottomGap}mm ${margins.ml}mm`,
+    body: `${margins.mt}mm ${margins.mr}mm ${margins.mb}mm ${margins.ml}mm`,
     bodyNoHeaderFooter: `${margins.mt}mm ${margins.mr}mm ${margins.mb}mm ${margins.ml}mm`,
     footer: `3mm ${margins.mr}mm ${footerBottom}mm ${margins.ml}mm`,
   };
@@ -2455,10 +2461,15 @@ function getTemplatePageBackground(tpl) {
   return normalizePageBackground(record?.config?.layout?.pageBackground);
 }
 
-function toCssUrlValue(value) {
+function toCssUrlValue(value, cacheKey = "") {
   const raw = String(value || "").trim();
   if (!raw) return "none";
-  return `url("${raw.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}")`;
+  let finalValue = raw;
+  if (cacheKey && !/^data:/i.test(raw) && !/^blob:/i.test(raw)) {
+    const sep = raw.includes("?") ? "&" : "?";
+    finalValue = `${raw}${sep}v=${encodeURIComponent(String(cacheKey))}`;
+  }
+  return `url("${finalValue.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}")`;
 }
 
 function mmToPx(mm) {
@@ -2660,7 +2671,7 @@ body  { margin: 0; background: #fff; }
 }
 .a4-body {
   flex: 1;
-  padding: 2mm var(--page-mr, 25mm) 2mm var(--page-ml, 25mm);
+  padding: var(--page-mt, 20mm) var(--page-mr, 25mm) var(--page-mb, 20mm) var(--page-ml, 25mm);
   font-family: 'Times New Roman', Times, serif;
   font-size: 12pt; line-height: 1.6; color: #111;
 }
@@ -3360,7 +3371,7 @@ function previewDocument(tpl, person) {
 
     .preview-page-body {
       flex: 1;
-      padding: 2mm ${margins.mr}mm 2mm ${margins.ml}mm;
+      padding: ${margins.mt}mm ${margins.mr}mm ${margins.mb}mm ${margins.ml}mm;
       font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
@@ -3625,6 +3636,7 @@ function printDocPaginated(tpl, person, pages = null) {
       -webkit-print-color-adjust: exact;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
       page-break-after: always;
       break-after: page;
     }
@@ -3646,12 +3658,12 @@ function printDocPaginated(tpl, person, pages = null) {
 
     .sirh-print-body {
       flex: 1;
-      padding: 2mm ${margins.mr}mm 2mm ${margins.ml}mm;
+      padding: ${margins.mt}mm ${margins.mr}mm ${margins.mb}mm ${margins.ml}mm;
       font-family: var(--doc-font-body, "Times New Roman", Times, serif);
       font-size: 12pt;
       line-height: 1.6;
       color: var(--doc-color-text, #111);
-      overflow: visible;
+      overflow: hidden;
       white-space: break-spaces;
     }
 
