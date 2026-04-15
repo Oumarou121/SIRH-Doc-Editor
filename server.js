@@ -18,6 +18,8 @@ const config = {
   password: "N7vR2pXk9Lm4Qz8T",
   server: "92.222.230.31",
   database: INTERNAL_DB_NAME,
+  requestTimeout: 60000,
+  connectionTimeout: 30000,
   options: {
     encrypt: false,
     trustServerCertificate: true,

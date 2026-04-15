@@ -1764,12 +1764,19 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18"/><path d="M6 12h12"/><path d="M10 17h4"/></svg>
       Requête SQL bénéficiaires
     </div>
-    <span class="chip chip-teal">Liste pour aperçu / impression</span>
+    <div class="flex gap-8">
+      <span class="chip chip-teal">Liste pour aperçu / impression</span>
+      ${
+        fam.customBeneficiarySql
+          ? '<span class="chip" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d">SQL personnalisé</span>'
+          : ""
+      }
+    </div>
   </div>
   <div class="card-body">
     <p class="text-muted" style="margin-bottom:10px">Quand la cible du document est une table, ce SELECT sert à afficher les bénéficiaires disponibles avant l'aperçu et l'impression.</p>
     <div class="flex gap-8" style="margin-bottom:10px">
-      <button class="btn sm" onclick="regenerateFamilyBeneficiarySql('${famId}')">Régénérer SELECT bénéficiaires</button>
+      <button class="btn sm" onclick="regenerateFamilyBeneficiarySql('${famId}', false, true)">Régénérer SELECT bénéficiaires</button>
       <button class="btn sm" onclick="testFamilyBeneficiaryQuery('${famId}')">Tester la liste</button>
     </div>
     <div class="sql-wrap">
@@ -1816,7 +1823,14 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
       Requête SQL principale
     </div>
-    <span class="chip chip-teal">SELECT automatique à la génération</span>
+    <div class="flex gap-8">
+      <span class="chip chip-teal">SELECT automatique à la génération</span>
+      ${
+        fam.customMainSql
+          ? '<span class="chip" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d">SQL personnalisé</span>'
+          : ""
+      }
+    </div>
   </div>
   <div class="card-body">
     <p class="text-muted" style="margin-bottom:10px">Les paramètres :nom_param seront substitués automatiquement lors de la génération.</p>
@@ -1957,11 +1971,13 @@
         if (fam.beneficiaryMode === "table") {
           fam.beneficiaryTable =
             fam.beneficiaryTable || DEFAULT_FAMILY_BENEFICIARY_TABLE;
+          fam.customBeneficiarySql = false;
           fam.beneficiarySql =
             fam.beneficiarySql || buildBeneficiarySqlFromFamily(famId);
         } else {
           fam.beneficiaryTable = null;
           fam.beneficiarySql = "";
+          fam.customBeneficiarySql = false;
         }
         DB.saveFamily(fam);
         const modeSelect = document.getElementById("fBeneficiaryMode");
@@ -1980,6 +1996,7 @@
         fam.beneficiaryTable = tableName || DEFAULT_FAMILY_BENEFICIARY_TABLE;
         fam.beneficiaryDisplayColumn1 = "";
         fam.beneficiaryDisplayColumn2 = "";
+        fam.customBeneficiarySql = false;
         fam.beneficiarySql = buildBeneficiarySqlFromFamily(famId);
         DB.saveFamily(fam);
         const state = schemaMetaCache
@@ -2017,7 +2034,9 @@
             fam.beneficiaryDisplayColumn2 = "";
           }
         }
-        fam.beneficiarySql = buildBeneficiarySqlFromFamily(famId);
+        if (!fam.customBeneficiarySql) {
+          fam.beneficiarySql = buildBeneficiarySqlFromFamily(famId);
+        }
         DB.saveFamily(fam);
         const sqlInput = document.getElementById("fBeneficiarySql");
         if (sqlInput) sqlInput.value = fam.beneficiarySql || "";
@@ -2559,6 +2578,15 @@
           .replace(/'/g, "&#39;");
       }
 
+      function escJs(v) {
+        return String(v || "")
+          .replace(/\\/g, "\\\\")
+          .replace(/'/g, "\\'")
+          .replace(/\r/g, "\\r")
+          .replace(/\n/g, "\\n")
+          .replace(/<\/script/gi, "<\\/script");
+      }
+
       async function ensureSchemaMeta() {
         if (schemaMetaCache) return schemaMetaCache;
         schemaMetaCache = await DB.getSchema();
@@ -2718,6 +2746,25 @@
         return `LTRIM(RTRIM(${parts.join(` + ' ' + `)}))`;
       }
 
+      function getBeneficiaryLabelAndSubtitleExpr(columns = [], alias = "src") {
+        const validColumns = (Array.isArray(columns) ? columns : []).filter(
+          Boolean,
+        );
+        if (!validColumns.length) {
+          return { labelExpr: "", subtitleExpr: "" };
+        }
+        if (validColumns.length === 1) {
+          return {
+            labelExpr: `COALESCE(CONVERT(NVARCHAR(255), ${alias}.${sqlId(validColumns[0])}), '')`,
+            subtitleExpr: "",
+          };
+        }
+        return {
+          labelExpr: `COALESCE(CONVERT(NVARCHAR(255), ${alias}.${sqlId(validColumns[0])}), '')`,
+          subtitleExpr: `COALESCE(CONVERT(NVARCHAR(255), ${alias}.${sqlId(validColumns[1])}), '')`,
+        };
+      }
+
       function getFamilyBaseTableForFilters(famId, fam, schema) {
         try {
           return getBuilderState(famId, fam, schema).baseTable || "";
@@ -2845,8 +2892,230 @@
         )} AS ${sqlId(key)}`;
       }
 
+      function sanitizeUnsafeManualJoinSql(querySql) {
+        const raw = String(querySql || "");
+        if (!/\bbase_column\b|\bsource_column\b/i.test(raw)) return raw;
+        return raw
+          .replace(
+            /LEFT\s+JOIN([\s\S]*?)ON\s+CONVERT\s*\(NVARCHAR\(MAX\),[\s\S]*?\[source_column\][\s\S]*?\[base_column\]\)\s*/i,
+            (match, joinTarget) =>
+              `-- Jointure manuelle à compléter\nLEFT JOIN${joinTarget}ON 1 = 0\n-- Remplacez ON 1 = 0 par votre vraie condition de jointure\n`,
+          )
+          .replace(
+            /\[base_column\]|\[source_column\]|\bbase_column\b|\bsource_column\b/gi,
+            "id",
+          );
+      }
+
+      function splitTopLevelSqlSelect(selectSql) {
+        const parts = [];
+        let current = "";
+        let depth = 0;
+        let inSingle = false;
+        let inDouble = false;
+        let inBracket = false;
+        for (let i = 0; i < selectSql.length; i += 1) {
+          const ch = selectSql[i];
+          const next = selectSql[i + 1];
+          if (!inDouble && !inBracket && ch === "'" && next === "'") {
+            current += "''";
+            i += 1;
+            continue;
+          }
+          if (!inSingle && !inBracket && ch === '"') {
+            inDouble = !inDouble;
+            current += ch;
+            continue;
+          }
+          if (!inDouble && !inBracket && ch === "'") {
+            inSingle = !inSingle;
+            current += ch;
+            continue;
+          }
+          if (!inSingle && !inDouble && ch === "[") {
+            inBracket = true;
+            current += ch;
+            continue;
+          }
+          if (inBracket && ch === "]") {
+            inBracket = false;
+            current += ch;
+            continue;
+          }
+          if (!inSingle && !inDouble && !inBracket) {
+            if (ch === "(") depth += 1;
+            if (ch === ")" && depth > 0) depth -= 1;
+            if (ch === "," && depth === 0) {
+              if (current.trim()) parts.push(current.trim());
+              current = "";
+              continue;
+            }
+          }
+          current += ch;
+        }
+        if (current.trim()) parts.push(current.trim());
+        return parts;
+      }
+
+      function extractTopLevelSelectClause(querySql) {
+        const sql = String(querySql || "")
+          .trim()
+          .replace(/;+\s*$/, "");
+        if (!/^select\b/i.test(sql)) return "";
+        let depth = 0;
+        let inSingle = false;
+        let inDouble = false;
+        let inBracket = false;
+        for (let i = 6; i < sql.length; i += 1) {
+          const ch = sql[i];
+          const next = sql[i + 1];
+          if (!inDouble && !inBracket && ch === "'" && next === "'") {
+            i += 1;
+            continue;
+          }
+          if (!inSingle && !inBracket && ch === '"') {
+            inDouble = !inDouble;
+            continue;
+          }
+          if (!inDouble && !inBracket && ch === "'") {
+            inSingle = !inSingle;
+            continue;
+          }
+          if (!inSingle && !inDouble && ch === "[") {
+            inBracket = true;
+            continue;
+          }
+          if (inBracket && ch === "]") {
+            inBracket = false;
+            continue;
+          }
+          if (!inSingle && !inDouble && !inBracket) {
+            if (ch === "(") depth += 1;
+            else if (ch === ")" && depth > 0) depth -= 1;
+            else if (
+              depth === 0 &&
+              /\bfrom\b/i.test(sql.slice(i, i + 5)) &&
+              !/[a-z0-9_]/i.test(sql[i - 1] || "") &&
+              !/[a-z0-9_]/i.test(sql[i + 4] || "")
+            ) {
+              return sql.slice(6, i).trim();
+            }
+          }
+        }
+        return "";
+      }
+
+      function parseListObjectColumnsFromSql(querySql) {
+        const selectClause = extractTopLevelSelectClause(querySql);
+        if (!selectClause) return [];
+        return splitTopLevelSqlSelect(selectClause)
+          .map((entry) => {
+            const part = String(entry || "")
+              .trim()
+              .replace(/^TOP\s*\([^)]+\)\s*/i, "");
+            if (!part) return null;
+            let alias = "";
+            const asMatch =
+              /(?:^|[\s])AS\s+(\[[^\]]+\]|"[^"]+"|[A-Za-z_][\w]*)\s*$/i.exec(
+                part,
+              );
+            if (asMatch) {
+              alias = asMatch[1];
+            } else {
+              const simpleMatch =
+                /(\[[^\]]+\]|"[^"]+"|[A-Za-z_][\w]*)\s*$/.exec(part);
+              alias = simpleMatch ? simpleMatch[1] : "";
+            }
+            const normalizedAlias = String(alias || "")
+              .trim()
+              .replace(/^\[|\]$/g, "")
+              .replace(/^"|"$/g, "");
+            if (!normalizedAlias) return null;
+            return {
+              // On conserve exactement l'alias SQL pour que les clés JSON
+              // renvoyées par FOR JSON PATH correspondent au rendu du tableau.
+              key: normalizedAlias,
+              label: humanizeSchemaName(normalizedAlias),
+              column: normalizedAlias,
+            };
+          })
+          .filter((col, index, list) => {
+            if (!col) return false;
+            return (
+              list.findIndex(
+                (item) =>
+                  String(item.key || "").toLowerCase() ===
+                  String(col.key || "").toLowerCase(),
+              ) === index
+            );
+          });
+      }
+
+      function syncListObjectColumnsFromSql(varDef) {
+        if (!varDef || varDef.type !== "list-object") return false;
+        const parsedColumns = parseListObjectColumnsFromSql(
+          varDef.sqlQuery || "",
+        );
+        if (!parsedColumns.length) return false;
+        const currentSourceByKey = new Map(
+          (Array.isArray(varDef.sourceColumns) ? varDef.sourceColumns : []).map(
+            (col) => [
+              String(col.key || col.column || "")
+                .trim()
+                .toLowerCase(),
+              col,
+            ],
+          ),
+        );
+        varDef.sourceColumns = parsedColumns.map((col) => {
+          const existing = currentSourceByKey.get(
+            String(col.key || "").toLowerCase(),
+          );
+          return existing
+            ? {
+                ...existing,
+                key: col.key,
+                label: col.label,
+                column: col.column,
+              }
+            : {
+                column: col.column,
+                key: col.key,
+                label: col.label,
+              };
+        });
+        varDef.columns = parsedColumns.map((col) => {
+          const existing = (
+            Array.isArray(varDef.columns) ? varDef.columns : []
+          ).find(
+            (item) =>
+              String(item?.key || "")
+                .trim()
+                .toLowerCase() === String(col.key || "").toLowerCase(),
+          );
+          return existing
+            ? { ...existing, key: col.key, label: col.label }
+            : { key: col.key, label: col.label };
+        });
+        return true;
+      }
+
+      function buildCustomObjectArraySubquery(querySql) {
+        const cleaned = sanitizeUnsafeManualJoinSql(querySql)
+          .trim()
+          .replace(/;+\s*$/, "");
+        if (!cleaned || !/^select\b/i.test(cleaned)) return null;
+        return `(\n${indentSql(
+          `${cleaned}\nFOR JSON PATH, INCLUDE_NULL_VALUES`,
+        )}\n)`;
+      }
+
       function buildVarSelectExpr(varDef, valueAlias, fromLines, tableColumns) {
         if (varDef.type === "list-object") {
+          const customSql = String(varDef?.sqlQuery || "").trim();
+          if (customSql) {
+            return buildCustomObjectArraySubquery(customSql);
+          }
           const sourceCols = varDef.sourceColumns || [];
           if (
             !sourceCols.length ||
@@ -2920,23 +3189,34 @@
           )?.name ||
           pk;
         const sourceAlias = "src";
+        const configuredDisplayExpr = getBeneficiaryLabelAndSubtitleExpr(
+          displayColumns,
+          sourceAlias,
+        );
         const labelSqlExpr =
-          buildBeneficiaryDisplaySqlExpr(displayColumns, sourceAlias) ||
+          configuredDisplayExpr.labelExpr ||
           `${sourceAlias}.${sqlId(labelColumn)}`;
-        const subtitleColumn = displayColumns.length
-          ? ""
-          : columns.find((column) =>
-              [
-                "poste",
-                "fonction",
-                "grade",
-                "departement",
-                "service",
-                "email",
-                "code",
-                "matricule",
-              ].includes(column.name),
-            )?.name;
+        const subtitleSqlExpr =
+          configuredDisplayExpr.subtitleExpr ||
+          (displayColumns.length
+            ? ""
+            : (() => {
+                const subtitleColumn = columns.find((column) =>
+                  [
+                    "poste",
+                    "fonction",
+                    "grade",
+                    "departement",
+                    "service",
+                    "email",
+                    "code",
+                    "matricule",
+                  ].includes(column.name),
+                )?.name;
+                return subtitleColumn
+                  ? `${sourceAlias}.${sqlId(subtitleColumn)}`
+                  : "";
+              })());
         const pathToEtab = getRelationPath(
           schemaMetaCache,
           tableName,
@@ -2974,10 +3254,8 @@
         return [
           "SELECT",
           `  TOP (500) ${sourceAlias}.${sqlId(pk)} AS id,`,
-          `  ${labelSqlExpr} AS libelle${subtitleColumn ? "," : ""}`,
-          subtitleColumn
-            ? `  ${sourceAlias}.${sqlId(subtitleColumn)} AS sous_libelle`
-            : "",
+          `  ${labelSqlExpr} AS libelle${subtitleSqlExpr ? "," : ""}`,
+          subtitleSqlExpr ? `  ${subtitleSqlExpr} AS sous_libelle` : "",
           `FROM ${sqlId(tableName)} ${sourceAlias}`,
           ...joinParts,
           whereClauses.length ? `WHERE ${whereClauses.join("\n  AND ")}` : "",
@@ -3350,9 +3628,13 @@
       function buildEtablissementFamilySql(fam) {
         const vars = (fam.classes || [])
           .flatMap((c) => c.vars || [])
-          .filter((v) => v.sourceTable);
+          .filter((v) => v.sourceTable || String(v?.sqlQuery || "").trim());
         const exprs = vars
           .map((v) => {
+            if (v.type === "list-object" && String(v?.sqlQuery || "").trim()) {
+              const expr = buildCustomObjectArraySubquery(v.sqlQuery);
+              return expr ? `  ${expr} AS ${sqlId(v.tech)}` : null;
+            }
             const expr = buildEtablissementScopedVarExpr(schemaMetaCache, v);
             return expr ? `  ${expr} AS ${sqlId(v.tech)}` : null;
           })
@@ -3363,6 +3645,9 @@
 
       function getValidGeneratedVars(schema, baseTable, vars) {
         return (vars || []).filter((v) => {
+          if (v?.type === "list-object" && String(v?.sqlQuery || "").trim()) {
+            return true;
+          }
           if (!v?.sourceTable) return false;
           const tableColumns = getColumnsForTable(schema, v.sourceTable);
           if (!tableColumns.length) return false;
@@ -3394,17 +3679,25 @@
         const builder = getBuilderState(famId, fam, schemaMetaCache);
         const allGeneratedVars = (fam.classes || [])
           .flatMap((c) => c.vars || [])
-          .filter((v) => v.sourceTable);
+          .filter((v) => v.sourceTable || String(v?.sqlQuery || "").trim());
         const generatedVars = getValidGeneratedVars(
           schemaMetaCache,
           builder.baseTable,
           allGeneratedVars,
         );
-        if (!generatedVars.length || !builder.baseTable) return fam.sql || "";
+        const hasStandaloneSqlVars = generatedVars.some(
+          (v) => v.type === "list-object" && String(v?.sqlQuery || "").trim(),
+        );
+        if (!generatedVars.length) return fam.sql || "";
+        if (!builder.baseTable && !hasStandaloneSqlVars) return fam.sql || "";
 
         const baseTable = builder.baseTable;
         const baseAlias = "b";
         const selects = generatedVars.map((v) => {
+          if (v.type === "list-object" && String(v?.sqlQuery || "").trim()) {
+            const expr = buildCustomObjectArraySubquery(v.sqlQuery);
+            return expr ? `  ${expr} AS ${sqlId(v.tech)}` : null;
+          }
           const sourceAccess = resolveVarSourceAccess(
             schemaMetaCache,
             baseTable,
@@ -3437,22 +3730,163 @@
         return ["SELECT", filteredSelects.join(",\n")].join("\n");
       }
 
-      function regenerateFamilySql(famId, silent = false) {
+      function buildDefaultListObjectSqlQuery(famId, varDef) {
+        const fam = DB.getFamily(famId);
+        if (
+          !fam ||
+          !schemaMetaCache ||
+          !varDef?.sourceTable ||
+          varDef.type !== "list-object"
+        ) {
+          return "";
+        }
+
+        if (fam.beneficiaryMode === "organization") {
+          return "";
+        }
+
+        const builder = getBuilderState(famId, fam, schemaMetaCache);
+        const baseTable =
+          builder.baseTable ||
+          varDef.baseTable ||
+          inferBaseTable(fam, schemaMetaCache);
+        if (!baseTable) return "";
+
+        const baseAlias = "b";
+        const suggestedLink =
+          baseTable && varDef?.sourceTable
+            ? getSuggestedVarLinkConfig(
+                schemaMetaCache,
+                baseTable,
+                varDef.sourceTable,
+              )
+            : {};
+        const effectiveVarDef = {
+          ...varDef,
+          linkMode: String(varDef?.linkMode || "").trim()
+            ? varDef.linkMode
+            : suggestedLink.linkMode || "",
+          matchBaseColumn: String(varDef?.matchBaseColumn || "").trim()
+            ? varDef.matchBaseColumn
+            : suggestedLink.matchBaseColumn || "",
+          matchSourceColumn: String(varDef?.matchSourceColumn || "").trim()
+            ? varDef.matchSourceColumn
+            : suggestedLink.matchSourceColumn || "",
+        };
+        const sourceAccess = resolveVarSourceAccess(
+          schemaMetaCache,
+          baseTable,
+          baseAlias,
+          effectiveVarDef,
+        );
+        const effectiveColumns = (
+          Array.isArray(varDef.sourceColumns) && varDef.sourceColumns.length
+            ? varDef.sourceColumns
+            : Array.isArray(varDef.columns)
+              ? varDef.columns.map((col) => ({
+                  column: col.key,
+                  key: col.key,
+                  label: col.label,
+                }))
+              : []
+        )
+          .map((col) => {
+            const sourceColumn = String(col?.column || "").trim();
+            const key = String(col?.key || sourceColumn).trim();
+            return sourceColumn && key
+              ? { ...col, column: sourceColumn, key }
+              : null;
+          })
+          .filter(Boolean);
+
+        const sourceTableColumns = getColumnsForTable(
+          schemaMetaCache,
+          effectiveVarDef.sourceTable,
+        );
+        const validColumns = effectiveColumns.filter((col) =>
+          sourceTableColumns.some((tableCol) => tableCol.name === col.column),
+        );
+        if (!validColumns.length) return "";
+
+        const alias = sourceAccess?.alias || "j1";
+        const joins = sourceAccess?.joins || [];
+
+        const selectEntries = validColumns
+          .map((col) => {
+            const sourceColumn = String(col?.column || "").trim();
+            const key = String(col?.key || sourceColumn).trim();
+            if (!sourceColumn || !key) return null;
+            return `  ${alias}.${sqlId(sourceColumn)} AS ${sqlId(key)}`;
+          })
+          .filter(Boolean);
+
+        if (!selectEntries.length) return "";
+
+        const whereClause = [
+          getFamilyFilterClause(fam, schemaMetaCache, baseTable, baseAlias),
+          ...buildAutoFilterClausesForTable(fam, baseTable, baseAlias),
+        ]
+          .filter(Boolean)
+          .join("\n  AND ");
+
+        if (!sourceAccess) {
+          return [
+            "-- Liaison automatique introuvable. Completez la jointure manuellement.",
+            "SELECT",
+            selectEntries.join(",\n"),
+            `FROM ${sqlId(baseTable)} ${baseAlias}`,
+            `LEFT JOIN ${sqlId(effectiveVarDef.sourceTable)} ${alias} ON 1 = 0`,
+            `-- Remplacez ON 1 = 0 par votre jointure manuelle, par exemple :`,
+            `-- ON ${alias}.${sqlId("votre_colonne_source")} = ${baseAlias}.${sqlId("votre_colonne_base")}`,
+            whereClause ? `WHERE ${whereClause}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n");
+        }
+
+        return [
+          "SELECT",
+          selectEntries.join(",\n"),
+          `FROM ${sqlId(baseTable)} ${baseAlias}`,
+          ...joins,
+          whereClause ? `WHERE ${whereClause}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n");
+      }
+
+      function regenerateFamilySql(famId, silent = false, force = false) {
         const fam = DB.getFamily(famId);
         if (!fam) return;
+        if (fam.customMainSql && !force) {
+          const sqlInput = document.getElementById("fSql");
+          if (sqlInput) sqlInput.value = fam.sql || "";
+          return;
+        }
         const generatedSql = buildSqlFromFamily(famId);
         if (!generatedSql) return;
         fam.sql = generatedSql;
+        fam.customMainSql = false;
         DB.saveFamily(fam);
         const sqlInput = document.getElementById("fSql");
         if (sqlInput) sqlInput.value = generatedSql;
         if (!silent) toast("Requête SELECT régénérée", "success");
       }
 
-      window.regenerateFamilyBeneficiarySql = function (famId, silent = false) {
+      window.regenerateFamilyBeneficiarySql = function (
+        famId,
+        silent = false,
+        force = false,
+      ) {
         const fam = DB.getFamily(famId);
         if (!fam) return;
+        if (fam.customBeneficiarySql && !force) {
+          const sqlInput = document.getElementById("fBeneficiarySql");
+          if (sqlInput) sqlInput.value = fam.beneficiarySql || "";
+          return;
+        }
         fam.beneficiarySql = buildBeneficiarySqlFromFamily(famId);
+        fam.customBeneficiarySql = false;
         DB.saveFamily(fam);
         const sqlInput = document.getElementById("fBeneficiarySql");
         if (sqlInput) sqlInput.value = fam.beneficiarySql || "";
@@ -3606,7 +4040,7 @@
           (col) => selected.includes(col.name),
         );
         const tech = uniqueTech(fam, slugTech(`${tableName}_table`));
-        upsertGeneratedVar(famId, tableName, {
+        const nextVar = {
           tech,
           label: `${getTableMeta(schemaMetaCache, tableName)?.comment || humanizeSchemaName(tableName)} (tableau)`,
           type: "list-object",
@@ -3621,7 +4055,11 @@
             key: slugTech(col.name),
             label: col.comment || humanizeSchemaName(col.name),
           })),
-        });
+        };
+        if (state.baseTable && tableName !== state.baseTable) {
+          nextVar.sqlQuery = buildDefaultListObjectSqlQuery(famId, nextVar);
+        }
+        upsertGeneratedVar(famId, tableName, nextVar);
       };
 
       window.testFamilyQuery = async function (famId) {
@@ -3719,7 +4157,7 @@
   <div class="form-row" style="margin:0">
     <label class="form-label">Actions</label>
     <div class="flex gap-8" style="padding-top:2px">
-      <button class="btn sm" onclick="regenerateFamilySql('${famId}')">Régénérer SELECT</button>
+      <button class="btn sm" onclick="regenerateFamilySql('${famId}', false, true)">Régénérer SELECT</button>
       <button class="btn sm" onclick="testFamilyQuery('${famId}')">Tester id=1</button>
     </div>
   </div>
@@ -3841,27 +4279,123 @@
           .join("");
       }
 
+      function getAvailableVarSourceColumns(varDef) {
+        if (!schemaMetaCache || !varDef?.sourceTable) return [];
+        const selected = new Set(
+          (Array.isArray(varDef.sourceColumns) ? varDef.sourceColumns : [])
+            .map((col) => String(col?.column || "").trim())
+            .filter(Boolean),
+        );
+        return getColumnsForTable(schemaMetaCache, varDef.sourceTable).filter(
+          (column) => !selected.has(column.name),
+        );
+      }
+
+      function getLookupEditorMode(config = {}) {
+        return String(config?.lookupEditorMode || "").trim() === "manual"
+          ? "manual"
+          : "schema";
+      }
+
+      function renderLookupSourceModeSwitch(
+        mode,
+        onChangeHandler,
+        args = [],
+        disabled = false,
+      ) {
+        const serializedArgs = args
+          .map((arg) => {
+            if (typeof arg === "number") return String(arg);
+            return `'${escJs(String(arg ?? ""))}'`;
+          })
+          .join(",");
+        return `<label class="form-label" style="font-size:10px;color:var(--text2)">
+          Source des noms
+          <select class="form-input" ${disabled ? "disabled" : ""} onchange="${onChangeHandler}(${serializedArgs},this.value)" style="display:block;width:100%;margin-top:4px">
+            <option value="schema" ${mode !== "manual" ? "selected" : ""}>Schéma détecté</option>
+            <option value="manual" ${mode === "manual" ? "selected" : ""}>Saisie manuelle</option>
+          </select>
+        </label>`;
+      }
+
+      function renderLookupTableField(mode, value, onChangeHandler, args = []) {
+        const serializedArgs = args
+          .map((arg) => {
+            if (typeof arg === "number") return String(arg);
+            return `'${escJs(String(arg ?? ""))}'`;
+          })
+          .join(",");
+        if (mode === "manual") {
+          return `<label class="form-label" style="font-size:10px;color:var(--text2)">
+            Table libellé
+            <input class="form-input" value="${escAttr(value || "")}" onchange="${onChangeHandler}(${serializedArgs},this.value)" style="display:block;width:100%;margin-top:4px" placeholder="Ex: Grade">
+          </label>`;
+        }
+        return `<label class="form-label" style="font-size:10px;color:var(--text2)">
+          Table libellé
+          <select class="form-input" onchange="${onChangeHandler}(${serializedArgs},this.value)" style="display:block;width:100%;margin-top:4px">
+            <option value="">Choisir une table</option>
+            ${buildLookupTableOptions(value)}
+          </select>
+        </label>`;
+      }
+
+      function renderLookupColumnField(
+        label,
+        mode,
+        tableName,
+        value,
+        onChangeHandler,
+        args = [],
+      ) {
+        const serializedArgs = args
+          .map((arg) => {
+            if (typeof arg === "number") return String(arg);
+            return `'${escJs(String(arg ?? ""))}'`;
+          })
+          .join(",");
+        if (mode === "manual") {
+          return `<label class="form-label" style="font-size:10px;color:var(--text2)">
+            ${escHtml(label)}
+            <input class="form-input" value="${escAttr(value || "")}" onchange="${onChangeHandler}(${serializedArgs},this.value)" style="display:block;width:100%;margin-top:4px" placeholder="Ex: CodeUnivad">
+          </label>`;
+        }
+        return `<label class="form-label" style="font-size:10px;color:var(--text2)">
+          ${escHtml(label)}
+          <select class="form-input" onchange="${onChangeHandler}(${serializedArgs},this.value)" style="display:block;width:100%;margin-top:4px">
+            <option value="">Choisir une colonne</option>
+            ${buildLookupColumnOptions(tableName, value)}
+          </select>
+        </label>`;
+      }
+
       function renderVarColumnEditor(v, vi, ci, famId, couleur) {
         const orderedCols = getListObjectDisplayColumns(v);
+        const addEditor = renderAddVarColumnEditor(v, vi, ci, famId, couleur);
         if (!orderedCols.length) {
-          return `<div style="font-size:10px;color:${couleur};opacity:.8">Aucune colonne définie</div>`;
+          return `<div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:10px;color:${couleur};opacity:.8">Aucune colonne définie</div>
+            ${addEditor}
+          </div>`;
         }
-        return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px">
-          ${orderedCols
-            .map((col, colIndex) => {
-              const sourceMeta = Array.isArray(v.sourceColumns)
-                ? v.sourceColumns[colIndex] || null
-                : null;
-              const displayMode =
-                sourceMeta?.displayMode === "lookup" ? "lookup" : "raw";
-              const lookupTable = sourceMeta?.lookupTable || "";
-              const lookupValueColumn = sourceMeta?.lookupValueColumn || "";
-              const lookupLabelColumn = sourceMeta?.lookupLabelColumn || "";
-              const hasSqlSource = !!sourceMeta?.column;
-              const sourceLabel = hasSqlSource
-                ? `Source SQL : ${sourceMeta.column}`
-                : "Colonne libre sans source SQL liée";
-              return `
+        return `<div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px">
+            ${orderedCols
+              .map((col, colIndex) => {
+                const sourceMeta = Array.isArray(v.sourceColumns)
+                  ? v.sourceColumns[colIndex] || null
+                  : null;
+                const displayMode =
+                  sourceMeta?.displayMode === "lookup" ? "lookup" : "raw";
+                const lookupTable = sourceMeta?.lookupTable || "";
+                const lookupValueColumn = sourceMeta?.lookupValueColumn || "";
+                const lookupLabelColumn = sourceMeta?.lookupLabelColumn || "";
+                const lookupEditorMode = getLookupEditorMode(sourceMeta);
+                const hasSqlSource = !!sourceMeta?.column;
+                const sourceLabel = hasSqlSource
+                  ? `Source SQL : ${sourceMeta.column}`
+                  : "Colonne libre sans source SQL liée";
+                return `
                 <div style="display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid ${couleur}35;border-radius:10px;background:#fff">
                   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
                     <div>
@@ -3872,6 +4406,7 @@
                     <div style="display:flex;gap:4px">
                       <button class="col-pill-btn" type="button" title="Monter" onclick="moveVarColumn('${famId}',${ci},${vi},${colIndex},-1)" ${colIndex === 0 ? "disabled" : ""}>&uarr;</button>
                       <button class="col-pill-btn" type="button" title="Descendre" onclick="moveVarColumn('${famId}',${ci},${vi},${colIndex},1)" ${colIndex === orderedCols.length - 1 ? "disabled" : ""}>&darr;</button>
+                      <button class="col-pill-del" type="button" title="Supprimer" onclick="removeVarColumn('${famId}',${ci},${vi},${colIndex})">×</button>
                     </div>
                   </div>
                   ${
@@ -3885,34 +4420,107 @@
                         </label>
                         ${
                           displayMode === "lookup"
-                            ? `<label class="form-label" style="font-size:10px;color:var(--text2)">
-                                Table libellé
-                                <select class="form-input" onchange="updateVarColumnLookupField('${famId}',${ci},${vi},${colIndex},'lookupTable',this.value)" style="display:block;width:100%;margin-top:4px">
-                                  <option value="">Choisir une table</option>
-                                  ${buildLookupTableOptions(lookupTable)}
-                                </select>
-                              </label>
-                              <label class="form-label" style="font-size:10px;color:var(--text2)">
-                                Colonne code
-                                <select class="form-input" onchange="updateVarColumnLookupField('${famId}',${ci},${vi},${colIndex},'lookupValueColumn',this.value)" style="display:block;width:100%;margin-top:4px">
-                                  <option value="">Choisir une colonne</option>
-                                  ${buildLookupColumnOptions(lookupTable, lookupValueColumn)}
-                                </select>
-                              </label>
-                              <label class="form-label" style="font-size:10px;color:var(--text2)">
-                                Colonne libellé
-                                <select class="form-input" onchange="updateVarColumnLookupField('${famId}',${ci},${vi},${colIndex},'lookupLabelColumn',this.value)" style="display:block;width:100%;margin-top:4px">
-                                  <option value="">Choisir une colonne</option>
-                                  ${buildLookupColumnOptions(lookupTable, lookupLabelColumn)}
-                                </select>
-                              </label>`
+                            ? `${renderLookupSourceModeSwitch(lookupEditorMode, "updateVarColumnLookupMode", [famId, ci, vi, colIndex])}
+                              ${renderLookupTableField(lookupEditorMode, lookupTable, "updateVarColumnLookupField", [famId, ci, vi, colIndex, "lookupTable"])}
+                              ${renderLookupColumnField("Colonne code", lookupEditorMode, lookupTable, lookupValueColumn, "updateVarColumnLookupField", [famId, ci, vi, colIndex, "lookupValueColumn"])}
+                              ${renderLookupColumnField("Colonne libellé", lookupEditorMode, lookupTable, lookupLabelColumn, "updateVarColumnLookupField", [famId, ci, vi, colIndex, "lookupLabelColumn"])}
+                              <div style="font-size:10px;color:var(--text3)">Vous pouvez choisir dans le schéma ou saisir manuellement les noms SQL.</div>`
                             : ""
                         }`
                       : ""
                   }
                 </div>`;
-            })
-            .join("")}
+              })
+              .join("")}
+          </div>
+          ${addEditor}
+        </div>`;
+      }
+
+      function renderAddVarColumnEditor(v, vi, ci, famId, couleur) {
+        if (v?.type !== "list-object") return "";
+        const addMode =
+          String(v?.addColumnMode || "").trim() === "manual"
+            ? "manual"
+            : "schema";
+        const availableColumns = getAvailableVarSourceColumns(v);
+        const sourceId = `var_col_source_${ci}_${vi}`;
+        const keyId = `var_col_key_${ci}_${vi}`;
+        const labelId = `var_col_label_${ci}_${vi}`;
+        return `<div style="padding:10px;border:1px dashed ${couleur}35;border-radius:12px;background:#fff">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${couleur};opacity:.9;margin-bottom:8px">Ajouter une colonne</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px">
+            <label class="form-label" style="font-size:10px;color:var(--text2)">
+              Source
+              <select class="form-input" onchange="updateVarAddColumnMode('${famId}',${ci},${vi},this.value)" style="display:block;width:100%;margin-top:4px">
+                <option value="schema" ${addMode !== "manual" ? "selected" : ""}>Colonne du schéma</option>
+                <option value="manual" ${addMode === "manual" ? "selected" : ""}>Saisie manuelle</option>
+              </select>
+            </label>
+            ${
+              addMode === "manual"
+                ? `<label class="form-label" style="font-size:10px;color:var(--text2)">
+                    Colonne source
+                    <input id="${sourceId}" class="form-input" style="display:block;width:100%;margin-top:4px" placeholder="Ex: Grade">
+                  </label>`
+                : `<label class="form-label" style="font-size:10px;color:var(--text2)">
+                    Colonne source
+                    <select id="${sourceId}" class="form-input" style="display:block;width:100%;margin-top:4px">
+                      <option value="">Choisir une colonne</option>
+                      ${availableColumns
+                        .map(
+                          (column) =>
+                            `<option value="${escAttr(column.name)}">${escHtml(column.comment || humanizeSchemaName(column.name))}</option>`,
+                        )
+                        .join("")}
+                    </select>
+                  </label>`
+            }
+            <label class="form-label" style="font-size:10px;color:var(--text2)">
+              Clé technique
+              <input id="${keyId}" class="form-input" style="display:block;width:100%;margin-top:4px" placeholder="Ex: grade">
+            </label>
+            <label class="form-label" style="font-size:10px;color:var(--text2)">
+              Libellé
+              <input id="${labelId}" class="form-input" style="display:block;width:100%;margin-top:4px" placeholder="Ex: Grade">
+            </label>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <div style="font-size:10px;color:var(--text3)">
+              ${
+                addMode === "manual"
+                  ? "Ajoutez une colonne même si elle n'a pas été détectée dans le schéma."
+                  : availableColumns.length
+                    ? "Ajoutez de nouvelles colonnes sans recréer le tableau."
+                    : "Toutes les colonnes détectées sont déjà utilisées. Passez en saisie manuelle si besoin."
+              }
+            </div>
+            <button class="btn sm" type="button" onclick="addVarColumn('${famId}',${ci},${vi})">Ajouter la colonne</button>
+          </div>
+        </div>`;
+      }
+
+      function renderListObjectSqlEditor(v, vi, ci, famId, couleur) {
+        if (v?.type !== "list-object") return "";
+        const sqlQuery = String(v.sqlQuery || "").trim();
+        return `<div style="margin-top:6px;padding:10px;border:1px dashed ${couleur}35;border-radius:12px;background:${couleur}08">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${couleur};opacity:.9;margin-bottom:8px">Requête SQL tableau</div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:8px">Utilisez une requête <strong>SELECT</strong> qui retourne plusieurs lignes, par exemple avec <strong>GROUP BY</strong>, <strong>SUM</strong>, <strong>COUNT</strong> ou <strong>HAVING</strong>. Le résultat sera injecté comme tableau JSON dans <code>{{#${escHtml(
+            v.tech,
+          )}:table}}</code>.</div>
+          <textarea class="sql-input" rows="8" style="min-height:150px" onchange="updateListObjectSqlQuery('${famId}',${ci},${vi},this.value)" placeholder="SELECT idEnseignant, idModule, Groupe, COUNT(*) AS nb, SUM(NbSemainesPeriode) AS total_volume FROM ChargeDetailleeModule GROUP BY idEnseignant, idModule, Groupe HAVING COUNT(*) &gt; 1">${escHtml(
+            sqlQuery,
+          )}</textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <button class="btn sm" type="button" onclick="generateListObjectSqlQueryFromSource('${famId}',${ci},${vi})">Générer depuis la liaison</button>
+            <button class="btn sm" type="button" onclick="testListObjectSqlQuery('${famId}',${ci},${vi})">Tester la requête</button>
+            <button class="btn sm" type="button" onclick="clearListObjectSqlQuery('${famId}',${ci},${vi})">Revenir au mode colonnes liées</button>
+          </div>
+          <pre id="listObjectSqlPreview_${ci}_${vi}" style="margin:10px 0 0;white-space:pre-wrap;font-size:11px;color:var(--text2)">${
+            sqlQuery
+              ? 'Cliquez sur "Tester la requête" pour voir les premières lignes.'
+              : "Aucune requête SQL dédiée. La variable utilise le mode lié au schéma."
+          }</pre>
         </div>`;
       }
 
@@ -3922,6 +4530,7 @@
         const lookupTable = v.lookupTable || "";
         const lookupValueColumn = v.lookupValueColumn || "";
         const lookupLabelColumn = v.lookupLabelColumn || "";
+        const lookupEditorMode = getLookupEditorMode(v);
         return `<div style="margin-top:6px;padding:10px;border:1px dashed ${couleur}35;border-radius:12px;background:${couleur}08">
           <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${couleur};opacity:.9;margin-bottom:8px">Affichage de la liste</div>
           <div style="font-size:10px;color:${couleur};margin-bottom:8px">${escHtml(`Source SQL : ${v.sourceColumn}`)}</div>
@@ -3934,27 +4543,11 @@
           </label>
           ${
             displayMode === "lookup"
-              ? `<label class="form-label" style="font-size:10px;color:var(--text2)">
-                  Table libellé
-                  <select class="form-input" onchange="updateListVarLookupField('${famId}',${ci},${vi},'lookupTable',this.value)" style="display:block;width:100%;margin-top:4px">
-                    <option value="">Choisir une table</option>
-                    ${buildLookupTableOptions(lookupTable)}
-                  </select>
-                </label>
-                <label class="form-label" style="font-size:10px;color:var(--text2)">
-                  Colonne code
-                  <select class="form-input" onchange="updateListVarLookupField('${famId}',${ci},${vi},'lookupValueColumn',this.value)" style="display:block;width:100%;margin-top:4px">
-                    <option value="">Choisir une colonne</option>
-                    ${buildLookupColumnOptions(lookupTable, lookupValueColumn)}
-                  </select>
-                </label>
-                <label class="form-label" style="font-size:10px;color:var(--text2)">
-                  Colonne libellé
-                  <select class="form-input" onchange="updateListVarLookupField('${famId}',${ci},${vi},'lookupLabelColumn',this.value)" style="display:block;width:100%;margin-top:4px">
-                    <option value="">Choisir une colonne</option>
-                    ${buildLookupColumnOptions(lookupTable, lookupLabelColumn)}
-                  </select>
-                </label>`
+              ? `${renderLookupSourceModeSwitch(lookupEditorMode, "updateListVarLookupMode", [famId, ci, vi])}
+                ${renderLookupTableField(lookupEditorMode, lookupTable, "updateListVarLookupField", [famId, ci, vi, "lookupTable"])}
+                ${renderLookupColumnField("Colonne code", lookupEditorMode, lookupTable, lookupValueColumn, "updateListVarLookupField", [famId, ci, vi, "lookupValueColumn"])}
+                ${renderLookupColumnField("Colonne libellé", lookupEditorMode, lookupTable, lookupLabelColumn, "updateListVarLookupField", [famId, ci, vi, "lookupLabelColumn"])}
+                <div style="font-size:10px;color:var(--text3)">Vous pouvez choisir dans le schéma ou saisir manuellement les noms SQL.</div>`
               : ""
           }
         </div>`;
@@ -4059,6 +4652,14 @@
           : isList
             ? `<span class="var-pill-type">LIST</span>`
             : "";
+        const sqlTag =
+          isObj && String(v.sqlQuery || "").trim()
+            ? `<span class="var-pill-type" style="background:#dbeafe;color:#1d4ed8">SQL</span>`
+            : "";
+        const customSqlTag =
+          isObj && v.customSqlQuery
+            ? `<span class="var-pill-type" style="background:#fef3c7;color:#92400e">SQL personnalisé</span>`
+            : "";
         const cols =
           isObj && v.columns && v.columns.length
             ? `<span style="font-size:9px;color:${couleur};opacity:.7;margin-left:3px">[${v.columns.map((c) => c.key).join(",")}]</span>`
@@ -4066,7 +4667,7 @@
         const pillMarkup = `<div class="var-pill" style="background:${couleur}15;border-color:${couleur}40;color:${couleur}">
           <span class="var-pill-tech">{{${isObj ? "#" : isList ? "#" : ""}${v.tech}${isObj ? ":table" : ""}}}</span>
           <span class="var-pill-label">→ ${v.label}</span>
-          ${typeTag}${cols}
+          ${typeTag}${sqlTag}${customSqlTag}${cols}
           <button class="var-pill-del" onclick="deleteVar('${famId}',${ci},${vi})">×</button>
         </div>`;
         if (!isObj) {
@@ -4090,6 +4691,7 @@
         }
         return `<div style="display:flex;flex-direction:column;gap:6px;max-width:100%;padding:8px 10px;border:1px dashed ${couleur}35;border-radius:12px;background:${couleur}08">
           ${pillMarkup}
+          ${renderListObjectSqlEditor(v, vi, ci, famId, couleur)}
           <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${couleur};opacity:.9">Colonnes et affichage</div>
           ${renderVarColumnEditor(v, vi, ci, famId, couleur)}
         </div>`;
@@ -4198,6 +4800,12 @@
         const fam = DB.getFamily(famId);
         if (!fam) return;
         fam[field] = field === "icon" ? value || "📄" : value;
+        if (field === "sql") {
+          fam.customMainSql = true;
+        }
+        if (field === "beneficiarySql") {
+          fam.customBeneficiarySql = true;
+        }
         DB.saveFamily(fam);
       };
 
@@ -4350,6 +4958,89 @@
         regenerateFamilySql(famId, true);
       };
 
+      window.removeVarColumn = function (famId, ci, vi, colIndex) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (!varDef || varDef.type !== "list-object") return;
+        const index = Number(colIndex);
+        if (
+          Array.isArray(varDef.columns) &&
+          index >= 0 &&
+          index < varDef.columns.length
+        ) {
+          varDef.columns.splice(index, 1);
+        }
+        if (
+          Array.isArray(varDef.sourceColumns) &&
+          index >= 0 &&
+          index < varDef.sourceColumns.length
+        ) {
+          varDef.sourceColumns.splice(index, 1);
+        }
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.updateVarAddColumnMode = function (famId, ci, vi, mode) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (!varDef || varDef.type !== "list-object") return;
+        varDef.addColumnMode = mode === "manual" ? "manual" : "schema";
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+      };
+
+      window.addVarColumn = function (famId, ci, vi) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (!varDef || varDef.type !== "list-object") return;
+        const sourceInput = document.getElementById(
+          `var_col_source_${ci}_${vi}`,
+        );
+        const keyInput = document.getElementById(`var_col_key_${ci}_${vi}`);
+        const labelInput = document.getElementById(`var_col_label_${ci}_${vi}`);
+        const sourceColumn = String(sourceInput?.value || "").trim();
+        const keyRaw = String(keyInput?.value || "").trim();
+        const label = String(labelInput?.value || "").trim();
+        const key = slugTech(keyRaw || sourceColumn);
+        if (!sourceColumn) {
+          toast("Choisissez ou saisissez une colonne source", "error");
+          return;
+        }
+        if (!key || !label) {
+          toast("Renseignez la clé technique et le libellé", "error");
+          return;
+        }
+        const exists = (
+          Array.isArray(varDef.sourceColumns) ? varDef.sourceColumns : []
+        ).some(
+          (col) =>
+            String(col?.column || "")
+              .trim()
+              .toLowerCase() === sourceColumn.toLowerCase(),
+        );
+        if (exists) {
+          toast("Cette colonne est déjà présente dans le tableau", "error");
+          return;
+        }
+        varDef.sourceColumns = [
+          ...(Array.isArray(varDef.sourceColumns) ? varDef.sourceColumns : []),
+          { column: sourceColumn, key, label },
+        ];
+        varDef.columns = [
+          ...(Array.isArray(varDef.columns) ? varDef.columns : []),
+          { key, label },
+        ];
+        if (sourceInput) sourceInput.value = "";
+        if (keyInput) keyInput.value = "";
+        if (labelInput) labelInput.value = "";
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
+        toast("Colonne ajoutée", "success");
+      };
+
       window.updateVarColumnLookupField = function (
         famId,
         ci,
@@ -4385,6 +5076,33 @@
         regenerateFamilySql(famId, true);
       };
 
+      window.updateVarColumnLookupMode = function (
+        famId,
+        ci,
+        vi,
+        colIndex,
+        mode,
+      ) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (
+          !varDef ||
+          varDef.type !== "list-object" ||
+          !Array.isArray(varDef.sourceColumns) ||
+          !varDef.sourceColumns[colIndex]
+        ) {
+          return;
+        }
+        const sourceCol = {
+          ...varDef.sourceColumns[colIndex],
+          lookupEditorMode: mode === "manual" ? "manual" : "schema",
+        };
+        varDef.sourceColumns[colIndex] = sourceCol;
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
+      };
+
       window.updateListVarLookupField = function (famId, ci, vi, field, value) {
         const fam = DB.getFamily(famId);
         const varDef = fam?.classes?.[ci]?.vars?.[vi];
@@ -4400,6 +5118,98 @@
         DB.saveFamily(fam);
         renderClassesContainer(famId);
         regenerateFamilySql(famId, true);
+      };
+
+      window.updateListVarLookupMode = function (famId, ci, vi, mode) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (!varDef || varDef.type !== "list") return;
+        varDef.lookupEditorMode = mode === "manual" ? "manual" : "schema";
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.updateListObjectSqlQuery = function (famId, ci, vi, value) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (!varDef || varDef.type !== "list-object") return;
+        const sqlQuery = String(value || "").trim();
+        if (sqlQuery && !/^select\b/i.test(sqlQuery)) {
+          toast("La requête du tableau doit être un SELECT", "error");
+          renderClassesContainer(famId);
+          return;
+        }
+        varDef.sqlQuery = sqlQuery;
+        varDef.customSqlQuery = !!sqlQuery;
+        syncListObjectColumnsFromSql(varDef);
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.generateListObjectSqlQueryFromSource = function (famId, ci, vi) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (!varDef || varDef.type !== "list-object") return;
+        const generatedSql = buildDefaultListObjectSqlQuery(famId, varDef);
+        if (!generatedSql) {
+          toast(
+            "Impossible de générer la requête SQL. Vérifiez la table principale, la table source et la liaison.",
+            "error",
+          );
+          return;
+        }
+        varDef.sqlQuery = generatedSql;
+        varDef.customSqlQuery = true;
+        syncListObjectColumnsFromSql(varDef);
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
+        toast("Requête SQL du tableau générée", "success");
+      };
+
+      window.clearListObjectSqlQuery = function (famId, ci, vi) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (!varDef || varDef.type !== "list-object") return;
+        varDef.sqlQuery = "";
+        varDef.customSqlQuery = false;
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+        regenerateFamilySql(famId, true);
+      };
+
+      window.testListObjectSqlQuery = async function (famId, ci, vi) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        const box = document.getElementById(`listObjectSqlPreview_${ci}_${vi}`);
+        if (!box || !varDef || varDef.type !== "list-object") return;
+        const sqlQuery = String(varDef.sqlQuery || "").trim();
+        if (!sqlQuery) {
+          box.textContent = "Aucune requête SQL dédiée à tester.";
+          return;
+        }
+        if (!/^select\b/i.test(sqlQuery)) {
+          box.textContent = "La requête doit commencer par SELECT.";
+          return;
+        }
+        box.textContent = "Test en cours...";
+        try {
+          syncListObjectColumnsFromSql(varDef);
+          DB.saveFamily(fam);
+          const rows = await DB.runSelect(sqlQuery, {
+            id: 1,
+            beneficiaryId: 1,
+            personId: 1,
+            organizationId: 1,
+            etablissementId: 1,
+            etabId: 1,
+          });
+          box.textContent = JSON.stringify(rows.slice(0, 10), null, 2);
+        } catch (error) {
+          box.textContent = error.message;
+        }
       };
 
       window.updateVarLinkField = function (famId, ci, vi, field, value) {
@@ -4683,7 +5493,8 @@
           role: "admin",
           profile: document.getElementById("adminProfile").value,
           raw: {
-            ...((editingAdminId ? DB.getAdmin(editingAdminId)?.raw : null) || {}),
+            ...((editingAdminId ? DB.getAdmin(editingAdminId)?.raw : null) ||
+              {}),
             Name: nom,
             Email: document.getElementById("adminEmail").value,
             Role: "admin",

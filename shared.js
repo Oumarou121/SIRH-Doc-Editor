@@ -608,6 +608,9 @@ const DB = {
   _cache: normalizeState(),
   _readyPromise: null,
   _schemaPromise: null,
+  _saveTimer: null,
+  _syncPromise: null,
+  _pendingSnapshot: null,
 
   async init(force = false) {
     if (this._readyPromise && !force) return this._readyPromise;
@@ -909,26 +912,44 @@ const DB = {
     }
   },
 
-  save(d) {
+  save(d, options = {}) {
     this._cache = normalizeState(d);
-    apiFetch("/state", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ state: this._cache }),
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`State sync failed with status ${res.status}`);
-        }
-        return this.init(true);
+    this._pendingSnapshot = this.get();
+    const runSync = () => {
+      const payload = this._pendingSnapshot;
+      this._pendingSnapshot = null;
+      this._saveTimer = null;
+      this._syncPromise = apiFetch("/state", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state: payload }),
       })
-      .catch((error) => {
-        notifySyncError(
-          "Impossible de synchroniser les donnees avec SQL Server.",
-          error,
-        );
-        this.init(true).catch(() => {});
-      });
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`State sync failed with status ${res.status}`);
+          }
+          return res;
+        })
+        .catch((error) => {
+          notifySyncError(
+            "Impossible de synchroniser les donnees avec SQL Server.",
+            error,
+          );
+          this.init(true).catch(() => {});
+        })
+        .finally(() => {
+          this._syncPromise = null;
+          if (this._pendingSnapshot) {
+            this.save(this._pendingSnapshot);
+          }
+        });
+    };
+    if (this._saveTimer) clearTimeout(this._saveTimer);
+    if (options?.immediate) {
+      runSync();
+    } else {
+      this._saveTimer = setTimeout(runSync, 500);
+    }
     return this.get();
   },
 
@@ -990,7 +1011,7 @@ const DB = {
     const s = DB.get();
     s.families = s.families.filter((f) => f.id !== id);
     s.templates = s.templates.filter((t) => t.familyId !== id);
-    DB.save(s);
+    DB.save(s, { immediate: true });
   },
   saveTemplate(t) {
     const s = DB.get();
@@ -1003,7 +1024,7 @@ const DB = {
   deleteTemplate(id) {
     const s = DB.get();
     s.templates = s.templates.filter((t) => t.id !== id);
-    DB.save(s);
+    DB.save(s, { immediate: true });
   },
   saveEtablissement(e) {
     const s = DB.get();
@@ -1032,7 +1053,7 @@ const DB = {
     s.etablissements = s.etablissements.filter((e) => e.id !== id);
     s.organizations = cloneData(s.etablissements);
     s.admins = s.admins.filter((a) => getScopedOrganizationId(a) !== id);
-    DB.save(s);
+    DB.save(s, { immediate: true });
   },
   deleteOrganization(id) {
     return DB.deleteEtablissement(id);
@@ -1052,7 +1073,7 @@ const DB = {
   deleteAdmin(id) {
     const s = DB.get();
     s.admins = s.admins.filter((a) => a.id !== id);
-    DB.save(s);
+    DB.save(s, { immediate: true });
   },
   getSettings() {
     return cloneData(DB._cache?.settings || {});
@@ -1076,7 +1097,7 @@ const DB = {
   deletePerson(id) {
     const s = DB.get();
     s.personnel = s.personnel.filter((p) => p.id !== id);
-    DB.save(s);
+    DB.save(s, { immediate: true });
   },
 
   // ── Résolution des colonnes d'une variable list-object ───────
@@ -1999,6 +2020,31 @@ function _buildObjectTable(
   return `<table style="${tableStyle}">${thead}<tbody>${rows.join("")}</tbody></table>`;
 }
 
+function _parseObjectTableMarker(matchTech, matchColsRaw = "") {
+  const selectedKeys = String(matchColsRaw || "")
+    .split(",")
+    .map((key) => String(key || "").trim())
+    .filter(Boolean);
+  return {
+    tech: String(matchTech || "").trim(),
+    selectedKeys,
+  };
+}
+
+function _filterObjectColumns(columns, items, selectedKeys = []) {
+  const baseColumns =
+    columns && columns.length
+      ? columns
+      : items && items[0]
+        ? Object.keys(items[0]).map((k) => ({ key: k, label: k }))
+        : [];
+  if (!selectedKeys.length) return baseColumns;
+  const byKey = new Map(baseColumns.map((col) => [String(col.key || ""), col]));
+  return selectedKeys
+    .map((key) => byKey.get(String(key || "")))
+    .filter(Boolean);
+}
+
 function getPageSectionPaddings(margins, distances) {
   const headerTop = Number(distances?.headerTop) || 5;
   const footerBottom = Number(distances?.footerBottom) || 5;
@@ -2043,18 +2089,27 @@ function _resolveObjectTables(html, person, preview) {
   let guard = 0;
   while (guard++ < 20) {
     const m =
-      /<tr([^>]*)>((?:(?!<\/tr>)[\s\S])*?\{\{#([\w]+):table\}\}(?:(?!<\/tr>)[\s\S])*?)<\/tr>/i.exec(
+      /<tr([^>]*)>((?:(?!<\/tr>)[\s\S])*?\{\{#([\w]+):table(?::([\w,\-]+))?\}\}(?:(?!<\/tr>)[\s\S])*?)<\/tr>/i.exec(
         html,
       );
     if (!m) break;
 
-    const [fullTr, trAttrs, trInner, tech] = m;
+    const [fullTr, trAttrs, trInner, tech, colsRaw] = m;
+    const markerConfig = _parseObjectTableMarker(tech, colsRaw);
 
     // Aperçu sans personne → placeholder coloré dans la cellule
     if (!person) {
       if (preview) {
-        const ph = `<span style="color:#7c3aed;font-style:italic;background:#f3e8ff;padding:1px 5px;border-radius:3px;font-size:11px">▣ TABLE ${tech}</span>`;
-        html = html.replace(fullTr, fullTr.replace(`{{#${tech}:table}}`, ph));
+        const ph = `<span style="color:#7c3aed;font-style:italic;background:#f3e8ff;padding:1px 5px;border-radius:3px;font-size:11px">▣ TABLE ${markerConfig.tech}</span>`;
+        html = html.replace(
+          fullTr,
+          fullTr.replace(
+            new RegExp(
+              `\\{\\{#${markerConfig.tech}:table(?:[:][\\w,\\-]+)?\\}\\}`,
+            ),
+            ph,
+          ),
+        );
       }
       break;
     }
@@ -2072,19 +2127,21 @@ function _resolveObjectTables(html, person, preview) {
     }
 
     const markerIdx = cells.findIndex((c) =>
-      /\{\{#[\w]+:table\}\}/.test(c.content),
+      /\{\{#[\w]+:table(?:[:][\w,\-]+)?\}\}/.test(c.content),
     );
     if (markerIdx === -1) {
       html = html.replace(fullTr, "");
       break;
     }
 
-    const items = Array.isArray(person[tech]) ? person[tech] : [];
-    const columns =
-      DB.getListObjectColumns(tech) ||
-      (items[0]
-        ? Object.keys(items[0]).map((k) => ({ key: k, label: k }))
-        : []);
+    const items = Array.isArray(person[markerConfig.tech])
+      ? person[markerConfig.tech]
+      : [];
+    const columns = _filterObjectColumns(
+      DB.getListObjectColumns(markerConfig.tech),
+      items,
+      markerConfig.selectedKeys,
+    );
 
     if (!items.length) {
       html = html.replace(fullTr, "");
@@ -2126,40 +2183,54 @@ function _resolveObjectTables(html, person, preview) {
   }
 
   // ── Cas A : marqueur texte brut (hors tableau Tiptap) ────────
-  html = html.replace(/\{\{#([\w]+):table\}\}/g, (match, tech) => {
-    if (!person) {
-      if (!preview) return match;
-      // Placeholder éditeur : tableau avec th NOIR GRAS
-      const cols = DB.getListObjectColumns(tech) || [];
-      const headers = cols.length
-        ? cols
-            .map(
-              (c) =>
-                `<th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">${_esc(c.label)}</th>`,
-            )
-            .join("")
-        : `<th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">Colonne 1</th>
+  html = html.replace(
+    /\{\{#([\w]+):table(?::([\w,\-]+))?\}\}/g,
+    (match, tech, colsRaw) => {
+      const markerConfig = _parseObjectTableMarker(tech, colsRaw);
+      if (!person) {
+        if (!preview) return match;
+        // Placeholder éditeur : tableau avec th NOIR GRAS
+        const cols = _filterObjectColumns(
+          DB.getListObjectColumns(markerConfig.tech),
+          [],
+          markerConfig.selectedKeys,
+        );
+        const headers = cols.length
+          ? cols
+              .map(
+                (c) =>
+                  `<th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">${_esc(c.label)}</th>`,
+              )
+              .join("")
+          : `<th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">Colonne 1</th>
            <th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">Colonne 2</th>
            <th style="font-weight:700;color:#111;background:#f2f2f2;border:1px solid #c8cdd8;padding:6px 10px">…</th>`;
-      const dataCells = cols.length
-        ? cols
-            .map(
-              (c, i) =>
-                `<td style="border:1px solid #c8cdd8;padding:6px 10px;color:#7c3aed;font-style:italic">${i === 0 ? `{{#${tech}:table}}` : ""}</td>`,
-            )
-            .join("")
-        : `<td style="border:1px solid #c8cdd8;padding:6px 10px;color:#7c3aed;font-style:italic">{{#${tech}:table}}</td>
+        const dataCells = cols.length
+          ? cols
+              .map(
+                (c, i) =>
+                  `<td style="border:1px solid #c8cdd8;padding:6px 10px;color:#7c3aed;font-style:italic">${i === 0 ? match : ""}</td>`,
+              )
+              .join("")
+          : `<td style="border:1px solid #c8cdd8;padding:6px 10px;color:#7c3aed;font-style:italic">${match}</td>
            <td style="border:1px solid #c8cdd8;padding:6px 10px"></td>
            <td style="border:1px solid #c8cdd8;padding:6px 10px"></td>`;
-      return `<table style="border-collapse:collapse;width:100%;margin:6px 0;opacity:.6">
+        return `<table style="border-collapse:collapse;width:100%;margin:6px 0;opacity:.6">
         <thead><tr>${headers}</tr></thead>
         <tbody><tr>${dataCells}</tr></tbody></table>`;
-    }
+      }
 
-    const items = Array.isArray(person[tech]) ? person[tech] : [];
-    const columns = DB.getListObjectColumns(tech);
-    return _buildObjectTable(items, columns, tech, preview);
-  });
+      const items = Array.isArray(person[markerConfig.tech])
+        ? person[markerConfig.tech]
+        : [];
+      const columns = _filterObjectColumns(
+        DB.getListObjectColumns(markerConfig.tech),
+        items,
+        markerConfig.selectedKeys,
+      );
+      return _buildObjectTable(items, columns, markerConfig.tech, preview);
+    },
+  );
 
   return html;
 }
@@ -2593,6 +2664,29 @@ body  { margin: 0; background: #fff; }
   font-family: 'Times New Roman', Times, serif;
   font-size: 12pt; line-height: 1.6; color: #111;
 }
+.a4-body p,
+.preview-page-body p,
+.sirh-print-body p {
+  min-height: 1.6em;
+}
+.a4-body u,
+.a4-header u,
+.a4-footer u,
+.preview-page u,
+.sirh-print-header u,
+.sirh-print-body u,
+.sirh-print-footer u,
+.a4-body a,
+.a4-header a,
+.a4-footer a,
+.preview-page a,
+.sirh-print-header a,
+.sirh-print-body a,
+.sirh-print-footer a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.14em;
+  text-decoration-skip-ink: none;
+}
 .a4-body.no-header { padding-top: var(--page-mt, 20mm); }
 .a4-body.no-footer  { padding-bottom: var(--page-mb, 20mm); }
 .a4-body.no-header.no-footer { padding: var(--page-mt, 20mm) var(--page-mr, 25mm) var(--page-mb, 20mm) var(--page-ml, 25mm); }
@@ -2962,12 +3056,9 @@ class PagePaginator {
     if (el.querySelector("img, table, hr, ul, ol, iframe, svg")) return false;
     const html = String(el.innerHTML || "")
       .replace(/<br\s*\/?>/gi, "")
-      .replace(/&nbsp;/gi, "")
       .replace(/\s+/g, "")
       .trim();
-    const text = String(el.textContent || "")
-      .replace(/\u00a0/g, "")
-      .trim();
+    const text = String(el.textContent || "").trim();
     return !html && !text;
   }
 
@@ -3291,6 +3382,17 @@ function previewDocument(tpl, person) {
       white-space: inherit;
     }
 
+    .preview-page u,
+    .preview-page a,
+    .preview-page-header u,
+    .preview-page-header a,
+    .preview-page-footer u,
+    .preview-page-footer a {
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.14em;
+      text-decoration-skip-ink: none;
+    }
+
     .preview-page ul, .preview-page ol {
       padding-left: 2em;
       list-style: revert;
@@ -3565,6 +3667,17 @@ function printDocPaginated(tpl, person, pages = null) {
     .sirh-print-footer p {
       margin: 0 0 0.4em;
       white-space: inherit;
+    }
+
+    .sirh-print-header u,
+    .sirh-print-body u,
+    .sirh-print-footer u,
+    .sirh-print-header a,
+    .sirh-print-body a,
+    .sirh-print-footer a {
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.14em;
+      text-decoration-skip-ink: none;
     }
 
     .sirh-print-header ul,

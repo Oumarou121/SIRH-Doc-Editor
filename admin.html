@@ -1169,6 +1169,7 @@
         line-height: 1.6;
         color: var(--doc-color-text);
         margin: 0 0 0.4em;
+        min-height: 1.6em;
       }
       .tiptap-wrapper .ProseMirror p:last-child {
         margin-bottom: 0;
@@ -1297,6 +1298,14 @@
       .tiptap-wrapper .ProseMirror a {
         color: #2563eb;
         text-decoration: underline;
+        text-underline-offset: 0.14em;
+        text-decoration-thickness: 1px;
+        text-decoration-skip-ink: none;
+      }
+      .tiptap-wrapper .ProseMirror u {
+        text-decoration-thickness: 1px;
+        text-underline-offset: 0.14em;
+        text-decoration-skip-ink: none;
       }
       .tiptap-wrapper .ProseMirror p.is-empty::before {
         color: var(--text3);
@@ -1334,6 +1343,9 @@
       .preview-page td p,
       .preview-page th p {
         color: inherit !important;
+      }
+      .preview-page p {
+        min-height: 1.6em;
       }
       .preview-page ul {
         padding-left: 2em;
@@ -4819,6 +4831,128 @@
 
       window.__getActiveEditor = () => activeEditor || editorBody;
 
+      function promptListObjectColumns(varDef) {
+        return new Promise((resolve) => {
+          const existing = document.getElementById("_sirh_tableColsModal");
+          if (existing) existing.remove();
+          const cols =
+            Array.isArray(varDef?.columns) && varDef.columns.length
+              ? varDef.columns
+              : [];
+          if (!cols.length) {
+            resolve([]);
+            return;
+          }
+          let workingCols = cols.map((col) => ({ ...col, checked: true }));
+          const ov = document.createElement("div");
+          ov.id = "_sirh_tableColsModal";
+          ov.style.cssText =
+            "position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);font-family:'IBM Plex Sans','Inter',sans-serif";
+          ov.innerHTML = `
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:22px;width:92%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.22)">
+              <div style="font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:4px">Colonnes du tableau</div>
+              <div style="font-size:12px;color:#64748b;margin-bottom:16px;line-height:1.55">Choisissez les colonnes à afficher et réorganisez leur ordre pour <strong>${escHtml(
+                varDef.label || varDef.tech || "ce tableau",
+              )}</strong>.</div>
+              <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+                <button type="button" id="_sirh_cols_all" class="btn sm">Tout cocher</button>
+                <button type="button" id="_sirh_cols_none" class="btn sm">Tout décocher</button>
+              </div>
+              <div id="_sirh_cols_list" style="display:grid;gap:8px;max-height:280px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;background:#fafafa"></div>
+              <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+                <button type="button" id="_sirh_cols_cancel" class="btn">Annuler</button>
+                <button type="button" id="_sirh_cols_ok" class="btn primary">Insérer</button>
+              </div>
+            </div>`;
+          const list = ov.querySelector("#_sirh_cols_list");
+          const renderList = () => {
+            list.innerHTML = workingCols
+              .map(
+                (
+                  col,
+                  index,
+                ) => `<div style="display:flex;gap:10px;align-items:center;font-size:12px;color:#1f2937;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px">
+                  <input type="checkbox" data-col-check="${escAttr(
+                    col.key,
+                  )}" ${col.checked ? "checked" : ""}>
+                  <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+                    <span>${escHtml(col.label || col.key)}</span>
+                    <span style="color:#94a3b8;font-family:monospace">${escHtml(
+                      col.key,
+                    )}</span>
+                  </div>
+                  <div style="display:flex;gap:4px">
+                    <button type="button" class="col-pill-btn" data-move-up="${escAttr(
+                      col.key,
+                    )}" ${index === 0 ? "disabled" : ""}>&uarr;</button>
+                    <button type="button" class="col-pill-btn" data-move-down="${escAttr(
+                      col.key,
+                    )}" ${index === workingCols.length - 1 ? "disabled" : ""}>&darr;</button>
+                  </div>
+                </div>`,
+              )
+              .join("");
+            list.querySelectorAll("input[data-col-check]").forEach((input) => {
+              input.onchange = () => {
+                workingCols = workingCols.map((col) =>
+                  col.key === input.dataset.colCheck
+                    ? { ...col, checked: input.checked }
+                    : col,
+                );
+              };
+            });
+            list.querySelectorAll("button[data-move-up]").forEach((btn) => {
+              btn.onclick = () => {
+                const key = btn.dataset.moveUp;
+                const idx = workingCols.findIndex((col) => col.key === key);
+                if (idx <= 0) return;
+                [workingCols[idx - 1], workingCols[idx]] = [
+                  workingCols[idx],
+                  workingCols[idx - 1],
+                ];
+                renderList();
+              };
+            });
+            list.querySelectorAll("button[data-move-down]").forEach((btn) => {
+              btn.onclick = () => {
+                const key = btn.dataset.moveDown;
+                const idx = workingCols.findIndex((col) => col.key === key);
+                if (idx < 0 || idx >= workingCols.length - 1) return;
+                [workingCols[idx], workingCols[idx + 1]] = [
+                  workingCols[idx + 1],
+                  workingCols[idx],
+                ];
+                renderList();
+              };
+            });
+          };
+          renderList();
+          ov.querySelector("#_sirh_cols_all").onclick = () => {
+            workingCols = workingCols.map((col) => ({ ...col, checked: true }));
+            renderList();
+          };
+          ov.querySelector("#_sirh_cols_none").onclick = () => {
+            workingCols = workingCols.map((col) => ({
+              ...col,
+              checked: false,
+            }));
+            renderList();
+          };
+          ov.querySelector("#_sirh_cols_cancel").onclick = () => {
+            ov.remove();
+            resolve(null);
+          };
+          ov.querySelector("#_sirh_cols_ok").onclick = () => {
+            const selected = workingCols
+              .filter((col) => col.checked)
+              .map((col) => col.key);
+            ov.remove();
+            resolve(selected);
+          };
+          document.body.appendChild(ov);
+        });
+      }
+
       // -- insertListVar --
       async function insertListVar(editor, varDef) {
         if (!editor || !varDef) return;
@@ -4826,13 +4960,20 @@
           editor.isActive("tableCell") || editor.isActive("tableHeader");
 
         if (varDef.type === "list-object") {
+          const selectedColumns = await promptListObjectColumns(varDef);
+          if (selectedColumns === null) return;
+          const columnSuffix =
+            selectedColumns && selectedColumns.length
+              ? `:${selectedColumns.join(",")}`
+              : "";
+          const tableMarker = `{{#${varDef.tech}:table${columnSuffix}}}`;
           if (inCell) {
             editor
               .chain()
               .focus()
               .insertContent({
                 type: "text",
-                text: `{{#${varDef.tech}:table}}`,
+                text: tableMarker,
                 marks: [{ type: "textStyle", attrs: { color: "#f97316" } }],
               })
               .run();
@@ -4849,17 +4990,23 @@
                   { key: "col1", label: "Colonne 1" },
                   { key: "col2", label: "Colonne 2" },
                 ];
-          const thCells = cols
+          const filteredCols =
+            selectedColumns && selectedColumns.length
+              ? cols.filter((col) => selectedColumns.includes(col.key))
+              : cols;
+          const thCells = filteredCols
             .map(
               (c) =>
                 `<th style="font-weight:700;color:#111;background:#f2f2f2"><p><strong>${escHtml(c.label)}</strong></p></th>`,
             )
             .join("");
-          const tdCells = cols
+          const tdCells = filteredCols
             .map((c, i) => {
               const marker =
                 i === 0
-                  ? `<span style="color:#f97316;background:#fff7ed;padding:1px 4px;border-radius:3px;font-family:monospace;font-size:10px">{{#${varDef.tech}:table}}</span>`
+                  ? `<span style="color:#f97316;background:#fff7ed;padding:1px 4px;border-radius:3px;font-family:monospace;font-size:10px">${escHtml(
+                      tableMarker,
+                    )}</span>`
                   : `<span style="color:#f97316;opacity:.55;font-family:monospace;font-size:9px">{{${c.key}}}</span>`;
               return `<td><p>${marker}</p></td>`;
             })
