@@ -3003,8 +3003,13 @@ class PagePaginator {
       }
 
       if (el.tagName === "TABLE") {
+        const remainingHeight =
+          currentPageHTML.trim() === ""
+            ? availableHeight
+            : Math.max(1, availableHeight - currentPageHeight);
         const tableParts = this._splitTableElement(
           el,
+          remainingHeight,
           availableHeight,
           tempMeasure,
         );
@@ -3091,7 +3096,12 @@ class PagePaginator {
     );
   }
 
-  _splitTableElement(tableEl, availableHeight, tempMeasure) {
+  _splitTableElement(
+    tableEl,
+    firstPageAvailableHeight,
+    nextPageAvailableHeight,
+    tempMeasure,
+  ) {
     const thead = tableEl.querySelector("thead");
     const tbody = tableEl.querySelector("tbody");
     const rows = Array.from(
@@ -3103,16 +3113,21 @@ class PagePaginator {
     const parts = [];
     let currentTable = this._createSplitTableShell(tableEl, thead);
     let currentBody = currentTable.querySelector("tbody");
+    let activeAvailableHeight = Math.max(1, firstPageAvailableHeight || 1);
 
     rows.forEach((row) => {
       const testTable = currentTable.cloneNode(true);
       testTable.querySelector("tbody").appendChild(row.cloneNode(true));
       const testHeight = this._measureElementHeight(testTable, tempMeasure);
 
-      if (currentBody.children.length > 0 && testHeight > availableHeight) {
+      if (
+        currentBody.children.length > 0 &&
+        testHeight > activeAvailableHeight
+      ) {
         parts.push(currentTable);
         currentTable = this._createSplitTableShell(tableEl, thead);
         currentBody = currentTable.querySelector("tbody");
+        activeAvailableHeight = Math.max(1, nextPageAvailableHeight || 1);
       }
 
       currentBody.appendChild(row.cloneNode(true));
@@ -3752,10 +3767,10 @@ function printDocPaginated(tpl, person, pages = null) {
       const noFtr = !page.footer ? " no-footer" : "";
 
       return `
-        <div class="sirh-print-page">
-          ${page.header ? `<div class="sirh-print-header">${page.header}</div>` : ""}
-          <div class="sirh-print-body${noHdr}${noFtr}">${page.content}</div>
-          ${page.footer ? `<div class="sirh-print-footer">${page.footer}</div>` : ""}
+        <div class="sirh-print-page" style="${getDocumentThemeStyleAttr(tpl)}">
+          ${page.header ? `<div class="sirh-print-header" style="${getDocumentThemeStyleAttr(tpl)}">${page.header}</div>` : ""}
+          <div class="sirh-print-body${noHdr}${noFtr}" style="${getDocumentThemeStyleAttr(tpl)}">${page.content}</div>
+          ${page.footer ? `<div class="sirh-print-footer" style="${getDocumentThemeStyleAttr(tpl)}">${page.footer}</div>` : ""}
         </div>
       `;
     })

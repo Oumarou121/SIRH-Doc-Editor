@@ -8135,6 +8135,7 @@
         result.pages.forEach((page, idx) => {
           const pageEl = document.createElement("div");
           pageEl.className = "preview-page";
+          pageEl.style.cssText += ";" + getDocumentThemeStyleAttr(liveTpl);
           const noHeaderClass = !page.header ? " no-header" : "";
           const noFooterClass = !page.footer ? " no-footer" : "";
           let pageHtml = "";
@@ -8243,6 +8244,7 @@
         result.pages.forEach((page, idx) => {
           const pageEl = document.createElement("div");
           pageEl.className = "preview-page";
+          pageEl.style.cssText += ";" + getDocumentThemeStyleAttr(liveTpl);
           const noHeaderClass = !page.header ? " no-header" : "";
           const noFooterClass = !page.footer ? " no-footer" : "";
           let pageHtml = "";
