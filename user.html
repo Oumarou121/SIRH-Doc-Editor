@@ -59,7 +59,7 @@
         --doc-color-text: #111111;
         --doc-color-heading: #0f172a;
         --doc-color-border: #c8cdd8;
-        --doc-table-header-bg: #f2f2f2;
+        --doc-table-header-bg: transparent;
         --doc-table-row-alt-bg: #f8fafc;
       }
       html,
@@ -724,7 +724,7 @@
         -webkit-print-color-adjust: exact;
       }
       .doc-content th:not([style]) {
-        background: var(--doc-table-header-bg);
+        background: var(--doc-table-header-bg, transparent);
         color: var(--doc-color-text);
         font-weight: 700;
         text-align: left;

@@ -1923,7 +1923,7 @@ async function replaceState(state, currentUser = null) {
           r.input("is_default", sql.Bit, charter.isDefault ? 1 : 0);
           r.input(
             "config_json",
-            sql.NVarChar,
+            sql.NVarChar(sql.MAX),
             JSON.stringify(charter.config || {}),
           );
           r.input(
@@ -1969,13 +1969,17 @@ async function replaceState(state, currentUser = null) {
       if (hasFilterCatalog) {
         r.input(
           "filter_catalog_json",
-          sql.NVarChar,
+          sql.NVarChar(sql.MAX),
           JSON.stringify(item.filterCatalog || []),
         );
       }
-      r.input("sql_text", sql.NVarChar, item.sql || "");
+      r.input("sql_text", sql.NVarChar(sql.MAX), item.sql || "");
       r.input("created_at", sql.NVarChar, serializeDateValue(item.createdAt));
-      r.input("classes_json", sql.NVarChar, JSON.stringify(item.classes || []));
+      r.input(
+        "classes_json",
+        sql.NVarChar(sql.MAX),
+        JSON.stringify(item.classes || []),
+      );
       await r.query(
         `INSERT INTO family
            (id, nom, icon, description, beneficiary_mode, beneficiary_table,
@@ -1998,12 +2002,12 @@ async function replaceState(state, currentUser = null) {
       r.input("has_footer", sql.Bit, item.hasFooter ? 1 : 0);
       r.input(
         "page_margins_json",
-        sql.NVarChar,
+        sql.NVarChar(sql.MAX),
         JSON.stringify(item.pageMargins || {}),
       );
-      r.input("header_html", sql.NVarChar, item.header || "");
-      r.input("body_html", sql.NVarChar, item.body || "");
-      r.input("footer_html", sql.NVarChar, item.footer || "");
+      r.input("header_html", sql.NVarChar(sql.MAX), item.header || "");
+      r.input("body_html", sql.NVarChar(sql.MAX), item.body || "");
+      r.input("footer_html", sql.NVarChar(sql.MAX), item.footer || "");
 
       const extraCols = [];
       const extraVals = [];
@@ -2025,7 +2029,7 @@ async function replaceState(state, currentUser = null) {
       if (hasFilterProfile) {
         r.input(
           "filter_profile_json",
-          sql.NVarChar,
+          sql.NVarChar(sql.MAX),
           JSON.stringify(item.filterProfile || []),
         );
         extraCols.push("filter_profile_json");

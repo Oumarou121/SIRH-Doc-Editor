@@ -1298,7 +1298,7 @@ const DEFAULT_GRAPHIC_CHARTER = Object.freeze({
     text: "#111111",
     heading: "#0f172a",
     border: "#c8cdd8",
-    tableHeaderBg: "#f2f2f2",
+    tableHeaderBg: "transparent",
     tableAltRowBg: "#f8fafc",
   },
   typography: {
@@ -1991,7 +1991,7 @@ function _buildObjectTable(
   }
 
   // ── Styles par défaut : texte NOIR GRAS pour les en-têtes ────
-  const defaultThStyle = `font-weight:700;color:var(--doc-color-text, #111);background:var(--doc-table-header-bg, #f2f2f2);border:1px solid var(--doc-color-border, #c8cdd8);padding:6px 10px;text-align:left`;
+  const defaultThStyle = `font-weight:700;color:var(--doc-color-text, #111);background:var(--doc-table-header-bg, transparent);border:1px solid var(--doc-color-border, #c8cdd8);padding:6px 10px;text-align:left`;
   const defaultTdStyle = `color:var(--doc-color-text, #111);border:1px solid var(--doc-color-border, #c8cdd8);padding:6px 10px`;
 
   const thBase = customThStyle || defaultThStyle;
@@ -3448,7 +3448,7 @@ function previewDocument(tpl, person) {
     }
 
     .preview-page th:not([style]) {
-      background: var(--doc-table-header-bg, #f2f2f2);
+      background: var(--doc-table-header-bg, transparent);
       color: var(--doc-color-text, #111);
       font-weight: 700;
       text-align: left;
@@ -3733,7 +3733,7 @@ function printDocPaginated(tpl, person, pages = null) {
     td p, th p { color: inherit; margin: 0; white-space: inherit; }
 
     th:not([style]) {
-      background: var(--doc-table-header-bg, #f2f2f2);
+      background: var(--doc-table-header-bg, transparent);
       color: var(--doc-color-text, #111);
       font-weight: 700;
       text-align: left;
