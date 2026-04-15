@@ -476,6 +476,10 @@ function normalizeState(state) {
       ? next.templates.map((tpl) => normalizeTemplateRecord(cloneData(tpl)))
       : [],
     personnel: Array.isArray(next.personnel) ? cloneData(next.personnel) : [],
+    settings:
+      next.settings && typeof next.settings === "object"
+        ? cloneData(next.settings)
+        : {},
   };
 }
 
@@ -911,13 +915,20 @@ const DB = {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ state: this._cache }),
-    }).catch((error) => {
-      notifySyncError(
-        "Impossible de synchroniser les donnees avec SQL Server.",
-        error,
-      );
-      this.init(true).catch(() => {});
-    });
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`State sync failed with status ${res.status}`);
+        }
+        return this.init(true);
+      })
+      .catch((error) => {
+        notifySyncError(
+          "Impossible de synchroniser les donnees avec SQL Server.",
+          error,
+        );
+        this.init(true).catch(() => {});
+      });
     return this.get();
   },
 
@@ -1042,6 +1053,18 @@ const DB = {
     const s = DB.get();
     s.admins = s.admins.filter((a) => a.id !== id);
     DB.save(s);
+  },
+  getSettings() {
+    return cloneData(DB._cache?.settings || {});
+  },
+  saveSettings(partialSettings = {}) {
+    const s = DB.get();
+    s.settings = {
+      ...(s.settings || {}),
+      ...(cloneData(partialSettings || {}) || {}),
+    };
+    DB.save(s);
+    return cloneData(s.settings);
   },
   savePerson(p) {
     const s = DB.get();
@@ -1756,6 +1779,29 @@ function buildOrganizationTemplateVars(etab) {
     out[`org_${normalizedKey}`] = value;
   });
   return out;
+}
+
+function getOrganizationVariableSettings() {
+  const settings = DB._cache?.settings;
+  const configured = Array.isArray(settings?.organizationVisibleVarKeys);
+  const visibleKeys = configured
+    ? settings.organizationVisibleVarKeys
+        .map((value) => normalizeFilterParamName(value, ""))
+        .filter(Boolean)
+    : [];
+  return { visibleKeys, configured };
+}
+
+function buildVisibleOrganizationTemplateVars(etab) {
+  const allVars = buildOrganizationTemplateVars(etab);
+  const { visibleKeys, configured } = getOrganizationVariableSettings();
+  if (!configured) return allVars;
+  const allowed = new Set(visibleKeys);
+  return Object.fromEntries(
+    Object.entries(allVars).filter(([key]) =>
+      key.startsWith("org_") ? allowed.has(key.slice(4)) : allowed.has(key),
+    ),
+  );
 }
 
 function buildDocumentContext(tpl, person) {

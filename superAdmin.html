@@ -1419,6 +1419,16 @@
             placeholder="+216 ..."
           />
         </div>
+        <div class="form-row">
+          <label class="form-label">E-mail</label
+          ><input
+            class="form-input"
+            id="organizationEmail"
+            type="email"
+            placeholder="contact@organization.tn"
+          />
+        </div>
+        <div class="form-grid c2" id="organizationExtraFields"></div>
         <div class="modal-actions">
           <button class="btn" onclick="closeModal('modalOrganization')">
             Annuler
@@ -1465,6 +1475,21 @@
             <option value="">— Choisir —</option>
           </select>
         </div>
+        <div class="form-grid c2">
+          <div class="form-row" style="margin: 0">
+            <label class="form-label">Profil</label>
+            <input class="form-input" id="adminProfile" placeholder="Profil" />
+          </div>
+          <div class="form-row" style="margin: 0">
+            <label class="form-label">Mot de passe</label>
+            <input
+              class="form-input"
+              id="adminPassword"
+              type="text"
+              placeholder="Laisser vide pour conserver"
+            />
+          </div>
+        </div>
         <div class="modal-actions">
           <button class="btn" onclick="closeModal('modalAdmin')">
             Annuler
@@ -1485,6 +1510,26 @@
       let selectedFamId = null;
       let editingOrganizationId = null;
       let editingAdminId = null;
+      const ORGANIZATION_RAW_EXCLUDED_KEYS = new Set([
+        "Id",
+        "ID",
+        "id",
+        "OrganizationId",
+        "IdOrganization",
+        "Name",
+        "NameFr",
+        "NameAr",
+        "Nom",
+        "City",
+        "Ville",
+        "Address",
+        "Adresse",
+        "Phone",
+        "Telephone",
+        "Tel",
+        "Email",
+        "Mail",
+      ]);
 
       const SECTION_META = {
         families: {
@@ -4374,22 +4419,123 @@
       //  ORGANIZATIONS
       // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
+      function getOrganizationExtraFieldKeys() {
+        const keys = new Set();
+        DB.getOrganizations().forEach((org) => {
+          Object.keys(org?.raw || {}).forEach((key) => {
+            if (!ORGANIZATION_RAW_EXCLUDED_KEYS.has(key)) keys.add(key);
+          });
+        });
+        return [...keys].sort((a, b) => a.localeCompare(b));
+      }
+
+      function renderOrganizationExtraFields(etab = null) {
+        const host = document.getElementById("organizationExtraFields");
+        if (!host) return;
+        const keys = getOrganizationExtraFieldKeys();
+        host.innerHTML = keys
+          .map((key) => {
+            const value =
+              etab?.raw?.[key] === undefined || etab?.raw?.[key] === null
+                ? ""
+                : String(etab.raw[key]);
+            return `<div class="form-row" style="margin:0">
+              <label class="form-label">${escHtml(key)}</label>
+              <input class="form-input" data-org-raw-field="${escAttr(
+                key,
+              )}" value="${escAttr(value)}" placeholder="${escAttr(key)}" />
+            </div>`;
+          })
+          .join("");
+      }
+
+      function getOrganizationVariableCandidates() {
+        const configured = Array.isArray(
+          DB.getSettings().organizationVisibleVarKeys,
+        );
+        const visible = new Set(
+          (DB.getSettings().organizationVisibleVarKeys || []).map((key) =>
+            normalizeFilterParamName(key, ""),
+          ),
+        );
+        return Object.keys(
+          DB.getOrganizations().reduce((acc, etab) => {
+            Object.entries(buildOrganizationTemplateVars(etab)).forEach(
+              ([key, value]) => {
+                if (!key.startsWith("org_")) acc[key] = value;
+              },
+            );
+            return acc;
+          }, {}),
+        )
+          .sort((a, b) => a.localeCompare(b))
+          .map((key) => ({
+            key,
+            checked: configured ? visible.has(key) : true,
+          }));
+      }
+
+      function saveOrganizationVariableSelection() {
+        const checked = [
+          ...document.querySelectorAll("[data-org-visible-var]:checked"),
+        ].map((input) => normalizeFilterParamName(input.value, ""));
+        DB.saveSettings({ organizationVisibleVarKeys: checked });
+        toast("Variables Organization mises à jour", "success");
+      }
+
       function renderOrganizationContent() {
         const etabs = DB.getOrganizations();
+        const variableCandidates = getOrganizationVariableCandidates();
         document.getElementById("organizationContent").innerHTML = `
-<div class="text-muted" style="margin-bottom:16px">Lecture seule depuis DSSGAEIAM..Organization.</div>
+<div class="card" style="margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap">
+    <div>
+      <div style="font-weight:700">Variables Organization visibles côté admin</div>
+      <div class="text-muted" style="margin-top:6px">Le superAdmin choisit ici quelles colonnes de <strong>Organization</strong> apparaissent dans le panneau des variables de l'admin.</div>
+    </div>
+    <button class="btn primary" onclick="saveOrganizationVariableSelection()">Enregistrer les variables</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:16px">
+    ${
+      variableCandidates.length
+        ? variableCandidates
+            .map(
+              (item) =>
+                `<label class="chip" style="display:flex;gap:8px;align-items:center;justify-content:flex-start;padding:10px 12px"><input type="checkbox" data-org-visible-var value="${escAttr(
+                  item.key,
+                )}" ${item.checked ? "checked" : ""}> <span>${escHtml(
+                  item.key,
+                )}</span></label>`,
+            )
+            .join("")
+        : '<div class="text-muted">Aucune colonne Organization exploitable détectée pour le moment.</div>'
+    }
+  </div>
+</div>
+<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+  <button class="btn primary" onclick="openOrganizationModal()">Ajouter une Organization</button>
+</div>
 <div class="card" style="padding:0">
   <table class="data-table">
-    <thead><tr><th>Organization</th><th>Ville</th><th>Adresse</th><th>Téléphone</th><th>Admin lié</th></tr></thead>
+    <thead><tr><th>Organization</th><th>Ville</th><th>Adresse</th><th>Téléphone</th><th>Admin lié</th><th>Actions</th></tr></thead>
     <tbody>${etabs
       .map((etab) => {
         const admin = DB.getAdmins().find(
           (a) => (a.organizationId || a.etablissementId) === etab.id,
         );
         return `<tr>
-        <td><strong>${etab.nom}</strong></td><td>${etab.ville || "—"}</td>
-        <td>${etab.adresse || "—"}</td><td>${etab.tel || "—"}</td>
-        <td>${admin ? `<span class="chip chip-green">${admin.nom}</span>` : '<span class="chip chip-amber">Non assigné</span>'}</td>
+        <td><strong>${escHtml(etab.nom || "—")}</strong></td><td>${escHtml(
+          etab.ville || "—",
+        )}</td>
+        <td>${escHtml(etab.adresse || "—")}</td><td>${escHtml(
+          etab.tel || "—",
+        )}</td>
+        <td>${admin ? `<span class="chip chip-green">${escHtml(admin.nom)}</span>` : '<span class="chip chip-amber">Non assigné</span>'}</td>
+        <td style="white-space:nowrap"><button class="btn sm" onclick="openOrganizationModal('${escAttr(
+          etab.id,
+        )}')">Modifier</button> <button class="btn sm danger" onclick="deleteOrganizationConfirm('${escAttr(
+          etab.id,
+        )}')">Supprimer</button></td>
       </tr>`;
       })
       .join("")}</tbody>
@@ -4408,6 +4554,8 @@
         document.getElementById("organizationAddress").value =
           etab?.adresse || "";
         document.getElementById("organizationPhone").value = etab?.tel || "";
+        document.getElementById("organizationEmail").value = etab?.email || "";
+        renderOrganizationExtraFields(etab);
         openModal("modalOrganization");
       }
       function saveOrganization() {
@@ -4419,12 +4567,19 @@
         const existing = editingOrganizationId
           ? DB.getOrganization(editingOrganizationId)
           : null;
+        const raw = { ...(existing?.raw || {}) };
+        document
+          .querySelectorAll("[data-org-raw-field]")
+          .forEach((input) => (raw[input.dataset.orgRawField] = input.value));
         DB.saveOrganization({
+          ...(existing || {}),
           id: editingOrganizationId || genId("org"),
           nom,
           ville: document.getElementById("organizationCity").value,
           adresse: document.getElementById("organizationAddress").value,
           tel: document.getElementById("organizationPhone").value,
+          email: document.getElementById("organizationEmail").value,
+          raw,
           graphicCharters: existing?.graphicCharters || [],
           createdAt: existing?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -4459,18 +4614,29 @@
       function renderAdminContent() {
         const admins = DB.getAdmins();
         document.getElementById("adminContent").innerHTML = `
-<div class="text-muted" style="margin-bottom:16px">Lecture seule depuis DSSGAEIAM..[User].</div>
+<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+  <button class="btn primary" onclick="openAdminModal()">Ajouter un admin</button>
+</div>
 <div class="card" style="padding:0">
   <table class="data-table">
-    <thead><tr><th>Nom</th><th>E-mail</th><th>Role</th><th>Organization</th><th>Profil</th></tr></thead>
+    <thead><tr><th>Nom</th><th>E-mail</th><th>Role</th><th>Organization</th><th>Profil</th><th>Actions</th></tr></thead>
     <tbody>${admins
       .map((a) => {
         const etab = DB.getOrganization(a.organizationId || a.etablissementId);
         return `<tr>
-        <td><strong>${a.nom}</strong></td><td>${a.email || "—"}</td>
-        <td><span class="chip chip-purple">${a.role || "admin"}</span></td>
-        <td>${etab ? `<span class="chip chip-blue">${etab.nom}</span>` : '<span class="chip chip-amber">—</span>'}</td>
-        <td>${a.profile || "—"}</td>
+        <td><strong>${escHtml(a.nom || "—")}</strong></td><td>${escHtml(
+          a.email || "—",
+        )}</td>
+        <td><span class="chip chip-purple">${escHtml(
+          a.role || "admin",
+        )}</span></td>
+        <td>${etab ? `<span class="chip chip-blue">${escHtml(etab.nom)}</span>` : '<span class="chip chip-amber">—</span>'}</td>
+        <td>${escHtml(a.profile || "—")}</td>
+        <td style="white-space:nowrap"><button class="btn sm" onclick="openAdminModal('${escAttr(
+          a.id,
+        )}')">Modifier</button> <button class="btn sm danger" onclick="deleteAdminConfirm('${escAttr(
+          a.id,
+        )}')">Supprimer</button></td>
       </tr>`;
       })
       .join("")}</tbody>
@@ -4486,6 +4652,8 @@
           : "Nouvel administrateur";
         document.getElementById("adminNom").value = admin?.nom || "";
         document.getElementById("adminEmail").value = admin?.email || "";
+        document.getElementById("adminProfile").value = admin?.profile || "";
+        document.getElementById("adminPassword").value = "";
         const sel = document.getElementById("adminOrganization");
         sel.innerHTML = '<option value="">— Choisir —</option>';
         DB.getOrganizations().forEach((e) => {
@@ -4507,10 +4675,24 @@
           return;
         }
         DB.saveAdmin({
+          ...(editingAdminId ? DB.getAdmin(editingAdminId) || {} : {}),
           id: editingAdminId || genId("admin"),
           nom,
           email: document.getElementById("adminEmail").value,
           organizationId,
+          role: "admin",
+          profile: document.getElementById("adminProfile").value,
+          raw: {
+            ...((editingAdminId ? DB.getAdmin(editingAdminId)?.raw : null) || {}),
+            Name: nom,
+            Email: document.getElementById("adminEmail").value,
+            Role: "admin",
+            Profil: document.getElementById("adminProfile").value,
+            IdOrganization: organizationId,
+            ...(document.getElementById("adminPassword").value
+              ? { PassWord: document.getElementById("adminPassword").value }
+              : {}),
+          },
         });
         closeModal("modalAdmin");
         renderAdminContent();

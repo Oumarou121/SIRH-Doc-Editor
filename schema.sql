@@ -79,6 +79,14 @@ END;
 IF NOT EXISTS (SELECT name FROM sys.indexes WHERE name = 'idx_admin_user_etab')
 CREATE INDEX idx_admin_user_etab ON [admin_user](etablissement_id);
 
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'app_setting')
+BEGIN
+CREATE TABLE [app_setting] (
+  [key] NVARCHAR(100) PRIMARY KEY,
+  value_json NVARCHAR(MAX) NOT NULL
+);
+END;
+
 IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'template')
 BEGIN
 CREATE TABLE [template] (

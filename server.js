@@ -248,6 +248,10 @@ function normalizeState(state) {
       ? next.templates.map((template) => normalizeTemplateRecord(template))
       : [],
     personnel: Array.isArray(next.personnel) ? clone(next.personnel) : [],
+    settings:
+      next.settings && typeof next.settings === "object"
+        ? clone(next.settings)
+        : {},
   };
 }
 
@@ -446,6 +450,112 @@ function serializeDateValue(value) {
   }
   const trimmed = String(value).trim();
   return trimmed || null;
+}
+
+function isTempClientId(value) {
+  return /^[a-z]+_/i.test(String(value || "").trim());
+}
+
+function getPreferredColumnName(columns = [], candidates = []) {
+  const lowerMap = new Map(
+    columns.map((column) => [String(column.name || "").toLowerCase(), column.name]),
+  );
+  for (const candidate of candidates) {
+    const match = lowerMap.get(String(candidate || "").toLowerCase());
+    if (match) return match;
+  }
+  return null;
+}
+
+async function getExternalTableColumns(databaseName, tableName) {
+  const pool = await getPool();
+  const databaseId = quoteSqlServerIdentifier(databaseName);
+  const result = await pool
+    .request()
+    .input("tableName", sql.NVarChar, tableName)
+    .query(
+      `SELECT c.name AS name,
+              ty.name AS type,
+              c.is_nullable AS is_nullable,
+              c.is_identity AS is_identity
+       FROM ${databaseId}.sys.columns c
+       INNER JOIN ${databaseId}.sys.tables t ON t.object_id = c.object_id
+       INNER JOIN ${databaseId}.sys.schemas s ON s.schema_id = t.schema_id
+       INNER JOIN ${databaseId}.sys.types ty ON ty.user_type_id = c.user_type_id
+       WHERE s.name = 'dbo' AND t.name = @tableName
+       ORDER BY c.column_id`,
+    );
+  return result.recordset.map((row) => ({
+    name: row.name,
+    type: row.type,
+    nullable: !!row.is_nullable,
+    identity: !!row.is_identity,
+  }));
+}
+
+async function loadAppSettings() {
+  if (!(await tableExists("app_setting"))) return {};
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .query(`SELECT [key], value_json FROM app_setting`);
+  return result.recordset.reduce((acc, row) => {
+    acc[row.key] = safeJson(row.value_json, null);
+    return acc;
+  }, {});
+}
+
+async function saveAppSettings(settings = {}, transaction = null) {
+  if (!(await tableExists("app_setting"))) return;
+  const pool = transaction ? null : await getPool();
+  const requestFactory = () =>
+    transaction ? buildRequest(transaction) : new sql.Request(pool);
+  const clearReq = requestFactory();
+  await clearReq.query("DELETE FROM app_setting");
+  for (const [key, value] of Object.entries(settings || {})) {
+    const req = requestFactory();
+    req.input("key", sql.NVarChar, String(key));
+    req.input("value_json", sql.NVarChar, JSON.stringify(value ?? null));
+    await req.query(
+      "INSERT INTO app_setting ([key], value_json) VALUES (@key, @value_json)",
+    );
+  }
+}
+
+function buildOrganizationDbRow(record = {}, columns = []) {
+  const raw = record?.raw && typeof record.raw === "object" ? clone(record.raw) : {};
+  const row = { ...raw };
+  const nameCol = getPreferredColumnName(columns, ["NameFr", "Name", "Nom"]);
+  const cityCol = getPreferredColumnName(columns, ["City", "Ville"]);
+  const addressCol = getPreferredColumnName(columns, ["Address", "Adresse"]);
+  const phoneCol = getPreferredColumnName(columns, ["Phone", "Telephone", "Tel"]);
+  const emailCol = getPreferredColumnName(columns, ["Email", "Mail"]);
+  if (nameCol && record.nom !== undefined) row[nameCol] = record.nom;
+  if (cityCol && record.ville !== undefined) row[cityCol] = record.ville;
+  if (addressCol && record.adresse !== undefined) row[addressCol] = record.adresse;
+  if (phoneCol && record.tel !== undefined) row[phoneCol] = record.tel;
+  if (emailCol && record.email !== undefined) row[emailCol] = record.email;
+  return row;
+}
+
+function buildAdminDbRow(record = {}, columns = [], mappedOrganizationId = null) {
+  const raw = record?.raw && typeof record.raw === "object" ? clone(record.raw) : {};
+  const row = { ...raw };
+  const nameCol = getPreferredColumnName(columns, ["Name", "Nom"]);
+  const emailCol = getPreferredColumnName(columns, ["Email", "Mail"]);
+  const passwordCol = getPreferredColumnName(columns, ["PassWord", "Password"]);
+  const orgCol = getPreferredColumnName(columns, ["IdOrganization", "OrganizationId"]);
+  const roleCol = getPreferredColumnName(columns, ["Role"]);
+  const profileCol = getPreferredColumnName(columns, ["Profil", "Profile"]);
+  if (nameCol && record.nom !== undefined) row[nameCol] = record.nom;
+  if (emailCol && record.email !== undefined) row[emailCol] = record.email;
+  if (orgCol && mappedOrganizationId !== undefined && mappedOrganizationId !== null)
+    row[orgCol] = mappedOrganizationId;
+  if (roleCol) row[roleCol] = "admin";
+  if (profileCol && record.profile !== undefined) row[profileCol] = record.profile;
+  if (passwordCol && (row[passwordCol] === undefined || row[passwordCol] === null))
+    row[passwordCol] = "";
+  return row;
 }
 
 function quoteSqlServerIdentifier(name) {
@@ -1182,11 +1292,13 @@ async function loadAdmins() {
     .filter((user) => user.role === "admin")
     .map((user) => ({
       id: user.id,
+      organizationId: user.organizationId,
       etablissementId: user.organizationId,
       nom: user.name,
       email: user.email,
       role: user.role,
       profile: user.profile,
+      raw: clone(user.raw || {}),
     }));
 }
 
@@ -1327,6 +1439,7 @@ async function loadState(currentUser = null) {
     families: await loadFamilies(),
     templates: await loadTemplates(),
     personnel: await loadPersonnel(),
+    settings: await loadAppSettings(),
   });
   if (!currentUser || currentUser.role === "supAdmin") return state;
   const orgId = currentUser.organizationId || null;
@@ -1472,11 +1585,183 @@ async function getTableColumns(tableName) {
   }));
 }
 
+async function syncOrganizations(stateOrganizations = [], transaction) {
+  const columns = await getExternalTableColumns(AUTH_DB_NAME, "Organization");
+  if (!columns.length) return new Map();
+  const idColumn = getPreferredColumnName(columns, ["Id", "OrganizationId", "IdOrganization"]);
+  if (!idColumn) return new Map();
+
+  const existingRows = await buildRequest(transaction).query(
+    `SELECT * FROM [${AUTH_DB_NAME}].[dbo].[Organization]`,
+  );
+  const existingById = new Map(
+    existingRows.recordset.map((row) => [String(row[idColumn]), row]),
+  );
+  const identityColumn = columns.find((column) => column.name === idColumn)?.identity;
+  const idMap = new Map();
+  const incomingIds = new Set();
+
+  for (const org of stateOrganizations) {
+    const sourceId = String(org?.id || "").trim();
+    const existingId =
+      sourceId && !isTempClientId(sourceId) && existingById.has(sourceId)
+        ? sourceId
+        : null;
+    const row = buildOrganizationDbRow(
+      existingId ? { ...org, raw: existingById.get(existingId) } : org,
+      columns,
+    );
+    const writableColumns = columns.filter(
+      (column) => !column.identity && row[column.name] !== undefined,
+    );
+
+    if (existingId) {
+      incomingIds.add(existingId);
+      idMap.set(sourceId || existingId, existingId);
+      if (writableColumns.length) {
+        const req = buildRequest(transaction);
+        req.input("pk", existingId);
+        writableColumns.forEach((column, index) => {
+          req.input(`c${index}`, row[column.name] ?? null);
+        });
+        await req.query(
+          `UPDATE [${AUTH_DB_NAME}].[dbo].[Organization]
+           SET ${writableColumns
+             .map((column, index) => `${quoteSqlServerIdentifier(column.name)} = @c${index}`)
+             .join(", ")}
+           WHERE ${quoteSqlServerIdentifier(idColumn)} = @pk`,
+        );
+      }
+      continue;
+    }
+
+    const insertColumns = columns.filter(
+      (column) =>
+        (!column.identity || !identityColumn) && row[column.name] !== undefined,
+    );
+    if (!insertColumns.length) continue;
+    const req = buildRequest(transaction);
+    insertColumns.forEach((column, index) => {
+      req.input(`c${index}`, row[column.name] ?? null);
+    });
+    const insertSql = `INSERT INTO [${AUTH_DB_NAME}].[dbo].[Organization] (${insertColumns
+      .map((column) => quoteSqlServerIdentifier(column.name))
+      .join(", ")})
+      OUTPUT INSERTED.${quoteSqlServerIdentifier(idColumn)} AS inserted_id
+      VALUES (${insertColumns.map((_, index) => `@c${index}`).join(", ")})`;
+    const insertResult = await req.query(insertSql);
+    const insertedId = String(insertResult.recordset?.[0]?.inserted_id ?? "");
+    if (insertedId) {
+      incomingIds.add(insertedId);
+      idMap.set(sourceId || insertedId, insertedId);
+    }
+  }
+
+  for (const existingId of existingById.keys()) {
+    if (incomingIds.has(existingId)) continue;
+    const req = buildRequest(transaction);
+    req.input("pk", existingId);
+    await req.query(
+      `DELETE FROM [${AUTH_DB_NAME}].[dbo].[Organization]
+       WHERE ${quoteSqlServerIdentifier(idColumn)} = @pk`,
+    );
+  }
+
+  return idMap;
+}
+
+async function syncAdmins(stateAdmins = [], transaction, organizationIdMap = new Map()) {
+  const columns = await getExternalTableColumns(AUTH_DB_NAME, "User");
+  if (!columns.length) return;
+  const idColumn = getPreferredColumnName(columns, ["Id"]);
+  if (!idColumn) return;
+  const roleColumn = getPreferredColumnName(columns, ["Role"]);
+  const existingReq = buildRequest(transaction);
+  const existingResult = roleColumn
+    ? await existingReq.query(
+        `SELECT * FROM [${AUTH_DB_NAME}].[dbo].[User]
+         WHERE ${quoteSqlServerIdentifier(roleColumn)} = 'admin'`,
+      )
+    : await existingReq.query(`SELECT * FROM [${AUTH_DB_NAME}].[dbo].[User]`);
+  const existingById = new Map(
+    existingResult.recordset.map((row) => [String(row[idColumn]), row]),
+  );
+  const identityColumn = columns.find((column) => column.name === idColumn)?.identity;
+  const incomingIds = new Set();
+
+  for (const admin of stateAdmins) {
+    const sourceId = String(admin?.id || "").trim();
+    const existingId =
+      sourceId && !isTempClientId(sourceId) && existingById.has(sourceId)
+        ? sourceId
+        : null;
+    const resolvedOrganizationId =
+      organizationIdMap.get(String(admin?.organizationId || admin?.etablissementId || "")) ||
+      String(admin?.organizationId || admin?.etablissementId || "").trim() ||
+      null;
+    const row = buildAdminDbRow(
+      existingId ? { ...admin, raw: existingById.get(existingId) } : admin,
+      columns,
+      resolvedOrganizationId,
+    );
+    const writableColumns = columns.filter(
+      (column) => !column.identity && row[column.name] !== undefined,
+    );
+
+    if (existingId) {
+      incomingIds.add(existingId);
+      if (writableColumns.length) {
+        const req = buildRequest(transaction);
+        req.input("pk", existingId);
+        writableColumns.forEach((column, index) => {
+          req.input(`c${index}`, row[column.name] ?? null);
+        });
+        await req.query(
+          `UPDATE [${AUTH_DB_NAME}].[dbo].[User]
+           SET ${writableColumns
+             .map((column, index) => `${quoteSqlServerIdentifier(column.name)} = @c${index}`)
+             .join(", ")}
+           WHERE ${quoteSqlServerIdentifier(idColumn)} = @pk`,
+        );
+      }
+      continue;
+    }
+
+    const insertColumns = columns.filter(
+      (column) =>
+        (!column.identity || !identityColumn) && row[column.name] !== undefined,
+    );
+    if (!insertColumns.length) continue;
+    const req = buildRequest(transaction);
+    insertColumns.forEach((column, index) => {
+      req.input(`c${index}`, row[column.name] ?? null);
+    });
+    const insertSql = `INSERT INTO [${AUTH_DB_NAME}].[dbo].[User] (${insertColumns
+      .map((column) => quoteSqlServerIdentifier(column.name))
+      .join(", ")})
+      OUTPUT INSERTED.${quoteSqlServerIdentifier(idColumn)} AS inserted_id
+      VALUES (${insertColumns.map((_, index) => `@c${index}`).join(", ")})`;
+    const insertResult = await req.query(insertSql);
+    const insertedId = String(insertResult.recordset?.[0]?.inserted_id ?? "");
+    if (insertedId) incomingIds.add(insertedId);
+  }
+
+  for (const existingId of existingById.keys()) {
+    if (incomingIds.has(existingId)) continue;
+    const req = buildRequest(transaction);
+    req.input("pk", existingId);
+    await req.query(
+      `DELETE FROM [${AUTH_DB_NAME}].[dbo].[User]
+       WHERE ${quoteSqlServerIdentifier(idColumn)} = @pk`,
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // State replacement (full replace in a transaction)
 // ---------------------------------------------------------------------------
 
-async function replaceState(state) {
+async function replaceState(state, currentUser = null) {
   const normalized = normalizeState(state);
 
   if (!(await tableExists("family")) || !(await tableExists("template"))) {
@@ -1521,6 +1806,15 @@ async function replaceState(state) {
     await transaction.begin();
 
     const req = () => buildRequest(transaction);
+
+    if (currentUser?.role === "supAdmin") {
+      await saveAppSettings(normalized.settings || {}, transaction);
+      const organizationIdMap = await syncOrganizations(
+        normalized.etablissements,
+        transaction,
+      );
+      await syncAdmins(normalized.admins, transaction, organizationIdMap);
+    }
 
     if (hasGraphicCharterTable)
       await req().query("DELETE FROM graphic_charter");
@@ -1823,7 +2117,7 @@ async function handleApi(req, res, url) {
       sendJson(res, 400, { ok: false, error: "state is required" });
       return true;
     }
-    await replaceState(body.state);
+    await replaceState(body.state, session.user);
     sendJson(res, 200, { ok: true });
     return true;
   }

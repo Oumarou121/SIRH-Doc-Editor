@@ -5039,13 +5039,23 @@
             counts[getVarBucket(v.type)] += 1;
           });
         });
+        const etab = DB.getOrganization(getActiveOrganizationId());
+        const orgVars = Object.entries(
+          buildVisibleOrganizationTemplateVars(etab),
+        ).filter(([key]) => !key.startsWith("org_"));
+        const hasSimpleContent = counts.simple > 0 || orgVars.length > 0;
 
         if (!panelTypes.some((item) => item.id === currentVarPanelType)) {
           currentVarPanelType = "simple";
         }
-        if (!counts[currentVarPanelType]) {
+        if (
+          (currentVarPanelType === "simple" && !hasSimpleContent) ||
+          (currentVarPanelType !== "simple" && !counts[currentVarPanelType])
+        ) {
           currentVarPanelType =
-            panelTypes.find((item) => counts[item.id] > 0)?.id || "simple";
+            panelTypes.find((item) =>
+              item.id === "simple" ? hasSimpleContent : counts[item.id] > 0,
+            )?.id || "simple";
         }
 
         panelTypes.forEach((item) => {
@@ -5060,10 +5070,6 @@
 
         let rendered = 0;
         if (currentVarPanelType === "simple") {
-          const etab = DB.getOrganization(getActiveOrganizationId());
-          const orgVars = Object.entries(
-            buildOrganizationTemplateVars(etab),
-          ).filter(([key]) => !key.startsWith("org_"));
           if (orgVars.length) {
             const sec = document.createElement("section");
             sec.className = "vars-panel-group";
