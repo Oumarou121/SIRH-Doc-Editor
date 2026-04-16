@@ -3199,11 +3199,23 @@ class PagePaginator {
     wrapper.appendChild(clone);
     this._applyMeasureContentStyles(wrapper);
     tempMeasure.appendChild(wrapper);
-    return Math.max(
+    const measuredTarget = wrapper.firstElementChild || clone;
+    const computed = window.getComputedStyle(measuredTarget);
+    const marginTop = parseFloat(computed.marginTop) || 0;
+    const marginBottom = parseFloat(computed.marginBottom) || 0;
+    const visualHeight = Math.max(
       wrapper.offsetHeight,
       wrapper.scrollHeight,
       clone.offsetHeight,
       clone.scrollHeight,
+      Math.ceil(wrapper.getBoundingClientRect().height),
+      Math.ceil(clone.getBoundingClientRect().height),
+    );
+    return Math.max(
+      visualHeight + marginTop + marginBottom,
+      Math.ceil(measuredTarget.getBoundingClientRect().height) +
+        marginTop +
+        marginBottom,
     );
   }
 
