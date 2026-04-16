@@ -1457,6 +1457,15 @@ function wrapHtmlWithDirection(html, dir = "ltr") {
   return `<div dir="${safeDir}" style="direction:${safeDir};text-align:${align}">${String(html || "")}</div>`;
 }
 
+function getSectionDirectionAttrs(tpl, section = "body") {
+  const safeDir = getTemplateSectionDirection(tpl, section);
+  const align = safeDir === "rtl" ? "right" : "left";
+  return {
+    dir: safeDir,
+    style: `direction:${safeDir};text-align:${align};`,
+  };
+}
+
 function normalizeTemplateSectionDisplay(value) {
   const mode = String(value || "all").toLowerCase();
   if (mode === "first") return "first";
@@ -2859,6 +2868,15 @@ class PagePaginator {
     this.marginRightMm = opts.marginRight || 25;
     this.headerTopMm = opts.headerTop || 5;
     this.footerBottomMm = opts.footerBottom || 5;
+    this.headerDirection = normalizeTemplateDirection(
+      opts.headerDirection,
+      "ltr",
+    );
+    this.bodyDirection = normalizeTemplateDirection(opts.bodyDirection, "ltr");
+    this.footerDirection = normalizeTemplateDirection(
+      opts.footerDirection,
+      "ltr",
+    );
 
     // Conversion mm → px (96 DPI standard)
     this.mmToPx = (mm) => (mm * 96) / 25.4;
@@ -2879,6 +2897,14 @@ class PagePaginator {
     this.footerHeight = 0;
     this.headerHeight = 0;
     this.footerHeight = 0;
+  }
+
+  _applyDirectionStyles(el, dir = "ltr") {
+    if (!el) return;
+    const safeDir = normalizeTemplateDirection(dir, "ltr");
+    el.style.direction = safeDir;
+    el.style.textAlign = safeDir === "rtl" ? "right" : "left";
+    el.setAttribute("dir", safeDir);
   }
 
   _applyMeasureStyles(el) {
@@ -3008,6 +3034,7 @@ class PagePaginator {
       const hdrEl = document.createElement("div");
       hdrEl.innerHTML = headerHtml;
       hdrEl.style.padding = `${this.headerTopMm}mm ${this.marginRightMm}mm 3mm ${this.marginLeftMm}mm`;
+      this._applyDirectionStyles(hdrEl, this.headerDirection);
       this._applyMeasureContentStyles(hdrEl);
       tempContainer.appendChild(hdrEl);
       this.headerHeight = hdrEl.offsetHeight;
@@ -3019,6 +3046,7 @@ class PagePaginator {
       const ftrEl = document.createElement("div");
       ftrEl.innerHTML = footerHtml;
       ftrEl.style.padding = `3mm ${this.marginRightMm}mm ${this.footerBottomMm}mm ${this.marginLeftMm}mm`;
+      this._applyDirectionStyles(ftrEl, this.footerDirection);
       this._applyMeasureContentStyles(ftrEl);
       tempContainer.appendChild(ftrEl);
       this.footerHeight = ftrEl.offsetHeight;
@@ -3167,6 +3195,7 @@ class PagePaginator {
     tempMeasure.innerHTML = "";
     const wrapper = document.createElement("div");
     wrapper.style.display = "flow-root";
+    this._applyDirectionStyles(wrapper, this.bodyDirection);
     wrapper.appendChild(clone);
     this._applyMeasureContentStyles(wrapper);
     tempMeasure.appendChild(wrapper);
@@ -3259,6 +3288,9 @@ function paginateWithVariablesBlue(tpl, person) {
     marginRight: margins.mr,
     headerTop: distances.headerTop,
     footerBottom: distances.footerBottom,
+    headerDirection: getTemplateSectionDirection(tpl, "header"),
+    bodyDirection: getTemplateSectionDirection(tpl, "body"),
+    footerDirection: getTemplateSectionDirection(tpl, "footer"),
     orientation,
     theme: charter,
   });
@@ -3292,6 +3324,9 @@ function previewDocument(tpl, person) {
   const pageWidth = orientation === "landscape" ? "297mm" : "210mm";
   const pageHeight = orientation === "landscape" ? "210mm" : "297mm";
   const paddings = getPageSectionPaddings(margins, distances);
+  const headerDir = getSectionDirectionAttrs(tpl, "header");
+  const bodyDir = getSectionDirectionAttrs(tpl, "body");
+  const footerDir = getSectionDirectionAttrs(tpl, "footer");
 
   const hdrRaw = tpl.hasHeader ? resolveVars(tpl.header || "", context) : "";
   const bRaw = resolveVars(tpl.body || "", context);
@@ -3305,6 +3340,9 @@ function previewDocument(tpl, person) {
     marginRight: margins.mr,
     headerTop: distances.headerTop,
     footerBottom: distances.footerBottom,
+    headerDirection: headerDir.dir,
+    bodyDirection: bodyDir.dir,
+    footerDirection: footerDir.dir,
     orientation,
     theme: charter,
   });
@@ -3599,9 +3637,9 @@ function previewDocument(tpl, person) {
       </div>
       <div class="preview-container">
         <div class="preview-page">
-          ${page.header ? `<div class="preview-page-header">${page.header}</div>` : ""}
-          <div class="preview-page-body${noHdr}${noFtr}">${page.content}</div>
-          ${page.footer ? `<div class="preview-page-footer">${page.footer}</div>` : ""}
+          ${page.header ? `<div class="preview-page-header" dir="${headerDir.dir}" style="${headerDir.style}">${page.header}</div>` : ""}
+          <div class="preview-page-body${noHdr}${noFtr}" dir="${bodyDir.dir}" style="${bodyDir.style}">${page.content}</div>
+          ${page.footer ? `<div class="preview-page-footer" dir="${footerDir.dir}" style="${footerDir.style}">${page.footer}</div>` : ""}
         </div>
       </div>
     `;
@@ -3654,6 +3692,9 @@ function printDocPaginated(tpl, person, pages = null) {
   const pageWidth = orientation === "landscape" ? "297mm" : "210mm";
   const pageHeight = orientation === "landscape" ? "210mm" : "297mm";
   const paddings = getPageSectionPaddings(margins, distances);
+  const headerDir = getSectionDirectionAttrs(tpl, "header");
+  const bodyDir = getSectionDirectionAttrs(tpl, "body");
+  const footerDir = getSectionDirectionAttrs(tpl, "footer");
 
   // Utiliser les pages déjà paginées ou les générer
   let pagesToPrint = pages;
@@ -3673,6 +3714,9 @@ function printDocPaginated(tpl, person, pages = null) {
       marginRight: margins.mr,
       headerTop: distances.headerTop,
       footerBottom: distances.footerBottom,
+      headerDirection: headerDir.dir,
+      bodyDirection: bodyDir.dir,
+      footerDirection: footerDir.dir,
       orientation,
       theme: charter,
     });
@@ -3851,9 +3895,9 @@ function printDocPaginated(tpl, person, pages = null) {
 
       return `
         <div class="sirh-print-page" style="${getDocumentThemeStyleAttr(tpl)}">
-          ${page.header ? `<div class="sirh-print-header" style="${getDocumentThemeStyleAttr(tpl)}">${page.header}</div>` : ""}
-          <div class="sirh-print-body${noHdr}${noFtr}" style="${getDocumentThemeStyleAttr(tpl)}">${page.content}</div>
-          ${page.footer ? `<div class="sirh-print-footer" style="${getDocumentThemeStyleAttr(tpl)}">${page.footer}</div>` : ""}
+          ${page.header ? `<div class="sirh-print-header" dir="${headerDir.dir}" style="${getDocumentThemeStyleAttr(tpl)};${headerDir.style}">${page.header}</div>` : ""}
+          <div class="sirh-print-body${noHdr}${noFtr}" dir="${bodyDir.dir}" style="${getDocumentThemeStyleAttr(tpl)};${bodyDir.style}">${page.content}</div>
+          ${page.footer ? `<div class="sirh-print-footer" dir="${footerDir.dir}" style="${getDocumentThemeStyleAttr(tpl)};${footerDir.style}">${page.footer}</div>` : ""}
         </div>
       `;
     })

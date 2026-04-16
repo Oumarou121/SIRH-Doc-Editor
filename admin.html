@@ -8302,18 +8302,21 @@
           const pageEl = document.createElement("div");
           pageEl.className = "preview-page";
           pageEl.style.cssText += ";" + getDocumentThemeStyleAttr(liveTpl);
+          const headerDir = getSectionDirectionAttrs(liveTpl, "header");
+          const bodyDir = getSectionDirectionAttrs(liveTpl, "body");
+          const footerDir = getSectionDirectionAttrs(liveTpl, "footer");
           const noHeaderClass = !page.header ? " no-header" : "";
           const noFooterClass = !page.footer ? " no-footer" : "";
           let pageHtml = "";
 
           if (result.hasHeader && page.header) {
-            pageHtml += `<div class="prev-header">${page.header}</div>`;
+            pageHtml += `<div class="prev-header" dir="${headerDir.dir}" style="${headerDir.style}">${page.header}</div>`;
           }
 
-          pageHtml += `<div class="prev-body${noHeaderClass}${noFooterClass}">${page.content}</div>`;
+          pageHtml += `<div class="prev-body${noHeaderClass}${noFooterClass}" dir="${bodyDir.dir}" style="${bodyDir.style}">${page.content}</div>`;
 
           if (result.hasFooter && page.footer) {
-            pageHtml += `<div class="prev-footer">${page.footer}</div>`;
+            pageHtml += `<div class="prev-footer" dir="${footerDir.dir}" style="${footerDir.style}">${page.footer}</div>`;
           }
 
           pageEl.innerHTML = pageHtml;
@@ -8411,18 +8414,21 @@
           const pageEl = document.createElement("div");
           pageEl.className = "preview-page";
           pageEl.style.cssText += ";" + getDocumentThemeStyleAttr(liveTpl);
+          const headerDir = getSectionDirectionAttrs(liveTpl, "header");
+          const bodyDir = getSectionDirectionAttrs(liveTpl, "body");
+          const footerDir = getSectionDirectionAttrs(liveTpl, "footer");
           const noHeaderClass = !page.header ? " no-header" : "";
           const noFooterClass = !page.footer ? " no-footer" : "";
           let pageHtml = "";
 
           if (result.hasHeader && page.header) {
-            pageHtml += `<div class="prev-header">${page.header}</div>`;
+            pageHtml += `<div class="prev-header" dir="${headerDir.dir}" style="${headerDir.style}">${page.header}</div>`;
           }
 
-          pageHtml += `<div class="prev-body${noHeaderClass}${noFooterClass}">${page.content}</div>`;
+          pageHtml += `<div class="prev-body${noHeaderClass}${noFooterClass}" dir="${bodyDir.dir}" style="${bodyDir.style}">${page.content}</div>`;
 
           if (result.hasFooter && page.footer) {
-            pageHtml += `<div class="prev-footer">${page.footer}</div>`;
+            pageHtml += `<div class="prev-footer" dir="${footerDir.dir}" style="${footerDir.style}">${page.footer}</div>`;
           }
 
           pageEl.innerHTML = pageHtml;
