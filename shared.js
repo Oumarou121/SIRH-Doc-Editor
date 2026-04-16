@@ -2241,6 +2241,11 @@ function _resolveObjectTables(html, person, preview) {
     const columnKeySet = new Set(
       (columns || []).map((col) => String(col?.key || "")).filter(Boolean),
     );
+    items.forEach((obj) => {
+      Object.keys(obj || {}).forEach((key) => {
+        if (key) columnKeySet.add(String(key));
+      });
+    });
     const cellColumnKeys = cells.map((cell, idx) => {
       if (idx === markerIdx) return columns[0]?.key || null;
       const scalarMatches = Array.from(
