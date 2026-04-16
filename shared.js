@@ -2234,26 +2234,33 @@ function _resolveObjectTables(html, person, preview) {
       continue;
     }
 
-    // Une ligne par objet — les valeurs sont réparties selon
-    // l'ordre des colonnes dans la définition du schéma.
-    // Si le nombre de cellules ≠ nombre de colonnes, on utilise
-    // markerIdx comme cellule principale et on ignore le reste.
+    // Une ligne par objet — on privilégie les placeholders déjà présents
+    // dans chaque cellule (ex: {{code}}, {{libelle}}) pour préserver la
+    // structure si l'utilisateur ajoute une colonne manuellement.
+    // Les colonnes supplémentaires sans placeholder restent vides.
+    const columnKeySet = new Set(
+      (columns || []).map((col) => String(col?.key || "")).filter(Boolean),
+    );
+    const cellColumnKeys = cells.map((cell, idx) => {
+      if (idx === markerIdx) return columns[0]?.key || null;
+      const scalarMatches = Array.from(
+        String(cell.content || "").matchAll(/\{\{(\w+)\}\}/g),
+      );
+      const matched = scalarMatches
+        .map((match) => String(match[1] || ""))
+        .find((key) => columnKeySet.has(key));
+      return matched || null;
+    });
+
     let rows = "";
     items.forEach((obj) => {
       rows += `<tr${trAttrs}>`;
       cells.forEach((c, i) => {
         let content;
-        if (columns.length === cells.length) {
-          // Correspondance 1-1 cellule ↔ colonne
-          const col = columns[i];
+        const mappedKey = cellColumnKeys[i];
+        if (mappedKey) {
           const raw =
-            col && obj[col.key] !== undefined ? String(obj[col.key]) : "";
-          content = preview
-            ? `<span class="var-resolved">${_esc(raw)}</span>`
-            : _esc(raw);
-        } else if (i === markerIdx) {
-          // Fallback : on met toutes les valeurs dans la cellule marquée
-          const raw = Object.values(obj).join(" | ");
+            obj && obj[mappedKey] !== undefined ? String(obj[mappedKey]) : "";
           content = preview
             ? `<span class="var-resolved">${_esc(raw)}</span>`
             : _esc(raw);
