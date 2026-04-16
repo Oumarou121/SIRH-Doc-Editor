@@ -3246,22 +3246,9 @@ function paginateWithVariablesBlue(tpl, person) {
   const context = buildDocumentContext(tpl, person);
 
   // Résoudre les variables (avec classes .var-resolved pour le bleu)
-  const hdrHtml = tpl.hasHeader
-    ? wrapHtmlWithDirection(
-        resolveVars(tpl.header || "", context),
-        getTemplateSectionDirection(tpl, "header"),
-      )
-    : "";
-  const bHtml = wrapHtmlWithDirection(
-    resolveVars(tpl.body || "", context),
-    getTemplateSectionDirection(tpl, "body"),
-  );
-  const ftrHtml = tpl.hasFooter
-    ? wrapHtmlWithDirection(
-        resolveVars(tpl.footer || "", context),
-        getTemplateSectionDirection(tpl, "footer"),
-      )
-    : "";
+  const hdrHtml = tpl.hasHeader ? resolveVars(tpl.header || "", context) : "";
+  const bHtml = resolveVars(tpl.body || "", context);
+  const ftrHtml = tpl.hasFooter ? resolveVars(tpl.footer || "", context) : "";
 
   // Paginer le contenu
   const orientation = getTemplateOrientation(tpl);
@@ -3306,22 +3293,9 @@ function previewDocument(tpl, person) {
   const pageHeight = orientation === "landscape" ? "210mm" : "297mm";
   const paddings = getPageSectionPaddings(margins, distances);
 
-  const hdrRaw = tpl.hasHeader
-    ? wrapHtmlWithDirection(
-        resolveVars(tpl.header || "", context),
-        getTemplateSectionDirection(tpl, "header"),
-      )
-    : "";
-  const bRaw = wrapHtmlWithDirection(
-    resolveVars(tpl.body || "", context),
-    getTemplateSectionDirection(tpl, "body"),
-  );
-  const ftrRaw = tpl.hasFooter
-    ? wrapHtmlWithDirection(
-        resolveVars(tpl.footer || "", context),
-        getTemplateSectionDirection(tpl, "footer"),
-      )
-    : "";
+  const hdrRaw = tpl.hasHeader ? resolveVars(tpl.header || "", context) : "";
+  const bRaw = resolveVars(tpl.body || "", context);
+  const ftrRaw = tpl.hasFooter ? resolveVars(tpl.footer || "", context) : "";
 
   // Paginer le contenu
   const paginator = new PagePaginator({
@@ -3685,20 +3659,11 @@ function printDocPaginated(tpl, person, pages = null) {
   let pagesToPrint = pages;
   if (!pages) {
     const hdrRaw = tpl.hasHeader
-      ? wrapHtmlWithDirection(
-          resolveVarsRaw(tpl.header || "", context),
-          getTemplateSectionDirection(tpl, "header"),
-        )
+      ? resolveVarsRaw(tpl.header || "", context)
       : "";
-    const bRaw = wrapHtmlWithDirection(
-      resolveVarsRaw(tpl.body || "", context),
-      getTemplateSectionDirection(tpl, "body"),
-    );
+    const bRaw = resolveVarsRaw(tpl.body || "", context);
     const ftrRaw = tpl.hasFooter
-      ? wrapHtmlWithDirection(
-          resolveVarsRaw(tpl.footer || "", context),
-          getTemplateSectionDirection(tpl, "footer"),
-        )
+      ? resolveVarsRaw(tpl.footer || "", context)
       : "";
 
     const paginator = new PagePaginator({
