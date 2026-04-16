@@ -3,6 +3,7 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "debug": "^4.3.3",
     "mssql": "^12.2.1"
   }
 }
