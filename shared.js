@@ -1818,6 +1818,45 @@ function getAcademicYearLabel(date = new Date()) {
   return month >= 9 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
 }
 
+function padDatePart(value) {
+  return String(value).padStart(2, "0");
+}
+
+function buildTodayTemplateVars(date = new Date(), locale = "fr-FR") {
+  const safeDate =
+    date instanceof Date && !Number.isNaN(date) ? date : new Date();
+  const day = padDatePart(safeDate.getDate());
+  const month = padDatePart(safeDate.getMonth() + 1);
+  const year = safeDate.getFullYear();
+  const longFormatter = new Intl.DateTimeFormat(locale, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const fullFormatter = new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const shortFormatter = new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  return {
+    date_du_jour: fullFormatter.format(safeDate),
+    date_du_jour_longue: longFormatter.format(safeDate),
+    date_du_jour_complete: longFormatter.format(safeDate),
+    date_du_jour_courte: shortFormatter.format(safeDate),
+    date_du_jour_compacte: `${day}/${month}/${year}`,
+    date_du_jour_iso: `${year}-${month}-${day}`,
+    jour_actuel: day,
+    mois_actuel: month,
+    annee_actuelle: String(year),
+  };
+}
+
 function buildOrganizationTemplateVars(etab) {
   const raw = etab?.raw && typeof etab.raw === "object" ? etab.raw : {};
   const out = {};
@@ -1866,6 +1905,7 @@ function buildDocumentContext(tpl, person) {
   return {
     ...base,
     ...buildOrganizationTemplateVars(etab),
+    ...buildTodayTemplateVars(new Date(), "fr-FR"),
     nom_etab: officialName,
     adresse_etab: etab?.adresse || base.adresse_etab || "",
     tel_etab: etab?.tel || base.tel_etab || "",
