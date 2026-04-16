@@ -100,6 +100,7 @@ CREATE TABLE [template] (
   has_footer BIT NOT NULL DEFAULT 0,
   orientation NVARCHAR(16) NULL,
   filter_profile_json NVARCHAR(MAX) NULL,
+  section_directions_json NVARCHAR(MAX) NULL,
   page_margins_json NVARCHAR(MAX) NULL,
   header_html NVARCHAR(MAX) NULL,
   body_html NVARCHAR(MAX) NULL,
@@ -110,6 +111,11 @@ END;
 IF COL_LENGTH('template', 'filter_profile_json') IS NULL
 BEGIN
   ALTER TABLE [template] ADD filter_profile_json NVARCHAR(MAX) NULL;
+END;
+
+IF COL_LENGTH('template', 'section_directions_json') IS NULL
+BEGIN
+  ALTER TABLE [template] ADD section_directions_json NVARCHAR(MAX) NULL;
 END;
 
 IF NOT EXISTS (SELECT name FROM sys.indexes WHERE name = 'idx_template_family')

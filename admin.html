@@ -4807,6 +4807,7 @@
       let headerEnabled = false,
         footerEnabled = false;
       let currentAdminSection = "body";
+      let currentSectionDirections = normalizeTemplateSectionDirections({});
       let currentVarPanelType = "simple";
       let varsPanelVisible = false;
       let _activeResizeImg = null,
@@ -5627,6 +5628,60 @@
         if (ed && html) ed.commands.setContent(html, false);
       }
 
+      function getCurrentSectionKey() {
+        return currentAdminSection === "header" ||
+          currentAdminSection === "footer"
+          ? currentAdminSection
+          : "body";
+      }
+
+      function applyDirectionToEditor(editor, dir) {
+        if (!editor?.view?.dom) return;
+        const safeDir = normalizeTemplateDirection(dir, "ltr");
+        const align = safeDir === "rtl" ? "right" : "left";
+        editor.view.dom.style.direction = safeDir;
+        editor.view.dom.style.textAlign = align;
+        editor.view.dom.setAttribute("dir", safeDir);
+      }
+
+      function applyCurrentSectionDirectionUI(
+        section = getCurrentSectionKey(),
+      ) {
+        const safeSection =
+          section === "header" || section === "footer" ? section : "body";
+        const dir = currentSectionDirections?.[safeSection] || "ltr";
+        document
+          .getElementById("tb-ltr")
+          ?.classList.toggle("on", dir === "ltr");
+        document
+          .getElementById("tb-rtl")
+          ?.classList.toggle("on", dir === "rtl");
+        const sbDir = document.getElementById("sbDir");
+        if (sbDir) sbDir.textContent = dir.toUpperCase();
+      }
+
+      function syncEditorsDirectionFromTemplate(tpl) {
+        currentSectionDirections = normalizeTemplateSectionDirections(
+          tpl?.sectionDirections || {},
+        );
+        applyDirectionToEditor(editorHeader, currentSectionDirections.header);
+        applyDirectionToEditor(editorBody, currentSectionDirections.body);
+        applyDirectionToEditor(editorFooter, currentSectionDirections.footer);
+        applyCurrentSectionDirectionUI(getCurrentSectionKey());
+      }
+
+      function persistCurrentSectionDirections() {
+        if (!curTplId) return;
+        const tpl = DB.getTemplate(curTplId);
+        if (!tpl) return;
+        tpl.sectionDirections = normalizeTemplateSectionDirections(
+          currentSectionDirections,
+        );
+        tpl.updatedAt = new Date().toISOString();
+        DB.saveTemplate(tpl);
+        renderTplList(curFamId);
+      }
+
       function normalizePageMargins(pageMargins) {
         const src = pageMargins || {};
         const toNum = (value, fallback) => {
@@ -6182,16 +6237,21 @@
         if (ed) ed.chain().focus().setTextAlign(dir).run();
       };
       window.applyDir = function (dir) {
-        document.getElementById("tb-ltr").classList.toggle("on", dir === "ltr");
-        document.getElementById("tb-rtl").classList.toggle("on", dir === "rtl");
-        document.getElementById("sbDir").textContent = dir.toUpperCase();
+        const safeDir = normalizeTemplateDirection(dir, "ltr");
+        const section = getCurrentSectionKey();
+        currentSectionDirections = {
+          ...normalizeTemplateSectionDirections(currentSectionDirections),
+          [section]: safeDir,
+        };
+        applyCurrentSectionDirectionUI(section);
         const ed = activeEditor || editorBody;
-        if (ed) {
-          const root = ed.view.dom;
-          root.style.direction = dir;
-          root.style.textAlign = dir === "rtl" ? "right" : "left";
-        }
-        toast(dir === "rtl" ? "Mode RTL activé" : "Mode LTR activé", "info");
+        applyDirectionToEditor(ed, safeDir);
+        persistCurrentSectionDirections();
+        onEditorChange();
+        toast(
+          safeDir === "rtl" ? "Mode RTL activé" : "Mode LTR activé",
+          "info",
+        );
       };
 
       window.doInsertTable = function () {
@@ -7467,6 +7527,7 @@
         if (editorBody && tpl.body) setEditorHTML(editorBody, tpl.body);
         if (editorHeader && tpl.header) setEditorHTML(editorHeader, tpl.header);
         if (editorFooter && tpl.footer) setEditorHTML(editorFooter, tpl.footer);
+        syncEditorsDirectionFromTemplate(tpl);
         const resolvedMargins = getTemplatePageMargins(tpl);
         applyPageMarginsToUI(resolvedMargins);
         applyHeaderFooterDistancesToUI(getTemplateHeaderFooterDistances(tpl));
@@ -7966,6 +8027,9 @@
         tpl.pageMargins = getCurrentPageMargins();
         tpl.headerFooterDistances = getCurrentHeaderFooterDistances();
         tpl.orientation = getCurrentPageOrientation();
+        tpl.sectionDirections = normalizeTemplateSectionDirections(
+          currentSectionDirections,
+        );
         tpl.updatedAt = new Date().toISOString();
         DB.saveTemplate(tpl);
         renderTplList(curFamId);
@@ -8005,7 +8069,9 @@
             ed.commands.focus();
           } catch (_) {}
           activeEditor = ed;
+          applyDirectionToEditor(ed, currentSectionDirections?.[sec] || "ltr");
         }
+        applyCurrentSectionDirectionUI(sec);
         updateGraphicCharterSectionActions();
       };
 
@@ -8196,6 +8262,9 @@
           orientation: getCurrentPageOrientation(),
           pageMargins: getCurrentPageMargins(),
           headerFooterDistances: getCurrentHeaderFooterDistances(),
+          sectionDirections: normalizeTemplateSectionDirections(
+            currentSectionDirections,
+          ),
         };
       }
       window.refreshPrev = function () {

@@ -229,6 +229,29 @@ function normalizeTemplateRecord(record = {}) {
   next.graphicCharterId = next.graphicCharterId
     ? String(next.graphicCharterId)
     : null;
+  next.sectionDirections =
+    next.sectionDirections && typeof next.sectionDirections === "object"
+      ? {
+          header:
+            String(next.sectionDirections.header || "ltr")
+              .toLowerCase()
+              .trim() === "rtl"
+              ? "rtl"
+              : "ltr",
+          body:
+            String(next.sectionDirections.body || "ltr")
+              .toLowerCase()
+              .trim() === "rtl"
+              ? "rtl"
+              : "ltr",
+          footer:
+            String(next.sectionDirections.footer || "ltr")
+              .toLowerCase()
+              .trim() === "rtl"
+              ? "rtl"
+              : "ltr",
+        }
+      : { header: "ltr", body: "ltr", footer: "ltr" };
   return next;
 }
 
@@ -1361,11 +1384,16 @@ async function loadTemplates() {
     "template",
     "filter_profile_json",
   );
+  const hasSectionDirections = await tableHasColumn(
+    "template",
+    "section_directions_json",
+  );
   const pool = await getPool();
   const result = await pool.request().query(
     `SELECT id, family_id, etablissement_id, nom, updated_at, has_header, has_footer,
             ${hasGraphicCharterId ? "graphic_charter_id," : "NULL AS graphic_charter_id,"}
             ${hasFilterProfile ? "filter_profile_json," : "'[]' AS filter_profile_json,"}
+            ${hasSectionDirections ? "section_directions_json," : "'{}' AS section_directions_json,"}
             ${hasOrientation ? "orientation," : "'portrait' AS orientation,"}
             page_margins_json, header_html, body_html, footer_html
      FROM template
@@ -1383,6 +1411,7 @@ async function loadTemplates() {
       ? String(row.graphic_charter_id)
       : null,
     filterProfile: safeJson(row.filter_profile_json, []),
+    sectionDirections: safeJson(row.section_directions_json, {}),
     orientation: row.orientation || "portrait",
     pageMargins: safeJson(row.page_margins_json, {}),
     header: row.header_html || "",
@@ -1889,6 +1918,10 @@ async function replaceState(state, currentUser = null) {
     "template",
     "filter_profile_json",
   );
+  const hasSectionDirections = await tableHasColumn(
+    "template",
+    "section_directions_json",
+  );
 
   const pool = await getPool();
   const transaction = new sql.Transaction(pool);
@@ -2034,6 +2067,15 @@ async function replaceState(state, currentUser = null) {
         );
         extraCols.push("filter_profile_json");
         extraVals.push("@filter_profile_json");
+      }
+      if (hasSectionDirections) {
+        r.input(
+          "section_directions_json",
+          sql.NVarChar(sql.MAX),
+          JSON.stringify(item.sectionDirections || {}),
+        );
+        extraCols.push("section_directions_json");
+        extraVals.push("@section_directions_json");
       }
 
       const baseCols = [
