@@ -5230,8 +5230,9 @@
               chip.className = "vchip";
               chip.style.cssText =
                 "background:#0f766e12;color:#0f766e;border-color:#0f766e33";
-              chip.textContent = key;
-              chip.title = `{{${key}}} — colonne Organization`;
+              const displayLabel = getOrganizationVariableDisplayLabel(key, key);
+              chip.textContent = displayLabel;
+              chip.title = `{{${key}}} — ${displayLabel}`;
               chip.onclick = () => window.insertVar(key);
               chips.appendChild(chip);
             });

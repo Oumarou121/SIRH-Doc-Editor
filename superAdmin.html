@@ -4670,6 +4670,10 @@
           ${typeTag}${sqlTag}${customSqlTag}${cols}
           <button class="var-pill-del" onclick="deleteVar('${famId}',${ci},${vi})">×</button>
         </div>`;
+        const labelEditor = `<label class="form-label" style="font-size:10px;color:var(--text2);margin:0">
+          Nom affiché
+          <input class="form-input" value="${escAttr(v.label || v.tech || "")}" onchange="updateVarLabel('${famId}',${ci},${vi},this.value)" style="display:block;width:100%;margin-top:4px" placeholder="Nom affiché">
+        </label>`;
         if (!isObj) {
           const bindingEditor = renderSimpleVarBindingEditor(
             v,
@@ -4686,11 +4690,12 @@
             couleur,
           );
           return bindingEditor || listLookupEditor
-            ? `<div style="display:flex;flex-direction:column;gap:6px;max-width:100%">${pillMarkup}${bindingEditor}${listLookupEditor}</div>`
-            : pillMarkup;
+            ? `<div style="display:flex;flex-direction:column;gap:6px;max-width:100%">${pillMarkup}${labelEditor}${bindingEditor}${listLookupEditor}</div>`
+            : `<div style="display:flex;flex-direction:column;gap:6px;max-width:100%">${pillMarkup}${labelEditor}</div>`;
         }
         return `<div style="display:flex;flex-direction:column;gap:6px;max-width:100%;padding:8px 10px;border:1px dashed ${couleur}35;border-radius:12px;background:${couleur}08">
           ${pillMarkup}
+          ${labelEditor}
           ${renderListObjectSqlEditor(v, vi, ci, famId, couleur)}
           <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${couleur};opacity:.9">Colonnes et affichage</div>
           ${renderVarColumnEditor(v, vi, ci, famId, couleur)}
@@ -4904,6 +4909,15 @@
         renderClassesContainer(famId);
         regenerateFamilySql(famId, true);
       }
+
+      window.updateVarLabel = function (famId, ci, vi, value) {
+        const fam = DB.getFamily(famId);
+        const varDef = fam?.classes?.[ci]?.vars?.[vi];
+        if (!fam || !varDef) return;
+        varDef.label = String(value || "").trim() || varDef.tech;
+        DB.saveFamily(fam);
+        renderClassesContainer(famId);
+      };
 
       window.moveVarColumn = function (famId, ci, vi, colIndex, direction) {
         const fam = DB.getFamily(famId);
@@ -5260,6 +5274,8 @@
       }
 
       function getOrganizationVariableCandidates() {
+        const labelSettings =
+          DB.getSettings().organizationVariableLabels || {};
         const configured = Array.isArray(
           DB.getSettings().organizationVisibleVarKeys,
         );
@@ -5281,6 +5297,9 @@
           .sort((a, b) => a.localeCompare(b))
           .map((key) => ({
             key,
+            label:
+              String(labelSettings[key] || "").trim() ||
+              humanizeSchemaName(key),
             checked: configured ? visible.has(key) : true,
           }));
       }
@@ -5289,7 +5308,18 @@
         const checked = [
           ...document.querySelectorAll("[data-org-visible-var]:checked"),
         ].map((input) => normalizeFilterParamName(input.value, ""));
-        DB.saveSettings({ organizationVisibleVarKeys: checked });
+        const labels = Object.fromEntries(
+          [...document.querySelectorAll("[data-org-visible-var-label]")]
+            .map((input) => [
+              normalizeFilterParamName(input.dataset.orgVisibleVarLabel, ""),
+              String(input.value || "").trim(),
+            ])
+            .filter(([key]) => key),
+        );
+        DB.saveSettings({
+          organizationVisibleVarKeys: checked,
+          organizationVariableLabels: labels,
+        });
         toast("Variables Organization mises à jour", "success");
       }
 
@@ -5311,11 +5341,21 @@
         ? variableCandidates
             .map(
               (item) =>
-                `<label class="chip" style="display:flex;gap:8px;align-items:center;justify-content:flex-start;padding:10px 12px"><input type="checkbox" data-org-visible-var value="${escAttr(
-                  item.key,
-                )}" ${item.checked ? "checked" : ""}> <span>${escHtml(
-                  item.key,
-                )}</span></label>`,
+                `<label class="chip" style="display:flex;gap:8px;align-items:flex-start;justify-content:flex-start;padding:10px 12px">
+                  <input type="checkbox" data-org-visible-var value="${escAttr(
+                    item.key,
+                  )}" ${item.checked ? "checked" : ""}>
+                  <span style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1">
+                    <span style="font-size:11px;color:var(--text2)">${escHtml(
+                      item.key,
+                    )}</span>
+                    <input class="form-input" data-org-visible-var-label="${escAttr(
+                      item.key,
+                    )}" value="${escAttr(
+                      item.label,
+                    )}" placeholder="Nom affiché" style="width:100%">
+                  </span>
+                </label>`,
             )
             .join("")
         : '<div class="text-muted">Aucune colonne Organization exploitable détectée pour le moment.</div>'

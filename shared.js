@@ -126,6 +126,15 @@ function normalizeFilterParamName(value, fallback = "filtre") {
   return normalized || fallback;
 }
 
+function humanizeTechnicalName(value) {
+  return String(value || "")
+    .replace(/^org_/, "")
+    .replace(/[_\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function normalizeFilterOption(option, fallbackValue = "") {
   if (option === undefined || option === null) return null;
   if (typeof option !== "object" || Array.isArray(option)) {
@@ -1888,7 +1897,19 @@ function getOrganizationVariableSettings() {
         .map((value) => normalizeFilterParamName(value, ""))
         .filter(Boolean)
     : [];
-  return { visibleKeys, configured };
+  const labels =
+    settings?.organizationVariableLabels &&
+    typeof settings.organizationVariableLabels === "object"
+      ? cloneData(settings.organizationVariableLabels)
+      : {};
+  return { visibleKeys, configured, labels };
+}
+
+function getOrganizationVariableDisplayLabel(key, fallback = "") {
+  const normalizedKey = normalizeFilterParamName(key, "");
+  const settings = getOrganizationVariableSettings();
+  const configuredLabel = String(settings.labels?.[normalizedKey] || "").trim();
+  return configuredLabel || fallback || humanizeTechnicalName(normalizedKey);
 }
 
 function buildVisibleOrganizationTemplateVars(etab) {
