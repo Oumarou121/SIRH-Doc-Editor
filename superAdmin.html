@@ -5274,8 +5274,7 @@
       }
 
       function getOrganizationVariableCandidates() {
-        const labelSettings =
-          DB.getSettings().organizationVariableLabels || {};
+        const labelSettings = DB.getSettings().organizationVariableLabels || {};
         const configured = Array.isArray(
           DB.getSettings().organizationVisibleVarKeys,
         );
@@ -5362,9 +5361,6 @@
     }
   </div>
 </div>
-<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-  <button class="btn primary" onclick="openOrganizationModal()">Ajouter une Organization</button>
-</div>
 <div class="card" style="padding:0">
   <table class="data-table">
     <thead><tr><th>Organization</th><th>Ville</th><th>Adresse</th><th>Téléphone</th><th>Admin lié</th><th>Actions</th></tr></thead>
@@ -5381,11 +5377,6 @@
           etab.tel || "—",
         )}</td>
         <td>${admin ? `<span class="chip chip-green">${escHtml(admin.nom)}</span>` : '<span class="chip chip-amber">Non assigné</span>'}</td>
-        <td style="white-space:nowrap"><button class="btn sm" onclick="openOrganizationModal('${escAttr(
-          etab.id,
-        )}')">Modifier</button> <button class="btn sm danger" onclick="deleteOrganizationConfirm('${escAttr(
-          etab.id,
-        )}')">Supprimer</button></td>
       </tr>`;
       })
       .join("")}</tbody>
@@ -5464,9 +5455,6 @@
       function renderAdminContent() {
         const admins = DB.getAdmins();
         document.getElementById("adminContent").innerHTML = `
-<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-  <button class="btn primary" onclick="openAdminModal()">Ajouter un admin</button>
-</div>
 <div class="card" style="padding:0">
   <table class="data-table">
     <thead><tr><th>Nom</th><th>E-mail</th><th>Role</th><th>Organization</th><th>Profil</th><th>Actions</th></tr></thead>
@@ -5482,11 +5470,6 @@
         )}</span></td>
         <td>${etab ? `<span class="chip chip-blue">${escHtml(etab.nom)}</span>` : '<span class="chip chip-amber">—</span>'}</td>
         <td>${escHtml(a.profile || "—")}</td>
-        <td style="white-space:nowrap"><button class="btn sm" onclick="openAdminModal('${escAttr(
-          a.id,
-        )}')">Modifier</button> <button class="btn sm danger" onclick="deleteAdminConfirm('${escAttr(
-          a.id,
-        )}')">Supprimer</button></td>
       </tr>`;
       })
       .join("")}</tbody>

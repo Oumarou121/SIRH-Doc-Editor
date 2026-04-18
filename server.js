@@ -1272,29 +1272,79 @@ async function loadUsers() {
   }));
 }
 
+// async function authenticateUser(identifier, password) {
+//   const pool = await getPool();
+//   const request = pool.request();
+//   request.input("identifier", sql.NVarChar, identifier);
+//   request.input("password", sql.NVarChar, password);
+//   const result = await request.query(
+//     `SELECT TOP (1) *
+//      FROM [${AUTH_DB_NAME}].[dbo].[User]
+//      WHERE ([Name] = @identifier OR [Email] = @identifier)
+//        AND [PassWord] = @password`,
+//   );
+//   const row = result.recordset[0];
+//   if (!row) return null;
+//   return {
+//     id: String(row.Id),
+//     name: row.Name || "",
+//     email: row.Email || "",
+//     organizationId:
+//       row.IdOrganization === undefined || row.IdOrganization === null
+//         ? null
+//         : String(row.IdOrganization),
+//     role: normalizeRole(row.Role),
+//     profile: row.Profil || "",
+//   };
+// }
+
+const users = [
+  {
+    id: "1",
+    name: "Super Admin",
+    email: "super.admin@gmail.com",
+    password: "azerty",
+    role: "supAdmin",
+    organizationId: 2,
+    profile: "",
+  },
+  {
+    id: "2",
+    name: "Admin",
+    email: "admin@gmail.com",
+    password: "azerty",
+    role: "admin",
+    organizationId: 2,
+    profile: "",
+  },
+  {
+    id: "3",
+    name: "User",
+    email: "user@gmail.com",
+    password: "azerty",
+    role: "user",
+    organizationId: 2,
+    profile: "",
+  },
+];
+
 async function authenticateUser(identifier, password) {
-  const pool = await getPool();
-  const request = pool.request();
-  request.input("identifier", sql.NVarChar, identifier);
-  request.input("password", sql.NVarChar, password);
-  const result = await request.query(
-    `SELECT TOP (1) *
-     FROM [${AUTH_DB_NAME}].[dbo].[User]
-     WHERE ([Name] = @identifier OR [Email] = @identifier)
-       AND [PassWord] = @password`,
+  // recherche par email ou name
+  const user = users.find(
+    (u) =>
+      (u.email === identifier || u.name === identifier) &&
+      u.password === password,
   );
-  const row = result.recordset[0];
-  if (!row) return null;
+
+  if (!user) return null;
+
   return {
-    id: String(row.Id),
-    name: row.Name || "",
-    email: row.Email || "",
-    organizationId:
-      row.IdOrganization === undefined || row.IdOrganization === null
-        ? null
-        : String(row.IdOrganization),
-    role: normalizeRole(row.Role),
-    profile: row.Profil || "",
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    organizationId: user.organizationId,
+    role: user.role,
+    profile: user.profile,
   };
 }
 
